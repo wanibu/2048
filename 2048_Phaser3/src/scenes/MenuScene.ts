@@ -46,14 +46,24 @@ export class MenuScene extends Phaser.Scene {
       img.setAngle(8);
       // 深度10，在背景(-1000)之上，UI(20)之下
       img.setDepth(10);
-      // 只有第0帧(睁眼)可见，其余3帧创建但隐藏
-      img.setVisible(i === 0);
+      // DEBUG: 4帧全部可见，加红色边框看偏移
+      img.setVisible(true);
+      const border = this.add.rectangle(headX, headY, displayW, displayH);
+      border.setStrokeStyle(2, [0xff0000, 0x00ff00, 0x0000ff, 0xffff00][i]);
+      border.setAngle(8);
+      border.setDepth(11);
+      border.setFillStyle(0x000000, 0); // 透明填充
       // 存到数组，后面切帧用索引访问
       this.headImages.push(img);
     }
 
     // 启动眨眼定时器循环
     this.startBlinkLoop();
+
+    // BGM从菜单页就开始播放，循环不停止，音量40%
+    if (!this.sound.get('bgm')) {
+      this.sound.play('bgm', { loop: true, volume: 0.4 });
+    }
 
     // "2048"标题：白色+棕色描边+阴影，setOrigin(0.5)以自身中心对齐坐标点
     this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, '2048', {
@@ -89,24 +99,17 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  // 眨眼循环：帧0(睁眼)停留2-3秒，然后快速眨眼
+  // DEBUG: 每帧停留3秒，轮流展示，方便检查偏移
   private startBlinkLoop(): void {
-    this.showFrame(0);
-    // 随机停留2000-3500ms模拟自然眨眼节奏
-    const openDuration = Phaser.Math.Between(2000, 3500);
-    this.time.delayedCall(openDuration, () => this.doBlink());
-  }
-
-  // 执行一次眨眼：1→2→3→2→1→0，每帧80ms
-  private doBlink(): void {
-    const blinkFrames = [1, 2, 3, 2, 1, 0];
-    const blinkDelay = 80; // 每帧80ms，快速闭眼再睁开
-
-    blinkFrames.forEach((frame, i) => {
-      this.time.delayedCall(i * blinkDelay, () => this.showFrame(frame));
+    let frame = 0;
+    this.showFrame(frame);
+    this.time.addEvent({
+      delay: 3000,
+      loop: true,
+      callback: () => {
+        frame = (frame + 1) % 4;
+        this.showFrame(frame);
+      },
     });
-
-    // 眨眼结束后重新开始循环
-    this.time.delayedCall(blinkFrames.length * blinkDelay, () => this.startBlinkLoop());
   }
 }

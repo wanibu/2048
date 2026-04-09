@@ -69,7 +69,7 @@ export const COL_HIGHLIGHT_REGION: SpriteRegion = { x: 846, y: 0, w: 132, h: 816
 // Order: 1-1(open eyes) → 1-2 → 1-3 → 1-4(blink) → back to 1-1
 export const GIANT_HEAD_FRAMES: { texture: string; region: SpriteRegion }[] = [
   { texture: 'shared0', region: { x: 1621, y: 1027, w: 421, h: 610 } }, // 1-1: eyes open
-  { texture: 'shared1', region: { x: 0,    y: 0,    w: 421, h: 610 } }, // 1-2: closing
-  { texture: 'shared1', region: { x: 426,  y: 0,    w: 421, h: 610 } }, // 1-3: almost closed
-  { texture: 'shared0', region: { x: 0,    y: 1027, w: 421, h: 610 } }, // 1-4: closed
+  { texture: 'shared1', region: { x: 2.8,    y: 2.7,    w: 421, h: 610 } }, // 1-2: closing
+  { texture: 'shared1', region: { x: 425.8,  y: 2.6,    w: 421, h: 610 } }, // 1-3: almost closed
+  { texture: 'shared0', region: { x: 2.5,    y: 1028.5, w: 421, h: 610 } }, // 1-4: closed
 ];

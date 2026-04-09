@@ -32,8 +32,6 @@ export class GameScene extends Phaser.Scene {
     this.sling = new Sling(this, this.grid);
     this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
 
-    // BGM — loop forever, low volume
-    this.sound.play('bgm', { loop: true, volume: 0.4 });
   }
 
   private handleShoot(shape: Shape, col: number): void {
