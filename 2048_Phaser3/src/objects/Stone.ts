@@ -1,17 +1,17 @@
 import Phaser from 'phaser';
-import { CELL_SIZE, STONE_REGION } from '../config';
+import { STONE_REGION } from '../config';
 
 export class Stone extends Phaser.GameObjects.Container {
   public gridRow: number;
   public gridCol: number;
   private sprite: Phaser.GameObjects.Image;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, row: number, col: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, row: number, col: number, cellSize: number) {
     super(scene, x, y);
     this.gridRow = row;
     this.gridCol = col;
 
-    const size = CELL_SIZE - 8;
+    const size = cellSize;
 
     const frameName = 'stone_0';
     if (!scene.textures.get('border-full').has(frameName)) {
@@ -22,8 +22,7 @@ export class Stone extends Phaser.GameObjects.Container {
     }
 
     this.sprite = scene.add.image(0, 0, 'border-full', frameName);
-    const scale = size / Math.max(STONE_REGION.w, STONE_REGION.h);
-    this.sprite.setScale(scale);
+    this.sprite.setDisplaySize(size, size);
     this.add(this.sprite);
 
     scene.add.existing(this);

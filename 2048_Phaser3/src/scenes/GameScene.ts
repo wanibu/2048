@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, CELL_SIZE, GRID_OFFSET_X } from '../config';
+import { GRID_ROWS, calcLayout } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -11,47 +11,44 @@ export class GameScene extends Phaser.Scene {
   private sling!: Sling;
   private mergeSystem!: MergeSystem;
   private hud!: HUD;
-  private activeShapes: Shape[] = [];
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
   create(): void {
-    // Background — scaled to cover fullscreen, lowest depth
-    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'playbackground');
-    const scaleX = GAME_WIDTH / bg.width;
-    const scaleY = GAME_HEIGHT / bg.height;
-    bg.setScale(Math.max(scaleX, scaleY));
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const layout = calcLayout(w, h);
+
+    // 背景铺满
+    const bg = this.add.image(w / 2, h / 2, 'playbackground');
+    bg.setScale(Math.max(w / bg.width, h / bg.height));
     bg.setDepth(-1000);
 
-    this.hud = new HUD(this);
-    this.grid = new Grid(this);
+    this.hud = new HUD(this, w);
+    this.grid = new Grid(this, layout);
     this.mergeSystem = new MergeSystem(this.grid);
 
-    this.sling = new Sling(this, this.grid);
+    this.sling = new Sling(this, this.grid, layout);
     this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
-
   }
 
   private handleShoot(shape: Shape, col: number): void {
-    // Immediately calculate where this shape will land and tween it there
     const targetRow = this.findFarthestEmptyRow(col);
 
     if (targetRow === -1) {
-      // Column full — destroy and respawn
       shape.destroy();
       this.sling.respawn();
       return;
     }
 
-    // Stop physics — use tween instead for smooth movement
     const body = shape.getBody();
     body.setVelocity(0, 0);
 
     const targetPos = this.grid.cellToPixel(targetRow, col);
     const distance = Math.abs(shape.y - targetPos.y);
-    const duration = Math.max(150, distance * 0.4); // speed based on distance
+    const duration = Math.max(150, distance * 0.4);
 
     this.tweens.add({
       targets: shape,
@@ -65,7 +62,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private findFarthestEmptyRow(col: number): number {
-    // Block shoots upward — lands at the topmost (farthest) empty row
     for (let r = 0; r < GRID_ROWS; r++) {
       if (this.grid.data[r][col] === 0) {
         return r;
@@ -89,9 +85,7 @@ export class GameScene extends Phaser.Scene {
       ease: 'Quad.easeOut',
     });
 
-    // Collision sound on landing
     this.sound.play('slingshot2', { volume: 0.3 });
-
     this.time.delayedCall(150, () => this.checkMerges());
   }
 
@@ -121,7 +115,6 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // Check chain merges
     this.time.delayedCall(400, () => this.checkMerges());
   }
 }

@@ -1,21 +1,21 @@
 import Phaser from 'phaser';
-import { CELL_SIZE, SHAPE_REGIONS } from '../config';
+import { SHAPE_REGIONS } from '../config';
 
 export class Border extends Phaser.GameObjects.Container {
   public value: number;
   public gridRow: number;
   public gridCol: number;
   private sprite: Phaser.GameObjects.Image;
+  private cellSize: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, value: number, row: number, col: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, value: number, row: number, col: number, cellSize: number) {
     super(scene, x, y);
     this.value = value;
     this.gridRow = row;
     this.gridCol = col;
+    this.cellSize = cellSize;
 
-    const size = CELL_SIZE;
-
-    // Reuse the same cropped frames from shape spritesheet
+    const size = cellSize;
     const frameName = `shape_${value}`;
     const region = SHAPE_REGIONS[value];
     if (region) {
@@ -37,7 +37,7 @@ export class Border extends Phaser.GameObjects.Container {
   setValue(newValue: number): void {
     this.value = newValue;
     const region = SHAPE_REGIONS[newValue];
-    const size = CELL_SIZE;
+    const size = this.cellSize;
     if (region) {
       const frameName = `shape_${newValue}`;
       if (!this.scene.textures.get('shape-full').has(frameName)) {

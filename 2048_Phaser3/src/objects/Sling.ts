@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import {
-  GRID_COLS, CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_ROWS,
-  SPAWN_NUMBER_MAX, SHAPE_VALUES,
-  SLING_REGIONS, COL_HIGHLIGHT_REGION,
+  GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES,
+  SLING_REGIONS, COL_HIGHLIGHT_REGION, GRID_ROWS,
+  LayoutConfig,
 } from '../config';
 import { Grid } from './Grid';
 import { Shape } from './Shape';
@@ -10,54 +10,54 @@ import { Shape } from './Shape';
 export class Sling {
   private scene: Phaser.Scene;
   private grid: Grid;
+  private layout: LayoutConfig;
   private currentShape: Shape | null = null;
   private selectedCol: number = 2;
   private shootAvailable: boolean = true;
   private onShootCallback: ((shape: Shape, col: number) => void) | null = null;
 
-  // Sling sprite (4 states)
   private slingSprite: Phaser.GameObjects.Image;
-  private slingState: number = 0; // 0-3
-
-  // Column highlight
+  private slingState: number = 0;
   private colHighlight: Phaser.GameObjects.Image;
-
-  // Drag state
   private isDragging: boolean = false;
-  private dragStartTime: number = 0;
 
-  // Sling position
-  private slingX: number;
   private slingY: number;
 
-  constructor(scene: Phaser.Scene, grid: Grid) {
+  constructor(scene: Phaser.Scene, grid: Grid, layout: LayoutConfig) {
     this.scene = scene;
     this.grid = grid;
+    this.layout = layout;
 
-    this.slingX = grid.colToX(this.selectedCol);
-    this.slingY = grid.getBottomY() + 80;
+    this.slingY = grid.getBottomY() + layout.cellSize * 0.8;
 
     // Register texture frames for sling states
     const tex = scene.textures.get('shared1');
     for (let i = 0; i < SLING_REGIONS.length; i++) {
       const r = SLING_REGIONS[i];
-      tex.add(`sling_${i}`, 0, r.x, r.y, r.w, r.h);
+      if (!tex.has(`sling_${i}`)) {
+        tex.add(`sling_${i}`, 0, r.x, r.y, r.w, r.h);
+      }
     }
 
     // Register column highlight frame
     const chr = COL_HIGHLIGHT_REGION;
-    tex.add('col_highlight', 0, chr.x, chr.y, chr.w, chr.h);
+    if (!tex.has('col_highlight')) {
+      tex.add('col_highlight', 0, chr.x, chr.y, chr.w, chr.h);
+    }
 
-    // Column highlight sprite (hidden by default)
-    this.colHighlight = scene.add.image(this.slingX, GRID_OFFSET_Y + (GRID_ROWS * CELL_SIZE) / 2, 'shared1', 'col_highlight');
-    this.colHighlight.setDisplaySize(CELL_SIZE, GRID_ROWS * CELL_SIZE + 150);
+    // Column highlight
+    const hlX = grid.colToX(this.selectedCol);
+    this.colHighlight = scene.add.image(hlX, layout.gridOffsetY + (GRID_ROWS * layout.cellSize) / 2, 'shared1', 'col_highlight');
+    this.colHighlight.setDisplaySize(layout.cellSize, GRID_ROWS * layout.cellSize + layout.cellSize * 1.5);
     this.colHighlight.setAlpha(0.4);
     this.colHighlight.setDepth(5);
     this.colHighlight.setVisible(false);
 
     // Sling sprite
-    this.slingSprite = scene.add.image(this.slingX, this.slingY, 'shared1', 'sling_0');
-    this.slingSprite.setDisplaySize(130, 82);
+    const slingW = layout.cellSize * 1.4;
+    const slingH = slingW * (163 / 258);
+    this.slingSprite = scene.add.image(hlX, this.slingY, 'shared1', 'sling_0');
+    this.slingSprite.setDisplaySize(slingW, slingH);
     this.slingSprite.setDepth(50);
 
     this.spawnNextShape();
@@ -68,14 +68,13 @@ export class Sling {
     const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
     const value = spawnPool[Phaser.Math.Between(0, spawnPool.length - 1)];
     const x = this.grid.colToX(this.selectedCol);
-    this.currentShape = new Shape(this.scene, x, this.slingY - 50, value);
+    this.currentShape = new Shape(this.scene, x, this.slingY - this.layout.cellSize * 0.6, value, this.layout.cellSize);
     this.currentShape.setDepth(40);
     this.shootAvailable = true;
     this.setSlingState(0);
   }
 
   private setupInput(): void {
-    // Keyboard controls
     if (this.scene.input.keyboard) {
       this.scene.input.keyboard.on('keydown-LEFT', () => {
         if (!this.isDragging) this.moveColumn(-1);
@@ -87,21 +86,12 @@ export class Sling {
       this.scene.input.keyboard.on('keydown-UP', () => this.shoot());
     }
 
-    // Touch/mouse: press and drag
     this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this.shootAvailable || !this.currentShape) return;
-
       this.isDragging = true;
-      this.dragStartTime = this.scene.time.now;
       this.colHighlight.setVisible(true);
-
-      // Play slingshot pull sound
       this.scene.sound.play('slingshot1', { volume: 0.3 });
-
-      // Snap to nearest column
       this.updateColumnFromPointer(pointer.x);
-
-      // Start pull animation
       this.setSlingState(1);
       this.startPullAnimation();
     });
@@ -120,7 +110,7 @@ export class Sling {
   }
 
   private updateColumnFromPointer(px: number): void {
-    const col = Math.round((px - GRID_OFFSET_X - CELL_SIZE / 2) / CELL_SIZE);
+    const col = Math.round((px - this.layout.gridOffsetX - this.layout.cellSize / 2) / this.layout.cellSize);
     const clamped = Phaser.Math.Clamp(col, 0, GRID_COLS - 1);
     if (clamped !== this.selectedCol) {
       this.selectedCol = clamped;
@@ -129,18 +119,14 @@ export class Sling {
   }
 
   private startPullAnimation(): void {
-    // Animate through sling states 1→2→3 over time
     const pullSteps = [
       { delay: 0, state: 1 },
       { delay: 150, state: 2 },
       { delay: 300, state: 3 },
     ];
-
     for (const step of pullSteps) {
       this.scene.time.delayedCall(step.delay, () => {
-        if (this.isDragging) {
-          this.setSlingState(step.state);
-        }
+        if (this.isDragging) this.setSlingState(step.state);
       });
     }
   }
@@ -167,14 +153,10 @@ export class Sling {
   private shoot(): void {
     if (!this.shootAvailable || !this.currentShape) return;
     this.shootAvailable = false;
-
     const shape = this.currentShape;
     this.currentShape = null;
-
-    // Reset sling to relaxed
     this.setSlingState(0);
     this.colHighlight.setVisible(false);
-
     if (this.onShootCallback) {
       this.onShootCallback(shape, this.selectedCol);
     }
@@ -186,9 +168,5 @@ export class Sling {
 
   respawn(): void {
     this.scene.time.delayedCall(300, () => this.spawnNextShape());
-  }
-
-  getSelectedCol(): number {
-    return this.selectedCol;
   }
 }

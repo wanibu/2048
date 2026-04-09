@@ -11,18 +11,20 @@ export class MenuScene extends Phaser.Scene {
 
   // Phaser Scene 生命周期：资源加载完后自动调用，创建游戏对象
   create(): void {
-    // 在画布中心放置背景图，'playbackground' 是 BootScene 里加载的 key
-    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'playbackground');
-    // 取水平/垂直缩放比的较大值，保证背景完全覆盖画布（不留黑边）
-    bg.setScale(Math.max(GAME_WIDTH / bg.width, GAME_HEIGHT / bg.height));
-    // depth越小越在底层，-1000确保背景在所有元素下面
+    // 获取实际可见区域的宽高（ENVELOP模式下可能大于640×960）
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+
+    // 背景铺满实际可见区域
+    const bg = this.add.image(w / 2, h / 2, 'playbackground');
+    bg.setScale(Math.max(w / bg.width, h / bg.height));
     bg.setDepth(-1000);
 
-    // 头像位置和显示尺寸，4帧共用完全相同的值
-    const headX = GAME_WIDTH / 2; // 320，水平居中
-    const headY = 200;             // 离顶部200px
-    const displayW = 280;          // 显示宽度
-    const displayH = 400;          // 显示高度
+    // 所有元素用相对比例定位
+    const headX = w / 2;
+    const headY = h * 0.22;           // 顶部22%处
+    const displayW = w * 0.45;        // 宽度占画面45%
+    const displayH = displayW * 1.43; // 保持421:610比例
 
     // 遍历4帧（i = 0,1,2,3），每帧创建一个独立Image
     for (let i = 0; i < GIANT_HEAD_FRAMES.length; i++) {
@@ -46,13 +48,8 @@ export class MenuScene extends Phaser.Scene {
       img.setAngle(8);
       // 深度10，在背景(-1000)之上，UI(20)之下
       img.setDepth(10);
-      // DEBUG: 4帧全部可见，加红色边框看偏移
-      img.setVisible(true);
-      const border = this.add.rectangle(headX, headY, displayW, displayH);
-      border.setStrokeStyle(2, [0xff0000, 0x00ff00, 0x0000ff, 0xffff00][i]);
-      border.setAngle(8);
-      border.setDepth(11);
-      border.setFillStyle(0x000000, 0); // 透明填充
+      // 只有第0帧(睁眼)可见，其余3帧创建但隐藏
+      img.setVisible(i === 0);
       // 存到数组，后面切帧用索引访问
       this.headImages.push(img);
     }
@@ -65,17 +62,17 @@ export class MenuScene extends Phaser.Scene {
       this.sound.play('bgm', { loop: true, volume: 0.4 });
     }
 
-    // "2048"标题：白色+棕色描边+阴影，setOrigin(0.5)以自身中心对齐坐标点
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, '2048', {
-      fontSize: '72px',
+    // "2048"标题：相对定位在画面50%高度
+    this.add.text(w / 2, h * 0.50, '2048', {
+      fontSize: `${Math.round(w * 0.11)}px`,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#553300',
       strokeThickness: 8,
     }).setOrigin(0.5).setDepth(20);
 
-    // PLAY按钮：绿色背景，setInteractive让它可点击，useHandCursor鼠标变手型
-    const playBtn = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 100, '▶ PLAY', {
+    // PLAY按钮：相对定位在画面62%高度
+    const playBtn = this.add.text(w / 2, h * 0.62, '▶ PLAY', {
       fontSize: '36px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -99,17 +96,22 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  // DEBUG: 每帧停留3秒，轮流展示，方便检查偏移
+  // 眨眼循环：帧0(睁眼)停留2-3秒，然后快速眨眼
   private startBlinkLoop(): void {
-    let frame = 0;
-    this.showFrame(frame);
-    this.time.addEvent({
-      delay: 3000,
-      loop: true,
-      callback: () => {
-        frame = (frame + 1) % 4;
-        this.showFrame(frame);
-      },
+    this.showFrame(0);
+    const openDuration = Phaser.Math.Between(2000, 3500);
+    this.time.delayedCall(openDuration, () => this.doBlink());
+  }
+
+  // 执行一次眨眼：1→2→3→2→1→0，每帧80ms
+  private doBlink(): void {
+    const blinkFrames = [1, 2, 3, 2, 1, 0];
+    const blinkDelay = 80;
+
+    blinkFrames.forEach((frame, i) => {
+      this.time.delayedCall(i * blinkDelay, () => this.showFrame(frame));
     });
+
+    this.time.delayedCall(blinkFrames.length * blinkDelay, () => this.startBlinkLoop());
   }
 }

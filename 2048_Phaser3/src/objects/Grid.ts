@@ -1,19 +1,19 @@
 import Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y } from '../config';
+import { GRID_COLS, GRID_ROWS, LayoutConfig } from '../config';
 import { Border } from './Border';
 
 export class Grid {
   private scene: Phaser.Scene;
   private cells: Phaser.GameObjects.Rectangle[][] = [];
   private container: Phaser.GameObjects.Container;
+  public layout: LayoutConfig;
 
-  // Data layer: 0 = empty, positive = block value, -1 = stone
   public data: number[][] = [];
-  // Visual layer: Border objects on the grid
   public borders: (Border | null)[][] = [];
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, layout: LayoutConfig) {
     this.scene = scene;
+    this.layout = layout;
     this.container = scene.add.container(0, 0);
     this.initData();
     this.drawGrid();
@@ -35,7 +35,7 @@ export class Grid {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
         const { x, y } = this.cellToPixel(row, col);
-        const cell = this.scene.add.rectangle(x, y, CELL_SIZE - 4, CELL_SIZE - 4, 0x2a2a4a, 0.6);
+        const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x2a2a4a, 0.6);
         cell.setStrokeStyle(2, 0x444477);
         this.cells[row][col] = cell;
         this.container.add(cell);
@@ -45,33 +45,33 @@ export class Grid {
 
   cellToPixel(row: number, col: number): { x: number; y: number } {
     return {
-      x: GRID_OFFSET_X + col * CELL_SIZE + CELL_SIZE / 2,
-      y: GRID_OFFSET_Y + row * CELL_SIZE + CELL_SIZE / 2,
+      x: this.layout.gridOffsetX + col * this.layout.cellSize + this.layout.cellSize / 2,
+      y: this.layout.gridOffsetY + row * this.layout.cellSize + this.layout.cellSize / 2,
     };
   }
 
   pixelToCell(px: number, py: number): { row: number; col: number } | null {
-    const col = Math.round((px - GRID_OFFSET_X - CELL_SIZE / 2) / CELL_SIZE);
-    const row = Math.round((py - GRID_OFFSET_Y - CELL_SIZE / 2) / CELL_SIZE);
+    const col = Math.round((px - this.layout.gridOffsetX - this.layout.cellSize / 2) / this.layout.cellSize);
+    const row = Math.round((py - this.layout.gridOffsetY - this.layout.cellSize / 2) / this.layout.cellSize);
     if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
     return { row, col };
   }
 
   colToX(col: number): number {
-    return GRID_OFFSET_X + col * CELL_SIZE + CELL_SIZE / 2;
+    return this.layout.gridOffsetX + col * this.layout.cellSize + this.layout.cellSize / 2;
   }
 
   getBottomY(): number {
-    return GRID_OFFSET_Y + GRID_ROWS * CELL_SIZE;
+    return this.layout.gridOffsetY + GRID_ROWS * this.layout.cellSize;
   }
 
   getTopY(): number {
-    return GRID_OFFSET_Y;
+    return this.layout.gridOffsetY;
   }
 
   placeBorder(row: number, col: number, value: number): Border {
     const { x, y } = this.cellToPixel(row, col);
-    const border = new Border(this.scene, x, y, value, row, col);
+    const border = new Border(this.scene, x, y, value, row, col, this.layout.cellSize);
     this.data[row][col] = value;
     this.borders[row][col] = border;
     this.container.add(border);

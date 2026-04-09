@@ -5,9 +5,26 @@ export const GAME_HEIGHT = 960;
 // Grid configuration
 export const GRID_COLS = 5;
 export const GRID_ROWS = 5;
-export const CELL_SIZE = 93.5;
-export const GRID_OFFSET_X = 86.25;
-export const GRID_OFFSET_Y = 200;
+
+// 根据实际canvas尺寸动态计算网格布局
+export interface LayoutConfig {
+  cellSize: number;
+  gridOffsetX: number;
+  gridOffsetY: number;
+  width: number;
+  height: number;
+}
+
+export function calcLayout(w: number, h: number): LayoutConfig {
+  // 网格占画面宽度的73%（原版 93.5*5/640 ≈ 73%）
+  const gridWidth = w * 0.73;
+  const cellSize = gridWidth / GRID_COLS;
+  // 网格水平居中
+  const gridOffsetX = (w - gridWidth) / 2;
+  // 网格顶部在画面21%处（原版 200/960 ≈ 21%）
+  const gridOffsetY = h * 0.21;
+  return { cellSize, gridOffsetX, gridOffsetY, width: w, height: h };
+}
 
 // Shooting
 export const SHOOT_SPEED = 800;

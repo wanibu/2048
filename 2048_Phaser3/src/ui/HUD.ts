@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH } from '../config';
 
 export class HUD {
   private scene: Phaser.Scene;
@@ -8,20 +7,22 @@ export class HUD {
   private score: number = 0;
   private topScore: number = 0;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, w: number) {
     this.scene = scene;
 
     const saved = localStorage.getItem('giant2048_topscore');
     if (saved) this.topScore = parseInt(saved, 10);
 
-    this.scoreText = scene.add.text(GAME_WIDTH / 2, 30, 'Score: 0', {
-      fontSize: '28px',
+    const fontSize = Math.round(w * 0.045);
+
+    this.scoreText = scene.add.text(w / 2, w * 0.05, 'Score: 0', {
+      fontSize: `${fontSize}px`,
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(100);
 
-    this.topScoreText = scene.add.text(GAME_WIDTH / 2, 65, `Best: ${this.topScore}`, {
-      fontSize: '18px',
+    this.topScoreText = scene.add.text(w / 2, w * 0.1, `Best: ${this.topScore}`, {
+      fontSize: `${Math.round(fontSize * 0.7)}px`,
       color: '#aaaaaa',
     }).setOrigin(0.5).setDepth(100);
   }
@@ -48,9 +49,5 @@ export class HUD {
 
   getScore(): number {
     return this.score;
-  }
-
-  getTopScore(): number {
-    return this.topScore;
   }
 }
