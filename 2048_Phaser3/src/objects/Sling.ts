@@ -96,6 +96,8 @@ export class Sling {
       const hitObjects = this.scene.input.hitTestPointer(pointer);
       if (hitObjects.length > 0) return;
       if (!this.shootAvailable || !this.currentShape) return;
+      // 只有点击弹弓移动区域才触发（网格宽度 × 弹弓上下范围）
+      if (!this.isPointerInSlingArea(pointer.x, pointer.y)) return;
       this.isDragging = true;
       this.colHighlight.setVisible(true);
       this.scene.sound.play('slingshot1', { volume: 0.3 });
@@ -138,6 +140,14 @@ export class Sling {
     const leftEdge = this.layout.gridOffsetX;
     const rightEdge = this.layout.gridOffsetX + GRID_COLS * this.layout.cellSize;
     return px >= leftEdge && px <= rightEdge;
+  }
+
+  // 弹弓可点击区域：横向=网格宽度，纵向=弹弓上下各一个cellSize的范围
+  private isPointerInSlingArea(px: number, py: number): boolean {
+    if (!this.isPointerInGridColumns(px)) return false;
+    const topY = this.slingY - this.layout.cellSize * 1.5;
+    const bottomY = this.slingY + this.layout.cellSize * 1.5;
+    return py >= topY && py <= bottomY;
   }
 
   private updateColumnFromPointer(px: number): void {

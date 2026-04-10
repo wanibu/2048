@@ -1,0 +1,8 @@
+name = "giant-2048-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "giant-2048-scores"
+database_id = "f7b2b2ab-affd-4f97-9c1a-28a0b9d826ef"
