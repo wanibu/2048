@@ -342,6 +342,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.printGrid('合并后');
+    // 合并后上靠：方块往上填补空隙
+    this.applyGravityUp();
+    this.printGrid('上靠后');
     this.time.delayedCall(400, () => this.checkMerges());
   }
 
@@ -375,7 +378,52 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.printGrid('旋转合并后');
+    this.applyGravityUp();
+    this.printGrid('旋转上靠后');
     this.time.delayedCall(400, () => this.checkMergesAfterRotation());
+  }
+
+  // 上靠逻辑：合并消除格子后，下方方块往上填补空隙
+  // 每列独立处理，所有方块紧贴顶部已有方块，中间不留空隙
+  private applyGravityUp(): void {
+    const layout = this.grid.layout;
+    for (let col = 0; col < GRID_COLS; col++) {
+      // 收集这列所有非空值，保持从上到下的顺序
+      const values: number[] = [];
+      const borders: (typeof this.grid.borders[0][0])[] = [];
+      for (let r = 0; r < GRID_ROWS; r++) {
+        if (this.grid.data[r][col] !== 0) {
+          values.push(this.grid.data[r][col]);
+          borders.push(this.grid.borders[r][col]);
+        }
+      }
+
+      // 清空这列
+      for (let r = 0; r < GRID_ROWS; r++) {
+        this.grid.data[r][col] = 0;
+        this.grid.borders[r][col] = null;
+      }
+
+      // 从顶部开始重新填入
+      for (let i = 0; i < values.length; i++) {
+        this.grid.data[i][col] = values[i];
+        this.grid.borders[i][col] = borders[i];
+
+        const border = borders[i];
+        if (border) {
+          border.gridRow = i;
+          border.gridCol = col;
+          // Tween 移动到新位置
+          const { x, y } = this.grid.cellToPixel(i, col);
+          this.tweens.add({
+            targets: border,
+            x, y,
+            duration: 150,
+            ease: 'Quad.easeOut',
+          });
+        }
+      }
+    }
   }
 
   // 提交分数到 Cloudflare Workers 验证
