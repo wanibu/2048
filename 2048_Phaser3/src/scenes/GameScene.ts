@@ -95,9 +95,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleShoot(shape: Shape, col: number): void {
-    const targetRow = this.findFarthestEmptyRow(col);
+    const landingRow = this.findLandingRow(col);
 
-    if (targetRow === -1) {
+    if (landingRow === -1) {
+      // 列满了，检查最底行是否同值，直接合并
+      const bottomRow = GRID_ROWS - 1;
+      if (this.grid.data[bottomRow][col] === shape.value) {
+        shape.destroy();
+        const newValue = shape.value * 2;
+        const border = this.grid.borders[bottomRow][col];
+        if (border) {
+          border.setValue(newValue);
+          this.grid.data[bottomRow][col] = newValue;
+        }
+        this.sound.play('slingshot2', { volume: 0.3 });
+        this.lastLandedCol = col;
+        // 合并动画
+        if (border) {
+          this.tweens.add({
+            targets: border,
+            scaleX: 1.3, scaleY: 1.3,
+            duration: 120, yoyo: true,
+            ease: 'Back.easeOut',
+          });
+        }
+        this.hud.addScore(newValue);
+        this.time.delayedCall(150, () => this.checkMerges());
+        this.sling.respawn();
+        return;
+      }
+      // 不同值，不能发射
       shape.destroy();
       this.sling.respawn();
       return;
@@ -106,7 +133,7 @@ export class GameScene extends Phaser.Scene {
     const body = shape.getBody();
     body.setVelocity(0, 0);
 
-    const targetPos = this.grid.cellToPixel(targetRow, col);
+    const targetPos = this.grid.cellToPixel(landingRow, col);
     const distance = Math.abs(shape.y - targetPos.y);
     const duration = Math.max(150, distance * 0.4);
 
@@ -116,24 +143,20 @@ export class GameScene extends Phaser.Scene {
       duration,
       ease: 'Quad.easeIn',
       onComplete: () => {
-        this.landShape(shape, col, targetRow);
+        this.landShape(shape, col, landingRow);
       },
     });
   }
 
-  private findFarthestEmptyRow(col: number): number {
-    // 糖果从下方往上飞，碰到阻挡物停在其下方一格
-    // 从下往上扫描，找到第一个被占据的格子，糖果停在它下方
-    // 如果整列为空 → 停在最顶行（行0）
+  private findLandingRow(col: number): number {
+    // 从底部往上找第一个空格
     for (let r = GRID_ROWS - 1; r >= 0; r--) {
-      if (this.grid.data[r][col] !== 0) {
-        // 找到阻挡物在行r，糖果停在行r+1
-        if (r + 1 >= GRID_ROWS) return -1; // 阻挡物在最底行，无法放置
-        return r + 1;
+      if (this.grid.data[r][col] === 0) {
+        return r;
       }
     }
-    // 整列为空，停在最顶行
-    return 0;
+    // 整列满了
+    return -1;
   }
 
   private landShape(shape: Shape, col: number, targetRow: number): void {
