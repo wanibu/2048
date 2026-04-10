@@ -22,13 +22,16 @@ export class Sling {
   private isDragging: boolean = false;
 
   private slingY: number;
+  private slingH: number = 0;
+  private shapeBaseY: number = 0; // 糖果球的初始Y位置
 
   constructor(scene: Phaser.Scene, grid: Grid, layout: LayoutConfig) {
     this.scene = scene;
     this.grid = grid;
     this.layout = layout;
 
-    this.slingY = grid.getBottomY() + layout.cellSize * 0.8;
+    // 弹弓位置比网格底部往下更多
+    this.slingY = grid.getBottomY() + layout.cellSize * 1.8;
 
     // Register texture frames for sling states
     const tex = scene.textures.get('shared1');
@@ -54,10 +57,10 @@ export class Sling {
     this.colHighlight.setVisible(false);
 
     // Sling sprite
-    const slingW = layout.cellSize * 1.4;
-    const slingH = slingW * (163 / 258);
+    const slingW = layout.cellSize * 1.54;
+    this.slingH = slingW * (163 / 258);
     this.slingSprite = scene.add.image(hlX, this.slingY, 'shared1', 'sling_0');
-    this.slingSprite.setDisplaySize(slingW, slingH);
+    this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
 
     this.spawnNextShape();
@@ -68,8 +71,10 @@ export class Sling {
     const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
     const value = spawnPool[Phaser.Math.Between(0, spawnPool.length - 1)];
     const x = this.grid.colToX(this.selectedCol);
-    this.currentShape = new Shape(this.scene, x, this.slingY - this.layout.cellSize * 0.6, value, this.layout.cellSize);
-    this.currentShape.setDepth(40);
+    // 糖果球初始位置在弹弓上方
+    this.shapeBaseY = this.slingY - this.slingH * 0.8 + 20;
+    this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, this.layout.cellSize);
+    this.currentShape.setDepth(60);
     this.shootAvailable = true;
     this.setSlingState(0);
   }
@@ -86,7 +91,9 @@ export class Sling {
       this.scene.input.keyboard.on('keydown-UP', () => this.shoot());
     }
 
-    this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer, targets: Phaser.GameObjects.GameObject[]) => {
+      // 如果点击了其他交互对象（如旋转按钮），不触发弹弓
+      if (targets && targets.length > 0) return;
       if (!this.shootAvailable || !this.currentShape) return;
       this.isDragging = true;
       this.colHighlight.setVisible(true);
@@ -119,14 +126,22 @@ export class Sling {
   }
 
   private startPullAnimation(): void {
+    // 每个状态糖果球往下移动一点，总共移动约弹弓高度
+    const pullOffset = this.slingH * 0.3; // 每步下移量
     const pullSteps = [
-      { delay: 0, state: 1 },
-      { delay: 150, state: 2 },
-      { delay: 300, state: 3 },
+      { delay: 0, state: 1, offset: pullOffset },
+      { delay: 150, state: 2, offset: pullOffset * 2 },
+      { delay: 300, state: 3, offset: pullOffset * 3 },
     ];
     for (const step of pullSteps) {
       this.scene.time.delayedCall(step.delay, () => {
-        if (this.isDragging) this.setSlingState(step.state);
+        if (this.isDragging) {
+          this.setSlingState(step.state);
+          // 糖果球跟着往下移
+          if (this.currentShape) {
+            this.currentShape.setY(this.shapeBaseY + step.offset);
+          }
+        }
       });
     }
   }
