@@ -250,6 +250,18 @@ export class Sling {
     this.onShootCallback = callback;
   }
 
+  // 发射被拒绝，糖果回到弹弓上，不换新糖果
+  cancelShoot(shape: Shape): void {
+    this.currentShape = shape;
+    this.shootAvailable = true;
+    // 把糖果移回弹弓位置
+    const x = this.grid.colToX(this.selectedCol);
+    shape.setPosition(x, this.shapeBaseY);
+    const body = shape.getBody();
+    body.setVelocity(0, 0);
+    this.setSlingState(0);
+  }
+
   respawn(): void {
     // 销毁旧的糖果（防止残留）
     if (this.currentShape) {

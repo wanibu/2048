@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_ROWS, GRID_COLS, calcLayout, LayoutConfig } from '../config';
+import { GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -232,9 +232,9 @@ export class GameScene extends Phaser.Scene {
         this.sling.respawn();
         return;
       }
+      // 打不出去，不换糖果，糖果回到弹弓上
       console.log(`[拒绝] 列${col + 1}满，底行值=${this.grid.data[bottomRow][col]}与发射值=${shape.value}不同，不能发射`);
-      shape.destroy();
-      this.sling.respawn();
+      this.sling.cancelShoot(shape);
       return;
     }
 
@@ -315,6 +315,8 @@ export class GameScene extends Phaser.Scene {
     if (groups.length === 0) {
       this.lastLandedCol = undefined;
       this.sling.respawn();
+      // 检查是否游戏结束
+      this.time.delayedCall(400, () => this.checkGameOver());
       return;
     }
 
@@ -424,6 +426,82 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  // 检查游戏是否结束：所有列都满且当前糖果无法放置到任何列
+  private checkGameOver(): void {
+    // 检查是否有任何列可以放置任何糖果
+    let canPlace = false;
+    for (let col = 0; col < GRID_COLS; col++) {
+      // 列有空格 → 可以放
+      const landingRow = this.findLandingRow(col);
+      if (landingRow !== -1) {
+        canPlace = true;
+        break;
+      }
+      // 列满但最底行有同值 → 可以直接合并（但我们不知道未来的糖果值）
+      // 所以只要有任何一列的最底行存在值，就检查所有可能的生成值
+      const bottomVal = this.grid.data[GRID_ROWS - 1][col];
+      if (bottomVal > 0) {
+        // 检查当前弹弓糖果是否能打进
+        const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
+        if (spawnPool.includes(bottomVal)) {
+          canPlace = true;
+          break;
+        }
+      }
+    }
+
+    if (!canPlace) {
+      console.log('[游戏结束] 无法放置任何糖果');
+      this.gameOver();
+    }
+  }
+
+  // 游戏结束处理
+  private gameOver(): void {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+
+    // 半透明遮罩
+    const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6);
+    overlay.setDepth(200);
+
+    // Game Over 文字
+    this.add.text(w / 2, h * 0.35, 'GAME OVER', {
+      fontSize: `${Math.round(w * 0.1)}px`,
+      color: '#ff5555',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(201);
+
+    // 分数
+    this.add.text(w / 2, h * 0.45, `Score: ${this.hud.getScore()}`, {
+      fontSize: `${Math.round(w * 0.07)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(201);
+
+    // 提交分数
+    this.submitScore();
+
+    // 重新开始按钮
+    const restartBtn = this.add.text(w / 2, h * 0.58, '↻ RESTART', {
+      fontSize: `${Math.round(w * 0.06)}px`,
+      color: '#ffffff',
+      backgroundColor: '#4caf50',
+      padding: { x: 30, y: 12 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(201);
+
+    restartBtn.on('pointerdown', () => {
+      // 清除 resize 状态
+      sessionStorage.removeItem('giant2048_state');
+      sessionStorage.removeItem('giant2048_playing');
+      // 移除 resize 监听
+      window.removeEventListener('resize', this.onResize);
+      this.scene.start('GameScene');
+    });
   }
 
   // 提交分数到 Cloudflare Workers 验证
