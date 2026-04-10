@@ -70,25 +70,29 @@ export class MergeSystem {
     }
   }
 
-  executeMerge(group: MergeGroup): { row: number; col: number; newValue: number } {
-    const newValue = group.value * 2;
+  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number } {
+    // 2个: ×2, 3个: ×4, 4个: ×8 ...
+    const newValue = group.value * Math.pow(2, group.cells.length - 1);
 
-    // Find priority merge target (cell with most same-value neighbors)
-    let bestCell = group.cells[0];
-    let bestNeighborCount = 0;
-
+    // 合并位置：纵向取最小行号（向上靠拢），横向取打入的列（吸引过来）
+    let minRow = group.cells[0].row;
     for (const cell of group.cells) {
-      let count = 0;
-      for (const other of group.cells) {
-        if (Math.abs(cell.row - other.row) + Math.abs(cell.col - other.col) === 1) {
-          count++;
-        }
-      }
-      if (count > bestNeighborCount) {
-        bestNeighborCount = count;
-        bestCell = cell;
+      if (cell.row < minRow) minRow = cell.row;
+    }
+
+    // 如果有打入列且该列在组内，用打入列；否则取最小列号
+    let targetCol: number;
+    if (landedCol !== undefined && group.cells.some(c => c.col === landedCol)) {
+      targetCol = landedCol;
+    } else {
+      // fallback（旋转触发的合并）：取最小列号
+      targetCol = group.cells[0].col;
+      for (const cell of group.cells) {
+        if (cell.col < targetCol) targetCol = cell.col;
       }
     }
+
+    const mergeTarget = { row: minRow, col: targetCol };
 
     // Remove all cells
     for (const cell of group.cells) {
@@ -96,8 +100,8 @@ export class MergeSystem {
     }
 
     // Place merged result
-    this.grid.placeBorder(bestCell.row, bestCell.col, newValue);
+    this.grid.placeBorder(mergeTarget.row, mergeTarget.col, newValue);
 
-    return { row: bestCell.row, col: bestCell.col, newValue };
+    return { row: mergeTarget.row, col: mergeTarget.col, newValue };
   }
 }

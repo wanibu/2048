@@ -91,9 +91,10 @@ export class Sling {
       this.scene.input.keyboard.on('keydown-UP', () => this.shoot());
     }
 
-    this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer, targets: Phaser.GameObjects.GameObject[]) => {
-      // 如果点击了其他交互对象（如旋转按钮），不触发弹弓
-      if (targets && targets.length > 0) return;
+    this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // 如果点击了交互对象（如旋转按钮），不触发弹弓
+      const hitObjects = this.scene.input.hitTestPointer(pointer);
+      if (hitObjects.length > 0) return;
       if (!this.shootAvailable || !this.currentShape) return;
       this.isDragging = true;
       this.colHighlight.setVisible(true);
@@ -105,15 +106,38 @@ export class Sling {
 
     this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging) return;
-      this.updateColumnFromPointer(pointer.x);
+      // 检查鼠标是否在5列范围内
+      if (this.isPointerInGridColumns(pointer.x)) {
+        this.colHighlight.setVisible(true);
+        this.updateColumnFromPointer(pointer.x);
+      } else {
+        // 离开5列范围，隐藏光柱
+        this.colHighlight.setVisible(false);
+      }
     });
 
-    this.scene.input.on('pointerup', () => {
+    this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging) return;
       this.isDragging = false;
       this.colHighlight.setVisible(false);
-      this.shoot();
+
+      // 只有在5列范围内松手才发射
+      if (this.isPointerInGridColumns(pointer.x)) {
+        this.shoot();
+      } else {
+        // 松手在范围外，取消发射，重置弹弓
+        this.setSlingState(0);
+        if (this.currentShape) {
+          this.currentShape.setY(this.shapeBaseY);
+        }
+      }
     });
+  }
+
+  private isPointerInGridColumns(px: number): boolean {
+    const leftEdge = this.layout.gridOffsetX;
+    const rightEdge = this.layout.gridOffsetX + GRID_COLS * this.layout.cellSize;
+    return px >= leftEdge && px <= rightEdge;
   }
 
   private updateColumnFromPointer(px: number): void {
@@ -182,6 +206,11 @@ export class Sling {
   }
 
   respawn(): void {
+    // 销毁旧的糖果（防止残留）
+    if (this.currentShape) {
+      this.currentShape.destroy();
+      this.currentShape = null;
+    }
     this.scene.time.delayedCall(300, () => this.spawnNextShape());
   }
 }

@@ -15,6 +15,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: HUD;
   private layout!: LayoutConfig;
   private isRotating: boolean = false;
+  private lastLandedCol: number | undefined;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -86,10 +87,10 @@ export class GameScene extends Phaser.Scene {
 
     this.sound.play('rotation', { volume: 0.3 });
 
-    // 等旋转动画完成后检查合并
+    // 等旋转动画完成后检查合并（不重新生成弹弓糖果）
     this.time.delayedCall(250, () => {
       this.isRotating = false;
-      this.checkMerges();
+      this.checkMergesAfterRotation();
     });
   }
 
@@ -121,12 +122,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private findFarthestEmptyRow(col: number): number {
-    for (let r = 0; r < GRID_ROWS; r++) {
-      if (this.grid.data[r][col] === 0) {
-        return r;
+    // 糖果从下方往上飞，碰到阻挡物停在其下方一格
+    // 从下往上扫描，找到第一个被占据的格子，糖果停在它下方
+    // 如果整列为空 → 停在最顶行（行0）
+    for (let r = GRID_ROWS - 1; r >= 0; r--) {
+      if (this.grid.data[r][col] !== 0) {
+        // 找到阻挡物在行r，糖果停在行r+1
+        if (r + 1 >= GRID_ROWS) return -1; // 阻挡物在最底行，无法放置
+        return r + 1;
       }
     }
-    return -1;
+    // 整列为空，停在最顶行
+    return 0;
   }
 
   private landShape(shape: Shape, col: number, targetRow: number): void {
@@ -145,6 +152,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.sound.play('slingshot2', { volume: 0.3 });
+    this.lastLandedCol = col;
     this.time.delayedCall(150, () => this.checkMerges());
   }
 
@@ -152,9 +160,39 @@ export class GameScene extends Phaser.Scene {
     const groups = this.mergeSystem.findMergeGroups();
 
     if (groups.length === 0) {
+      this.lastLandedCol = undefined;
       this.sling.respawn();
       return;
     }
+
+    groups.sort((a, b) => b.cells.length - a.cells.length);
+    const result = this.mergeSystem.executeMerge(groups[0], this.lastLandedCol);
+
+    this.hud.addScore(result.newValue);
+    this.sound.play('collapse1', { volume: 0.4 });
+    // 链式合并继续用合并结果的列
+    this.lastLandedCol = result.col;
+
+    const border = this.grid.borders[result.row][result.col];
+    if (border) {
+      this.tweens.add({
+        targets: border,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        duration: 120,
+        yoyo: true,
+        ease: 'Back.easeOut',
+      });
+    }
+
+    this.time.delayedCall(400, () => this.checkMerges());
+  }
+
+  // 旋转后检查合并——不调用 respawn，因为弹弓上已经有糖果
+  private checkMergesAfterRotation(): void {
+    const groups = this.mergeSystem.findMergeGroups();
+
+    if (groups.length === 0) return; // 不 respawn
 
     groups.sort((a, b) => b.cells.length - a.cells.length);
     const result = this.mergeSystem.executeMerge(groups[0]);
@@ -174,6 +212,7 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    this.time.delayedCall(400, () => this.checkMerges());
+    // 链式合并也不 respawn
+    this.time.delayedCall(400, () => this.checkMergesAfterRotation());
   }
 }
