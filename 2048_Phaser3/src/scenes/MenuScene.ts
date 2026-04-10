@@ -11,6 +11,13 @@ export class MenuScene extends Phaser.Scene {
 
   // Phaser Scene 生命周期：资源加载完后自动调用，创建游戏对象
   create(): void {
+    // 如果是resize后刷新，直接跳到GameScene恢复游戏
+    if (sessionStorage.getItem('giant2048_playing') === '1') {
+      sessionStorage.removeItem('giant2048_playing');
+      this.scene.start('GameScene');
+      return;
+    }
+
     // 获取实际可见区域的宽高（ENVELOP模式下可能大于640×960）
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;

@@ -59,4 +59,14 @@ export class ActionRecorder {
   getSeed(): number {
     return this.seed;
   }
+
+  // 从保存的记录恢复（窗口resize后），保持签名链完整
+  restoreFrom(record: GameRecord): void {
+    this.actions = [...record.actions];
+    this.currentSign = record.finalSign;
+    this.seed = record.seed;
+    this.score = record.finalScore;
+    this.step = record.actions.length;
+    this.ready = true;
+  }
 }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_ROWS, calcLayout, LayoutConfig } from '../config';
+import { GRID_ROWS, GRID_COLS, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -52,8 +52,78 @@ export class GameScene extends Phaser.Scene {
     // 旋转按钮：左下↺ 右下↻，键盘A/D
     this.createRotateButtons(w, h, layout);
 
+    // 恢复之前的游戏状态（窗口resize后）
+    this.restoreState();
+
+    // 监听窗口resize：保存状态后刷新页面
+    window.addEventListener('resize', this.onResize);
+
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
+  }
+
+  // 窗口resize处理：保存当前状态，刷新页面
+  private onResize = (): void => {
+    // 防抖：300ms内多次resize只触发一次
+    if (this.resizeTimer) clearTimeout(this.resizeTimer);
+    this.resizeTimer = window.setTimeout(() => {
+      this.saveState();
+      window.location.reload();
+    }, 300);
+  };
+  private resizeTimer: number | null = null;
+
+  // 保存当前游戏状态到 sessionStorage
+  // 同时保存当前的操作记录，这样恢复后后端验证仍然有效
+  private saveState(): void {
+    const state = {
+      grid: this.grid.data.map(row => [...row]),
+      score: this.hud.getScore(),
+      // 保存完整的操作记录，恢复后继续追加
+      record: this.recorder.getRecord(),
+    };
+    sessionStorage.setItem('giant2048_state', JSON.stringify(state));
+    // 标记正在游戏中，刷新后 MenuScene 会直接跳到 GameScene
+    sessionStorage.setItem('giant2048_playing', '1');
+    console.log('[保存状态]', state);
+  }
+
+  // 从 sessionStorage 恢复游戏状态
+  private restoreState(): void {
+    const saved = sessionStorage.getItem('giant2048_state');
+    if (!saved) return;
+
+    try {
+      const state = JSON.parse(saved);
+      console.log('[恢复状态]', state);
+
+      // 恢复棋盘
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          const value = state.grid[r][c];
+          if (value > 0) {
+            this.grid.placeBorder(r, c, value);
+          }
+        }
+      }
+
+      // 恢复分数
+      if (state.score > 0) {
+        this.hud.setScore(state.score);
+      }
+
+      // 恢复操作记录（保持签名链完整，后端验证不受影响）
+      if (state.record) {
+        this.recorder.restoreFrom(state.record);
+      }
+
+      // 用完即删，避免下次正常进入时还恢复
+      sessionStorage.removeItem('giant2048_state');
+      this.printGrid('恢复后棋盘');
+    } catch (e) {
+      console.error('[恢复失败]', e);
+      sessionStorage.removeItem('giant2048_state');
+    }
   }
 
   // ===== DEBUG: 打印棋盘 =====
@@ -190,26 +260,23 @@ export class GameScene extends Phaser.Scene {
     const colData = Array.from({length: GRID_ROWS}, (_, r) => this.grid.data[r][col]);
     console.log(`[findLandingRow] 列${col + 1}数据: [${colData.map(v => v || '.').join(', ')}]`);
 
-    // 糖果从下往上飞到最远端（顶部）
-    // 如果有阻挡，停在阻挡物下方一格
-    for (let r = 0; r < GRID_ROWS; r++) {
+    // 糖果从下方（行5）往上飞
+    // 最底行有东西 → 糖果进不去，返回-1（由handleShoot判断是否可直接合并）
+    if (this.grid.data[GRID_ROWS - 1][col] !== 0) {
+      console.log(`[findLandingRow] 最底行已占据，进不去`);
+      return -1;
+    }
+
+    // 从底部往上找：第一个有东西的行，糖果停在它下方一格
+    for (let r = GRID_ROWS - 2; r >= 0; r--) {
       if (this.grid.data[r][col] !== 0) {
-        // 碰到阻挡物，糖果停在它下方一格
-        if (r + 1 < GRID_ROWS && this.grid.data[r + 1][col] === 0) {
-          console.log(`[findLandingRow] 阻挡在行${r + 1}，落在行${r + 2}`);
-          return r + 1;
-        }
-        // 下方也满了，继续往下找空格
-        for (let r2 = r + 1; r2 < GRID_ROWS; r2++) {
-          if (this.grid.data[r2][col] === 0) {
-            console.log(`[findLandingRow] 往下找到空格行${r2 + 1}`);
-            return r2;
-          }
-        }
-        console.log(`[findLandingRow] 列满`);
-        return -1;
+        // 行r有阻挡，糖果停在行r+1（已确认行GRID_ROWS-1是空的，r+1也在范围内）
+        console.log(`[findLandingRow] 从底往上，阻挡在行${r + 1}，落在行${r + 2}`);
+        return r + 1;
       }
     }
+
+    // 整列为空，飞到最顶行
     console.log(`[findLandingRow] 整列空，落在行1`);
     return 0;
   }

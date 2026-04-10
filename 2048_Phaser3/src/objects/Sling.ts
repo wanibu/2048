@@ -24,6 +24,8 @@ export class Sling {
   private slingY: number;
   private slingH: number = 0;
   private shapeBaseY: number = 0; // 糖果球的初始Y位置
+  private nextValue: number = 0;  // 下一个糖果的值
+  private nextPreview: Shape | null = null; // 下一个糖果预览显示
 
   constructor(scene: Phaser.Scene, grid: Grid, layout: LayoutConfig) {
     this.scene = scene;
@@ -63,13 +65,27 @@ export class Sling {
     this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
 
+    // 生成第一个"下一个"糖果值
+    this.nextValue = this.randomValue();
     this.spawnNextShape();
     this.setupInput();
   }
 
-  private spawnNextShape(): void {
+  // 随机生成一个糖果值
+  private randomValue(): number {
     const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
-    const value = spawnPool[Phaser.Math.Between(0, spawnPool.length - 1)];
+    return spawnPool[Phaser.Math.Between(0, spawnPool.length - 1)];
+  }
+
+  private spawnNextShape(): void {
+    // 安全清理：确保旧糖果不残留
+    if (this.currentShape && this.currentShape.active) {
+      this.currentShape.destroy();
+    }
+    this.currentShape = null;
+
+    // 当前弹弓上的糖果 = 之前预告的"下一个"
+    const value = this.nextValue;
     const x = this.grid.colToX(this.selectedCol);
     // 糖果球初始位置在弹弓上方
     this.shapeBaseY = this.slingY - this.slingH * 0.8 + 20;
@@ -77,6 +93,25 @@ export class Sling {
     this.currentShape.setDepth(60);
     this.shootAvailable = true;
     this.setSlingState(0);
+
+    // 生成新的"下一个"并更新预览
+    this.nextValue = this.randomValue();
+    this.updateNextPreview();
+  }
+
+  // 更新底部中间的"下一个糖果"预览
+  private updateNextPreview(): void {
+    // 清理旧预览
+    if (this.nextPreview && this.nextPreview.active) {
+      this.nextPreview.destroy();
+    }
+    // 在页面底部中间显示下一个糖果（缩小显示）
+    const previewX = this.layout.width / 2;
+    const previewY = this.layout.height - this.layout.cellSize * 0.5;
+    const previewSize = this.layout.cellSize * 0.7;
+    this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, previewSize);
+    this.nextPreview.setDepth(100);
+    this.nextPreview.setAlpha(0.8);
   }
 
   private setupInput(): void {

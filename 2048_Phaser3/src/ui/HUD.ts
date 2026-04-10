@@ -50,4 +50,10 @@ export class HUD {
   getScore(): number {
     return this.score;
   }
+
+  // 恢复分数（窗口resize后恢复用）
+  setScore(score: number): void {
+    this.score = score;
+    this.scoreText.setText(`Score: ${score}`);
+  }
 }
