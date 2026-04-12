@@ -222,7 +222,10 @@ async function loadGames(page) {
       <td><strong>${g.score}</strong></td>
       <td><span class="status-${g.status}">${g.status === 'playing' ? '进行中' : '已完成'}</span></td>
       <td>${new Date(g.created_at).toLocaleString('zh-CN')}</td>
-      <td><button class="btn-detail" onclick="showDetail('${g.game_id}')">详情</button></td>
+      <td>
+        <button class="btn-detail" onclick="showDetail('${g.game_id}')">详情</button>
+        <button class="btn-detail" style="background:#f44336;margin-left:4px" onclick="deleteGame('${g.game_id}')">删除</button>
+      </td>
     </tr>
   `).join('');
 
@@ -264,6 +267,24 @@ async function showDetail(gameId) {
   `;
 
   document.getElementById('modalOverlay').classList.add('show');
+}
+
+async function deleteGame(gameId) {
+  if (!confirm('确定删除这局记录？')) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/delete-game/${gameId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json();
+    console.log('[admin] delete:', data);
+    if (data.success) {
+      loadStats();
+      loadGames(currentPage);
+    }
+  } catch (e) {
+    console.error('[admin] delete error:', e);
+  }
 }
 
 function closeModal() {

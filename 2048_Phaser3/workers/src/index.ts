@@ -19,7 +19,7 @@ const SPAWN_POOL = [2, 4, 8, 16, 32];
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -298,6 +298,18 @@ export default {
           topScore: topScore?.m || 0,
           uniquePlayers: uniquePlayers?.c || 0,
         });
+      }
+
+      // ===== 管理接口：删除局 =====
+      if (url.pathname.startsWith('/api/admin/delete-game/') && request.method === 'DELETE') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const gameId = url.pathname.replace('/api/admin/delete-game/', '');
+        await env.DB.prepare('DELETE FROM games WHERE game_id = ?').bind(gameId).run();
+        await env.DB.prepare('DELETE FROM scores WHERE game_id = ?').bind(gameId).run();
+
+        return jsonResponse({ success: true });
       }
 
       return jsonResponse({ error: 'Not Found' }, 404);
