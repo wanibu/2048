@@ -36,6 +36,10 @@ export const SPAWN_NUMBER_MAX = 5;
 // Difficulty
 export const STONE_START_TURN = 10;
 export const STONE_INTERVAL = 5;
+// 每打几个糖果生成一个石头
+export const STONE_SPAWN_INTERVAL = 5;
+// 石头在 grid.data 中的值
+export const STONE_VALUE = -1;
 
 // Shape spritesheet: actual sprite regions from shape-sheet0.png (512x1024)
 // Each entry: { x, y, w, h } — source rectangle in the spritesheet

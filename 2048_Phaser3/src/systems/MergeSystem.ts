@@ -70,7 +70,7 @@ export class MergeSystem {
     }
   }
 
-  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number } {
+  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; destroyedStones: { row: number; col: number }[] } {
     // 2个: ×2, 3个: ×4, 4个: ×8 ...
     const newValue = group.value * Math.pow(2, group.cells.length - 1);
 
@@ -99,9 +99,41 @@ export class MergeSystem {
       this.grid.removeBorder(cell.row, cell.col);
     }
 
+    // 记录被消除的列（去重）
+    const affectedCols = [...new Set(group.cells.map(c => c.col))];
+
     // Place merged result
     this.grid.placeBorder(mergeTarget.row, mergeTarget.col, newValue);
 
-    return { row: mergeTarget.row, col: mergeTarget.col, newValue };
+    // 碎掉合并组周围的石头
+    const destroyedStones: { row: number; col: number }[] = [];
+    const checked = new Set<string>();
+    for (const cell of group.cells) {
+      const neighbors = [
+        { row: cell.row - 1, col: cell.col },
+        { row: cell.row + 1, col: cell.col },
+        { row: cell.row, col: cell.col - 1 },
+        { row: cell.row, col: cell.col + 1 },
+      ];
+      for (const n of neighbors) {
+        const key = `${n.row},${n.col}`;
+        if (checked.has(key)) continue;
+        checked.add(key);
+        if (
+          n.row >= 0 && n.row < GRID_ROWS &&
+          n.col >= 0 && n.col < GRID_COLS &&
+          this.grid.isStone(n.row, n.col)
+        ) {
+          this.grid.removeStone(n.row, n.col);
+          destroyedStones.push({ row: n.row, col: n.col });
+          // 石头被碎的列也需要上靠
+          if (!affectedCols.includes(n.col)) {
+            affectedCols.push(n.col);
+          }
+        }
+      }
+    }
+
+    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, destroyedStones };
   }
 }

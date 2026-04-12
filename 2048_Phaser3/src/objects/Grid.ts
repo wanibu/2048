@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, LayoutConfig } from '../config';
+import { GRID_COLS, GRID_ROWS, STONE_VALUE, LayoutConfig } from '../config';
 import { Border } from './Border';
+import { Stone } from './Stone';
 
 export class Grid {
   private scene: Phaser.Scene;
@@ -10,6 +11,8 @@ export class Grid {
 
   public data: number[][] = [];
   public borders: (Border | null)[][] = [];
+  // 石头视觉层
+  public stones: (Stone | null)[][] = [];
 
   constructor(scene: Phaser.Scene, layout: LayoutConfig) {
     this.scene = scene;
@@ -23,9 +26,11 @@ export class Grid {
     for (let row = 0; row < GRID_ROWS; row++) {
       this.data[row] = [];
       this.borders[row] = [];
+      this.stones[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
         this.data[row][col] = 0;
         this.borders[row][col] = null;
+        this.stones[row][col] = null;
       }
     }
   }
@@ -85,6 +90,31 @@ export class Grid {
       this.borders[row][col] = null;
       this.data[row][col] = 0;
     }
+  }
+
+  // 石头：在指定位置放置石头
+  placeStone(row: number, col: number): Stone {
+    const { x, y } = this.cellToPixel(row, col);
+    const stone = new Stone(this.scene, x, y, row, col, this.layout.cellSize);
+    this.data[row][col] = STONE_VALUE;
+    this.stones[row][col] = stone;
+    this.container.add(stone);
+    return stone;
+  }
+
+  // 移除石头
+  removeStone(row: number, col: number): void {
+    const stone = this.stones[row][col];
+    if (stone) {
+      stone.destroy();
+      this.stones[row][col] = null;
+      this.data[row][col] = 0;
+    }
+  }
+
+  // 判断是否是石头
+  isStone(row: number, col: number): boolean {
+    return this.data[row][col] === STONE_VALUE;
   }
 
   getContainer(): Phaser.GameObjects.Container {

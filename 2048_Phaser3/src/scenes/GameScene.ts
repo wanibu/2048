@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
-import { GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, calcLayout, LayoutConfig } from '../config';
+import { GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
+import { Border } from '../objects/Border';
+import { Stone } from '../objects/Stone';
 import { MergeSystem } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
@@ -18,6 +20,7 @@ export class GameScene extends Phaser.Scene {
   private layout!: LayoutConfig;
   private isRotating: boolean = false;
   private lastLandedCol: number | undefined;
+  private shootCount: number = 0; // 发射计数，每5个生成石头
 
   constructor() {
     super({ key: 'GameScene' });
@@ -324,8 +327,46 @@ export class GameScene extends Phaser.Scene {
 
     this.sound.play('slingshot2', { volume: 0.3 });
     this.lastLandedCol = col;
+
+    // 发射计数，每 STONE_SPAWN_INTERVAL 个生成一个石头
+    this.shootCount++;
+    if (this.shootCount % STONE_SPAWN_INTERVAL === 0) {
+      this.spawnStone();
+    }
+
     this.printGrid('落地后');
     this.time.delayedCall(150, () => this.checkMerges());
+  }
+
+  // 在棋盘随机空格生成一个石头
+  private spawnStone(): void {
+    // 收集所有空格
+    const emptyCells: { row: number; col: number }[] = [];
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (this.grid.data[r][c] === 0) {
+          emptyCells.push({ row: r, col: c });
+        }
+      }
+    }
+    if (emptyCells.length === 0) return;
+
+    // 随机选一个空格
+    const cell = emptyCells[Phaser.Math.Between(0, emptyCells.length - 1)];
+    const stone = this.grid.placeStone(cell.row, cell.col);
+    console.log(`[石头生成] 行${cell.row + 1} 列${cell.col + 1}`);
+
+    // 石头出现动画
+    stone.setScale(0);
+    this.tweens.add({
+      targets: stone,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Back.easeOut',
+    });
+
+    this.sound.play('stonesup', { volume: 0.3 });
   }
 
   // 合并检查：BFS找相邻同值组 → 执行最大组合并 → 链式检查
@@ -367,9 +408,15 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    // 石头碎掉音效
+    if (result.destroyedStones.length > 0) {
+      console.log(`[石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.sound.play('stonedestroy', { volume: 0.3 });
+    }
+
     this.printGrid('合并后');
-    // 合并后上靠：方块往上填补空隙
-    this.applyGravityUp();
+    // 合并后上靠：只处理被消除的列
+    this.applyGravityUp(result.affectedCols);
     this.printGrid('上靠后');
     this.time.delayedCall(400, () => this.checkMerges());
   }
@@ -403,24 +450,29 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    if (result.destroyedStones.length > 0) {
+      console.log(`[旋转石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.sound.play('stonedestroy', { volume: 0.3 });
+    }
     this.printGrid('旋转合并后');
-    this.applyGravityUp();
+    this.applyGravityUp(result.affectedCols);
     this.printGrid('旋转上靠后');
     this.time.delayedCall(400, () => this.checkMergesAfterRotation());
   }
 
-  // 上靠逻辑：合并消除格子后，下方方块往上填补空隙
-  // 每列独立处理，所有方块紧贴顶部已有方块，中间不留空隙
-  private applyGravityUp(): void {
-    const layout = this.grid.layout;
-    for (let col = 0; col < GRID_COLS; col++) {
-      // 收集这列所有非空值，保持从上到下的顺序
-      const values: number[] = [];
-      const borders: (typeof this.grid.borders[0][0])[] = [];
+  // 上靠逻辑：只处理合并中被消除的列，其他列不动
+  // 被消除列中，所有方块紧贴顶部已有方块，中间不留空隙
+  private applyGravityUp(affectedCols: number[]): void {
+    for (const col of affectedCols) {
+      // 收集这列所有非空项（糖果或石头），保持从上到下的顺序
+      const items: { value: number; border: Border | null; stone: Stone | null }[] = [];
       for (let r = 0; r < GRID_ROWS; r++) {
         if (this.grid.data[r][col] !== 0) {
-          values.push(this.grid.data[r][col]);
-          borders.push(this.grid.borders[r][col]);
+          items.push({
+            value: this.grid.data[r][col],
+            border: this.grid.borders[r][col],
+            stone: this.grid.stones[r][col],
+          });
         }
       }
 
@@ -428,25 +480,28 @@ export class GameScene extends Phaser.Scene {
       for (let r = 0; r < GRID_ROWS; r++) {
         this.grid.data[r][col] = 0;
         this.grid.borders[r][col] = null;
+        this.grid.stones[r][col] = null;
       }
 
       // 从顶部开始重新填入
-      for (let i = 0; i < values.length; i++) {
-        this.grid.data[i][col] = values[i];
-        this.grid.borders[i][col] = borders[i];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        this.grid.data[i][col] = item.value;
+        this.grid.borders[i][col] = item.border;
+        this.grid.stones[i][col] = item.stone;
 
-        const border = borders[i];
-        if (border) {
-          border.gridRow = i;
-          border.gridCol = col;
-          // Tween 移动到新位置
-          const { x, y } = this.grid.cellToPixel(i, col);
-          this.tweens.add({
-            targets: border,
-            x, y,
-            duration: 150,
-            ease: 'Quad.easeOut',
-          });
+        const { x, y } = this.grid.cellToPixel(i, col);
+
+        // Tween 糖果或石头到新位置
+        if (item.border) {
+          item.border.gridRow = i;
+          item.border.gridCol = col;
+          this.tweens.add({ targets: item.border, x, y, duration: 150, ease: 'Quad.easeOut' });
+        }
+        if (item.stone) {
+          item.stone.gridRow = i;
+          item.stone.gridCol = col;
+          this.tweens.add({ targets: item.stone, x, y, duration: 150, ease: 'Quad.easeOut' });
         }
       }
     }

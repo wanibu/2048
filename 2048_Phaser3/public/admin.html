@@ -142,9 +142,11 @@ async function doLogin() {
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
+    console.log('[admin] login response:', data);
     if (data.success) {
       token = data.token;
       sessionStorage.setItem('admin_token', token);
+      console.log('[admin] login success, token:', token.slice(0, 16) + '...');
       showAdmin();
     } else {
       errorEl.textContent = data.error || '登录失败';
@@ -169,11 +171,20 @@ function showAdmin() {
 }
 
 async function apiFetch(path) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Authorization': `Bearer ${token}` },
-  });
-  if (res.status === 401) { doLogout(); return null; }
-  return res.json();
+  console.log(`[admin] GET ${API_BASE}${path}`);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    console.log(`[admin] response status: ${res.status}`);
+    if (res.status === 401) { doLogout(); return null; }
+    const data = await res.json();
+    console.log(`[admin] response data:`, data);
+    return data;
+  } catch (e) {
+    console.error(`[admin] fetch error:`, e);
+    return null;
+  }
 }
 
 async function loadStats() {

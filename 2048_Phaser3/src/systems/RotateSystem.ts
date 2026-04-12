@@ -16,6 +16,7 @@ export class RotateSystem {
   rotateCW(): void {
     const oldData = this.grid.data.map(row => [...row]);
     const oldBorders = this.grid.borders.map(row => [...row]);
+    const oldStones = this.grid.stones.map(row => [...row]);
 
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
@@ -23,18 +24,27 @@ export class RotateSystem {
         const newC = GRID_ROWS - 1 - r;
         this.grid.data[newR][newC] = oldData[r][c];
         this.grid.borders[newR][newC] = oldBorders[r][c];
+        this.grid.stones[newR][newC] = oldStones[r][c];
 
+        const { x, y } = this.grid.cellToPixel(newR, newC);
+
+        // 糖果 Tween
         const border = oldBorders[r][c];
         if (border) {
           border.gridRow = newR;
           border.gridCol = newC;
-          // Tween to new position
-          const { x, y } = this.grid.cellToPixel(newR, newC);
           this.grid.getContainer().scene.tweens.add({
-            targets: border,
-            x, y,
-            duration: 200,
-            ease: 'Quad.easeInOut',
+            targets: border, x, y, duration: 200, ease: 'Quad.easeInOut',
+          });
+        }
+
+        // 石头 Tween
+        const stone = oldStones[r][c];
+        if (stone) {
+          stone.gridRow = newR;
+          stone.gridCol = newC;
+          this.grid.getContainer().scene.tweens.add({
+            targets: stone, x, y, duration: 200, ease: 'Quad.easeInOut',
           });
         }
       }
@@ -49,6 +59,7 @@ export class RotateSystem {
   rotateCCW(): void {
     const oldData = this.grid.data.map(row => [...row]);
     const oldBorders = this.grid.borders.map(row => [...row]);
+    const oldStones = this.grid.stones.map(row => [...row]);
 
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
@@ -56,17 +67,27 @@ export class RotateSystem {
         const newC = r;
         this.grid.data[newR][newC] = oldData[r][c];
         this.grid.borders[newR][newC] = oldBorders[r][c];
+        this.grid.stones[newR][newC] = oldStones[r][c];
 
+        const { x, y } = this.grid.cellToPixel(newR, newC);
+
+        // 糖果 Tween
         const border = oldBorders[r][c];
         if (border) {
           border.gridRow = newR;
           border.gridCol = newC;
-          const { x, y } = this.grid.cellToPixel(newR, newC);
           this.grid.getContainer().scene.tweens.add({
-            targets: border,
-            x, y,
-            duration: 200,
-            ease: 'Quad.easeInOut',
+            targets: border, x, y, duration: 200, ease: 'Quad.easeInOut',
+          });
+        }
+
+        // 石头 Tween
+        const stone = oldStones[r][c];
+        if (stone) {
+          stone.gridRow = newR;
+          stone.gridCol = newC;
+          this.grid.getContainer().scene.tweens.add({
+            targets: stone, x, y, duration: 200, ease: 'Quad.easeInOut',
           });
         }
       }
