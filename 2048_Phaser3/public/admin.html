@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Giant 2048 — 管理后台</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; }
+
+/* 登录 */
+.login-wrap { display: flex; justify-content: center; align-items: center; height: 100vh; }
+.login-box { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 360px; }
+.login-box h1 { text-align: center; margin-bottom: 24px; color: #1a1a2e; }
+.login-box input { width: 100%; padding: 12px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.login-box button { width: 100%; padding: 12px; background: #4caf50; color: #fff; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+.login-box button:hover { background: #43a047; }
+.login-error { color: #f44336; text-align: center; margin-top: 8px; font-size: 13px; }
+
+/* 主界面 */
+.admin-wrap { display: none; }
+.header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 20px; }
+.header button { background: #f44336; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+
+/* 统计卡片 */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 24px; }
+.stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+.stat-card .number { font-size: 32px; font-weight: bold; color: #1a1a2e; }
+.stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
+
+/* 表格 */
+.table-wrap { padding: 0 24px 24px; }
+.table-wrap h2 { margin-bottom: 12px; font-size: 18px; }
+table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+th { background: #fafafa; font-weight: 600; color: #666; }
+tr:hover { background: #f8f9ff; }
+.status-playing { color: #ff9800; font-weight: bold; }
+.status-finished { color: #4caf50; font-weight: bold; }
+.btn-detail { background: #2196f3; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-detail:hover { background: #1976d2; }
+
+/* 分页 */
+.pagination { display: flex; justify-content: center; gap: 8px; padding: 16px; }
+.pagination button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; }
+.pagination button.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+.pagination button:disabled { opacity: 0.5; cursor: default; }
+
+/* 详情弹窗 */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; }
+.modal h2 { margin-bottom: 16px; }
+.modal .close { float: right; background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
+.modal .close:hover { color: #333; }
+.detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.detail-row .label { color: #888; font-size: 13px; }
+.detail-row .value { font-weight: 500; font-size: 13px; word-break: break-all; max-width: 60%; text-align: right; }
+.candy-sequence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.candy-item { background: #ffe57f; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+.flag-ok { color: #4caf50; }
+.flag-warn { color: #f44336; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- 登录界面 -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <h1>Giant 2048 管理后台</h1>
+    <input type="text" id="username" placeholder="用户名" value="">
+    <input type="password" id="password" placeholder="密码" value="">
+    <button onclick="doLogin()">登录</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- 管理主界面 -->
+<div class="admin-wrap" id="adminWrap">
+  <div class="header">
+    <h1>Giant 2048 管理后台</h1>
+    <button onclick="doLogout()">退出登录</button>
+  </div>
+
+  <!-- 统计概览 -->
+  <div class="stats" id="stats"></div>
+
+  <!-- 游戏列表 -->
+  <div class="table-wrap">
+    <h2>游戏记录</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>局号</th>
+          <th>玩家指纹</th>
+          <th>步数</th>
+          <th>分数</th>
+          <th>状态</th>
+          <th>开局时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="gamesBody"></tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>局详情</h2>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'https://giant-2048-api.xdreamstar2025.workers.dev'
+  : 'https://giant-2048-api.xdreamstar2025.workers.dev';
+
+let token = sessionStorage.getItem('admin_token') || '';
+let currentPage = 1;
+
+// 如果已有 token，直接进入
+if (token) {
+  showAdmin();
+}
+
+async function doLogin() {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.textContent = '';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      token = data.token;
+      sessionStorage.setItem('admin_token', token);
+      showAdmin();
+    } else {
+      errorEl.textContent = data.error || '登录失败';
+    }
+  } catch (e) {
+    errorEl.textContent = '网络错误';
+  }
+}
+
+function doLogout() {
+  token = '';
+  sessionStorage.removeItem('admin_token');
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('adminWrap').style.display = 'none';
+}
+
+function showAdmin() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('adminWrap').style.display = 'block';
+  loadStats();
+  loadGames(1);
+}
+
+async function apiFetch(path) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (res.status === 401) { doLogout(); return null; }
+  return res.json();
+}
+
+async function loadStats() {
+  const data = await apiFetch('/api/admin/stats');
+  if (!data) return;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card"><div class="number">${data.totalGames}</div><div class="label">总局数</div></div>
+    <div class="stat-card"><div class="number">${data.playingGames}</div><div class="label">进行中</div></div>
+    <div class="stat-card"><div class="number">${data.finishedGames}</div><div class="label">已完成</div></div>
+    <div class="stat-card"><div class="number">${data.topScore}</div><div class="label">最高分</div></div>
+    <div class="stat-card"><div class="number">${data.uniquePlayers}</div><div class="label">独立玩家</div></div>
+  `;
+}
+
+async function loadGames(page) {
+  currentPage = page;
+  const data = await apiFetch(`/api/admin/games?page=${page}`);
+  if (!data) return;
+
+  const tbody = document.getElementById('gamesBody');
+  tbody.innerHTML = data.games.map(g => `
+    <tr>
+      <td title="${g.game_id}">${g.game_id.slice(0, 16)}...</td>
+      <td title="${g.fingerprint}">${g.fingerprint.slice(0, 12)}...</td>
+      <td>${g.step}</td>
+      <td><strong>${g.score}</strong></td>
+      <td><span class="status-${g.status}">${g.status === 'playing' ? '进行中' : '已完成'}</span></td>
+      <td>${new Date(g.created_at).toLocaleString('zh-CN')}</td>
+      <td><button class="btn-detail" onclick="showDetail('${g.game_id}')">详情</button></td>
+    </tr>
+  `).join('');
+
+  // 分页
+  const pagEl = document.getElementById('pagination');
+  let html = '';
+  html += `<button ${page <= 1 ? 'disabled' : ''} onclick="loadGames(${page - 1})">上一页</button>`;
+  for (let i = 1; i <= data.totalPages; i++) {
+    html += `<button class="${i === page ? 'active' : ''}" onclick="loadGames(${i})">${i}</button>`;
+  }
+  html += `<button ${page >= data.totalPages ? 'disabled' : ''} onclick="loadGames(${page + 1})">下一页</button>`;
+  pagEl.innerHTML = html;
+}
+
+async function showDetail(gameId) {
+  const data = await apiFetch(`/api/admin/game/${gameId}`);
+  if (!data) return;
+
+  const ua = '(浏览器指纹无法反推UA，仅显示指纹hash)';
+
+  document.getElementById('modalContent').innerHTML = `
+    <div class="detail-row"><span class="label">局号</span><span class="value">${data.game_id}</span></div>
+    <div class="detail-row"><span class="label">玩家指纹</span><span class="value">${data.fingerprint}</span></div>
+    <div class="detail-row"><span class="label">浏览器信息</span><span class="value">${ua}</span></div>
+    <div class="detail-row"><span class="label">状态</span><span class="value status-${data.status}">${data.status === 'playing' ? '进行中' : '已完成'}</span></div>
+    <div class="detail-row"><span class="label">开局时间</span><span class="value">${new Date(data.created_at).toLocaleString('zh-CN')}</span></div>
+    <div class="detail-row"><span class="label">Seed（服务端）</span><span class="value">${data.seed}</span></div>
+    <div class="detail-row"><span class="label">总步数</span><span class="value">${data.step}</span></div>
+    <div class="detail-row"><span class="label">最终分数</span><span class="value"><strong>${data.score}</strong></span></div>
+    <div class="detail-row"><span class="label">最终签名</span><span class="value">${data.sign.slice(0, 32)}...</span></div>
+    <div class="detail-row"><span class="label">签名验证</span><span class="value ${data.signValid ? 'flag-ok' : 'flag-warn'}">${data.signValid ? '✓ 有效' : '✗ 无效（可能篡改）'}</span></div>
+    <div class="detail-row"><span class="label">作弊标记</span><span class="value ${data.suspiciousFlags.length ? 'flag-warn' : 'flag-ok'}">${data.suspiciousFlags.length ? data.suspiciousFlags.join(', ') : '✓ 无异常'}</span></div>
+    <div style="margin-top: 16px;">
+      <div class="label" style="margin-bottom: 8px;">糖果序列（由 Seed 生成的随机值）：</div>
+      <div class="candy-sequence">
+        ${data.candySequence.map((c, i) => `<span class="candy-item">#${i}: ${c}</span>`).join('')}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// ESC 关闭弹窗
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
