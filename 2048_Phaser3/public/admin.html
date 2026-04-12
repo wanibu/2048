@@ -164,11 +164,16 @@ function doLogout() {
 }
 
 function showAdmin() {
+  console.log('[admin] showAdmin called, token:', token.slice(0, 16) + '...');
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('adminWrap').style.display = 'block';
   loadStats();
   loadGames(1);
 }
+
+// 页面加载日志
+console.log('[admin] page loaded, API_BASE:', API_BASE);
+console.log('[admin] saved token:', token ? token.slice(0, 16) + '...' : 'none');
 
 async function apiFetch(path) {
   console.log(`[admin] GET ${API_BASE}${path}`);
@@ -188,7 +193,9 @@ async function apiFetch(path) {
 }
 
 async function loadStats() {
+  console.log('[admin] loadStats...');
   const data = await apiFetch('/api/admin/stats');
+  console.log('[admin] stats data:', data);
   if (!data) return;
   document.getElementById('stats').innerHTML = `
     <div class="stat-card"><div class="number">${data.totalGames}</div><div class="label">总局数</div></div>
@@ -200,8 +207,10 @@ async function loadStats() {
 }
 
 async function loadGames(page) {
+  console.log('[admin] loadGames page:', page);
   currentPage = page;
   const data = await apiFetch(`/api/admin/games?page=${page}`);
+  console.log('[admin] games data:', data);
   if (!data) return;
 
   const tbody = document.getElementById('gamesBody');
