@@ -65,27 +65,24 @@ export class Sling {
     this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
 
-    // 生成第一个"下一个"糖果值
-    this.nextValue = this.randomValue();
-    this.spawnNextShape();
+    // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
     this.setupInput();
   }
 
-  // 随机生成一个糖果值
-  private randomValue(): number {
-    const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
-    return spawnPool[Phaser.Math.Between(0, spawnPool.length - 1)];
+  // 由 GameScene 调用，传入后端返回的第1个和第2个糖果值
+  initCandies(currentValue: number, nextValue: number): void {
+    this.nextValue = nextValue;
+    this.spawnWithValue(currentValue);
   }
 
-  private spawnNextShape(): void {
+  // 用指定值生成弹弓上的糖果
+  private spawnWithValue(value: number): void {
     // 安全清理：确保旧糖果不残留
     if (this.currentShape && this.currentShape.active) {
       this.currentShape.destroy();
     }
     this.currentShape = null;
 
-    // 当前弹弓上的糖果 = 之前预告的"下一个"
-    const value = this.nextValue;
     const x = this.grid.colToX(this.selectedCol);
     // 糖果球初始位置在弹弓上方
     this.shapeBaseY = this.slingY - this.slingH * 0.8 + 20;
@@ -94,9 +91,19 @@ export class Sling {
     this.shootAvailable = true;
     this.setSlingState(0);
 
-    // 生成新的"下一个"并更新预览
-    this.nextValue = this.randomValue();
+    // 更新预览
     this.updateNextPreview();
+  }
+
+  // 设置下一个糖果值（由后端返回后调用）
+  setNextCandy(value: number): void {
+    this.nextValue = value;
+    this.updateNextPreview();
+  }
+
+  // respawn：用 nextValue 生成当前糖果（下一个糖果等后端返回后设置）
+  private spawnNextShape(): void {
+    this.spawnWithValue(this.nextValue);
   }
 
   // 更新底部中间的"下一个糖果"预览

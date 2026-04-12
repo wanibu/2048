@@ -35,7 +35,7 @@ export class GameScene extends Phaser.Scene {
     bg.setDepth(-1000);
 
     this.layout = layout;
-    // 操作记录器：每步操作链式签名，用于后端验证
+    // 操作记录器：和后端通信，每步操作发给后端验证
     this.recorder = new ActionRecorder();
     this.hud = new HUD(this, w);
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
@@ -58,6 +58,14 @@ export class GameScene extends Phaser.Scene {
     // 监听窗口resize：保存状态后刷新页面
     window.addEventListener('resize', this.onResize);
 
+    // 后端开局：获取 gameId + 第1/2个糖果
+    this.initBackend();
+
+    // 后端返回下一个糖果时更新弹弓
+    this.recorder.onNextCandy((candy: number) => {
+      this.sling.setNextCandy(candy);
+    });
+
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
   }
@@ -79,8 +87,9 @@ export class GameScene extends Phaser.Scene {
     const state = {
       grid: this.grid.data.map(row => [...row]),
       score: this.hud.getScore(),
-      // 保存完整的操作记录，恢复后继续追加
-      record: this.recorder.getRecord(),
+      // 保存 gameId 和当前签名，恢复后继续
+      gameId: this.recorder.getGameId(),
+      sign: this.recorder.getSign(),
     };
     sessionStorage.setItem('giant2048_state', JSON.stringify(state));
     // 标记正在游戏中，刷新后 MenuScene 会直接跳到 GameScene
@@ -112,10 +121,8 @@ export class GameScene extends Phaser.Scene {
         this.hud.setScore(state.score);
       }
 
-      // 恢复操作记录（保持签名链完整，后端验证不受影响）
-      if (state.record) {
-        this.recorder.restoreFrom(state.record);
-      }
+      // 注意：resize 恢复后后端状态已丢失，需要重新开局
+      // TODO: 后续可以用 gameId 恢复后端会话
 
       // 用完即删，避免下次正常进入时还恢复
       sessionStorage.removeItem('giant2048_state');
@@ -123,6 +130,22 @@ export class GameScene extends Phaser.Scene {
     } catch (e) {
       console.error('[恢复失败]', e);
       sessionStorage.removeItem('giant2048_state');
+    }
+  }
+
+  // 后端开局：获取 gameId 和第一批糖果
+  private async initBackend(): Promise<void> {
+    try {
+      const { currentCandy, nextCandy } = await this.recorder.init();
+      console.log(`[开局] gameId=${this.recorder.getGameId()}, current=${currentCandy}, next=${nextCandy}`);
+      this.sling.initCandies(currentCandy, nextCandy);
+    } catch (e) {
+      console.error('[开局失败] 使用本地随机模式', e);
+      // fallback: 本地随机
+      const pool = [2, 4, 8, 16, 32];
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      const n = pool[Math.floor(Math.random() * pool.length)];
+      this.sling.initCandies(c, n);
     }
   }
 
@@ -328,6 +351,7 @@ export class GameScene extends Phaser.Scene {
     console.log(`[合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
 
     this.hud.addScore(result.newValue);
+    this.recorder.reportScore(this.hud.getScore());
     this.sound.play('collapse1', { volume: 0.4 });
     this.lastLandedCol = result.col;
 
@@ -483,8 +507,9 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(201);
 
-    // 提交分数
-    this.submitScore();
+    // 提交分数到后端并结束游戏
+    this.recorder.reportScore(this.hud.getScore());
+    this.recorder.finish();
 
     // 重新开始按钮
     const restartBtn = this.add.text(w / 2, h * 0.58, '↻ RESTART', {
@@ -504,24 +529,4 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // 提交分数到 Cloudflare Workers 验证
-  // 发送链式签名的操作记录，Workers 重放验证后存入 D1 排行榜
-  private async submitScore(): Promise<void> {
-    this.recorder.updateScore(this.hud.getScore());
-    const record = this.recorder.getRecord();
-    console.log(`[提交分数] score=${record.finalScore}, actions=${record.actions.length}`);
-
-    try {
-      const apiUrl = ((window as unknown) as Record<string, unknown>).__API_URL__ as string || '/api';
-      const res = await fetch(`${apiUrl}/submit-score`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(record),
-      });
-      const data = await res.json();
-      console.log('[提交结果]', data);
-    } catch (e) {
-      console.error('[提交失败]', e);
-    }
-  }
 }
