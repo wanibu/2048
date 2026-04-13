@@ -46,7 +46,7 @@ export class Grid {
     const centerX = this.layout.gridOffsetX + gridW / 2;
     const centerY = this.layout.gridOffsetY + gridH / 2;
     const boardBg = this.scene.add.image(centerX, centerY, 'shared0', 'board_bg');
-    boardBg.setDisplaySize(gridW + 20, gridH + 20); // 稍微大一点留边
+    boardBg.setDisplaySize(gridW * 1.25, gridH * 1.25); // 背景比格子大20%，露出木质边框
     boardBg.setDepth(-1);
     this.container.add(boardBg);
 
@@ -56,7 +56,6 @@ export class Grid {
       for (let col = 0; col < GRID_COLS; col++) {
         const { x, y } = this.cellToPixel(row, col);
         const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x000000, 0);
-        cell.setStrokeStyle(1, 0x00000033);
         this.cells[row][col] = cell;
         this.container.add(cell);
       }

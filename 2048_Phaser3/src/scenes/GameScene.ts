@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, BASE_BG_REGION, ROTATE_BTN_REGION, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -37,6 +37,15 @@ export class GameScene extends Phaser.Scene {
     bg.setScale(Math.max(w / bg.width, h / bg.height));
     // depth越小越在底层，-1000确保背景在所有元素下面
     bg.setDepth(-1000);
+
+    // 底座背景（倒数第二层，在蓝天背景之上，棋盘之下）
+    const tex = this.textures.get('shared0');
+    if (!tex.has('base_bg')) {
+      tex.add('base_bg', 0, BASE_BG_REGION.x, BASE_BG_REGION.y, BASE_BG_REGION.w, BASE_BG_REGION.h);
+    }
+    const baseBg = this.add.image(w / 2, h * 0.85, 'shared0', 'base_bg');
+    baseBg.setDisplaySize(w, w * (261 / 1026)); // 保持宽高比，宽度铺满
+    baseBg.setDepth(-999);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
@@ -163,29 +172,29 @@ export class GameScene extends Phaser.Scene {
     console.log('========================\n');
   }
 
-  // 创建左右旋转按钮，放在页面最底部
+  // 创建左右旋转按钮，使用素材图片
   private createRotateButtons(w: number, h: number, layout: LayoutConfig): void {
-    const btnSize = layout.cellSize * 0.7;
-    // 按钮Y位置在页面最底部
-    const btnY = h - btnSize * 0.8;
+    const btnDisplaySize = layout.cellSize * 0.7;
+    const btnY = h - btnDisplaySize * 2.5;
 
-    // 左旋转按钮 — 左下角，逆时针旋转90°
-    const leftBtn = this.add.text(w * 0.20, btnY, '↺', {
-      fontSize: `${Math.round(btnSize)}px`,
-      color: '#ffffff',
-      stroke: '#2e7d32',
-      strokeThickness: 3,
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
+    // 注册旋转按钮帧
+    const tex2 = this.textures.get('shared2');
+    if (!tex2.has('rotate_btn')) {
+      tex2.add('rotate_btn', 0, ROTATE_BTN_REGION.x, ROTATE_BTN_REGION.y, ROTATE_BTN_REGION.w, ROTATE_BTN_REGION.h);
+    }
+
+    // 左旋转按钮 — 原图（默认朝左）
+    const leftBtn = this.add.image(w * 0.20, btnY, 'shared2', 'rotate_btn');
+    leftBtn.setDisplaySize(btnDisplaySize, btnDisplaySize * (117 / 133));
+    leftBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
 
     leftBtn.on('pointerdown', () => this.doRotate('ccw'));
 
-    // 右旋转按钮 — 右下角，顺时针旋转90°
-    const rightBtn = this.add.text(w * 0.80, btnY, '↻', {
-      fontSize: `${Math.round(btnSize)}px`,
-      color: '#ffffff',
-      stroke: '#2e7d32',
-      strokeThickness: 3,
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
+    // 右旋转按钮 — 同一张图水平翻转
+    const rightBtn = this.add.image(w * 0.80, btnY, 'shared2', 'rotate_btn');
+    rightBtn.setDisplaySize(btnDisplaySize, btnDisplaySize * (117 / 133));
+    rightBtn.setFlipX(true); // 水平翻转
+    rightBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
 
     rightBtn.on('pointerdown', () => this.doRotate('cw'));
 
@@ -418,7 +427,7 @@ export class GameScene extends Phaser.Scene {
 
     this.printGrid('合并后');
     // 合并后上靠：只处理被消除的列
-    this.applyGravityUp(result.affectedCols);
+    this.applyGravityUp([...result.removedCells, ...result.destroyedStones]);
     this.printGrid('上靠后');
     this.time.delayedCall(400, () => this.checkMerges());
   }
@@ -457,53 +466,57 @@ export class GameScene extends Phaser.Scene {
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
     this.printGrid('旋转合并后');
-    this.applyGravityUp(result.affectedCols);
+    this.applyGravityUp([...result.removedCells, ...result.destroyedStones]);
     this.printGrid('旋转上靠后');
     this.time.delayedCall(400, () => this.checkMergesAfterRotation());
   }
 
-  // 上靠逻辑：只处理合并中被消除的列，其他列不动
-  // 被消除列中，所有方块紧贴顶部已有方块，中间不留空隙
-  private applyGravityUp(affectedCols: number[]): void {
-    for (const col of affectedCols) {
-      // 收集这列所有非空项（糖果或石头），保持从上到下的顺序
-      const items: { value: number; border: Border | null; stone: Stone | null }[] = [];
-      for (let r = 0; r < GRID_ROWS; r++) {
-        if (this.grid.data[r][col] !== 0) {
-          items.push({
-            value: this.grid.data[r][col],
-            border: this.grid.borders[r][col],
-            stone: this.grid.stones[r][col],
-          });
-        }
-      }
+  // 上靠逻辑：只在被消除的格子处，把下方元素往上填补
+  // 元素只在正上方因合并/碎石被消除时才往上移，其他空格不触发
+  private applyGravityUp(removedCells: { row: number; col: number }[]): void {
+    // 用被消除格子 + 碎石格子作为初始空位
+    // 从每个空位开始，把下方紧邻的元素往上拉，连锁处理
+    const emptyCells = new Set(removedCells.map(c => `${c.row},${c.col}`));
 
-      // 清空这列
-      for (let r = 0; r < GRID_ROWS; r++) {
-        this.grid.data[r][col] = 0;
-        this.grid.borders[r][col] = null;
-        this.grid.stones[r][col] = null;
-      }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const key of Array.from(emptyCells)) {
+        const [rStr, cStr] = key.split(',');
+        const r = parseInt(rStr);
+        const col = parseInt(cStr);
 
-      // 从顶部开始重新填入
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        this.grid.data[i][col] = item.value;
-        this.grid.borders[i][col] = item.border;
-        this.grid.stones[i][col] = item.stone;
+        // 当前格确实是空的，且下方有元素
+        if (this.grid.data[r][col] === 0 && r + 1 < GRID_ROWS && this.grid.data[r + 1][col] !== 0) {
+          // 把行 r+1 的元素移到行 r
+          this.grid.data[r][col] = this.grid.data[r + 1][col];
+          this.grid.borders[r][col] = this.grid.borders[r + 1][col];
+          this.grid.stones[r][col] = this.grid.stones[r + 1][col];
 
-        const { x, y } = this.grid.cellToPixel(i, col);
+          this.grid.data[r + 1][col] = 0;
+          this.grid.borders[r + 1][col] = null;
+          this.grid.stones[r + 1][col] = null;
 
-        // Tween 糖果或石头到新位置
-        if (item.border) {
-          item.border.gridRow = i;
-          item.border.gridCol = col;
-          this.tweens.add({ targets: item.border, x, y, duration: 150, ease: 'Quad.easeOut' });
-        }
-        if (item.stone) {
-          item.stone.gridRow = i;
-          item.stone.gridCol = col;
-          this.tweens.add({ targets: item.stone, x, y, duration: 150, ease: 'Quad.easeOut' });
+          const { x, y } = this.grid.cellToPixel(r, col);
+
+          const border = this.grid.borders[r][col];
+          if (border) {
+            border.gridRow = r;
+            border.gridCol = col;
+            this.tweens.add({ targets: border, x, y, duration: 150, ease: 'Quad.easeOut' });
+          }
+          const stone = this.grid.stones[r][col];
+          if (stone) {
+            stone.gridRow = r;
+            stone.gridCol = col;
+            this.tweens.add({ targets: stone, x, y, duration: 150, ease: 'Quad.easeOut' });
+          }
+
+          // 行 r 现在有东西了，移出空位集合
+          emptyCells.delete(key);
+          // 行 r+1 变成空位了，加入集合（继续连锁）
+          emptyCells.add(`${r + 1},${col}`);
+          changed = true;
         }
       }
     }

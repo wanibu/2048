@@ -76,6 +76,12 @@ export const STONE_REGION: SpriteRegion = { x: 0, y: 0, w: 128, h: 128 };
 // 棋盘背景素材：shared-0-sheet0.png (777×740)
 export const BOARD_BG_REGION: SpriteRegion = { x: 784, y: 0, w: 777, h: 740 };
 
+// 底座背景素材：shared-0-sheet0.png (1026×261)
+export const BASE_BG_REGION: SpriteRegion = { x: 768, y: 752, w: 1026, h: 261 };
+
+// 旋转按钮素材：shared-0-sheet2.png (133×117)，左旋转原图，右旋转水平翻转
+export const ROTATE_BTN_REGION: SpriteRegion = { x: 254, y: 770, w: 133, h: 117 };
+
 // All shootable values (0 is the blank/empty shape)
 export const SHAPE_VALUES = [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2];
 

@@ -70,7 +70,7 @@ export class MergeSystem {
     }
   }
 
-  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; destroyedStones: { row: number; col: number }[] } {
+  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; removedCells: { row: number; col: number }[]; destroyedStones: { row: number; col: number }[] } {
     // 2个: ×2, 3个: ×4, 4个: ×8 ...
     const newValue = group.value * Math.pow(2, group.cells.length - 1);
 
@@ -93,6 +93,11 @@ export class MergeSystem {
     }
 
     const mergeTarget = { row: minRow, col: targetCol };
+
+    // 记录被消除的格子（合并目标位置除外，因为会被新值覆盖）
+    const removedCells = group.cells.filter(
+      c => !(c.row === mergeTarget.row && c.col === mergeTarget.col)
+    );
 
     // Remove all cells
     for (const cell of group.cells) {
@@ -134,6 +139,6 @@ export class MergeSystem {
       }
     }
 
-    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, destroyedStones };
+    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, removedCells, destroyedStones };
   }
 }

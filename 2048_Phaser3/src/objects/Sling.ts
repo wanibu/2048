@@ -114,7 +114,7 @@ export class Sling {
     }
     // 在页面底部中间显示下一个糖果（缩小显示）
     const previewX = this.layout.width / 2;
-    const previewY = this.layout.height - this.layout.cellSize * 0.5;
+    const previewY = this.layout.height - this.layout.cellSize * 2.0;
     const previewSize = this.layout.cellSize * 0.7;
     this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, previewSize);
     this.nextPreview.setDepth(100);
