@@ -11,10 +11,14 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: document.body,
   backgroundColor: '#000000',
   scale: {
-    mode: Phaser.Scale.FIT,
+    // ENVELOP：canvas 铺满视口，内容保持比例居中，超出裁切
+    mode: Phaser.Scale.ENVELOP,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
+  },
+  render: {
+    antialias: true,
   },
   physics: {
     default: 'arcade',

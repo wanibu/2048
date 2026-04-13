@@ -170,7 +170,7 @@ export class GameScene extends Phaser.Scene {
     const btnY = h - btnSize * 0.8;
 
     // 左旋转按钮 — 左下角，逆时针旋转90°
-    const leftBtn = this.add.text(w * 0.15, btnY, '↺', {
+    const leftBtn = this.add.text(w * 0.20, btnY, '↺', {
       fontSize: `${Math.round(btnSize)}px`,
       color: '#ffffff',
       stroke: '#2e7d32',
@@ -180,7 +180,7 @@ export class GameScene extends Phaser.Scene {
     leftBtn.on('pointerdown', () => this.doRotate('ccw'));
 
     // 右旋转按钮 — 右下角，顺时针旋转90°
-    const rightBtn = this.add.text(w * 0.85, btnY, '↻', {
+    const rightBtn = this.add.text(w * 0.80, btnY, '↻', {
       fontSize: `${Math.round(btnSize)}px`,
       color: '#ffffff',
       stroke: '#2e7d32',

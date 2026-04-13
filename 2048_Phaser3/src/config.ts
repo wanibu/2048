@@ -17,7 +17,8 @@ export interface LayoutConfig {
 
 export function calcLayout(w: number, h: number): LayoutConfig {
   // 网格占画面宽度的73%（原版 93.5*5/640 ≈ 73%）
-  const gridWidth = w * 0.73;
+  // 棋盘占画面宽度70%（缩小3%）
+  const gridWidth = w * 0.52;
   const cellSize = gridWidth / GRID_COLS;
   // 网格水平居中
   const gridOffsetX = (w - gridWidth) / 2;
@@ -71,6 +72,9 @@ export const SHAPE_REGIONS: Record<number, SpriteRegion> = {
 
 // Stone sprite: first frame of border-sheet0.png
 export const STONE_REGION: SpriteRegion = { x: 0, y: 0, w: 128, h: 128 };
+
+// 棋盘背景素材：shared-0-sheet0.png (777×740)
+export const BOARD_BG_REGION: SpriteRegion = { x: 784, y: 0, w: 777, h: 740 };
 
 // All shootable values (0 is the blank/empty shape)
 export const SHAPE_VALUES = [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2];

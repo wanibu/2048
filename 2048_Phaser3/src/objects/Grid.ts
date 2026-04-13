@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, STONE_VALUE, LayoutConfig } from '../config';
+import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, LayoutConfig } from '../config';
 import { Border } from './Border';
 import { Stone } from './Stone';
 
@@ -36,12 +36,27 @@ export class Grid {
   }
 
   private drawGrid(): void {
+    // 棋盘背景图（shared-0-sheet0.png 裁切）
+    const tex = this.scene.textures.get('shared0');
+    if (!tex.has('board_bg')) {
+      tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
+    }
+    const gridW = GRID_COLS * this.layout.cellSize;
+    const gridH = GRID_ROWS * this.layout.cellSize;
+    const centerX = this.layout.gridOffsetX + gridW / 2;
+    const centerY = this.layout.gridOffsetY + gridH / 2;
+    const boardBg = this.scene.add.image(centerX, centerY, 'shared0', 'board_bg');
+    boardBg.setDisplaySize(gridW + 20, gridH + 20); // 稍微大一点留边
+    boardBg.setDepth(-1);
+    this.container.add(boardBg);
+
+    // 网格线
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
         const { x, y } = this.cellToPixel(row, col);
-        const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x2a2a4a, 0.6);
-        cell.setStrokeStyle(2, 0x444477);
+        const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x000000, 0);
+        cell.setStrokeStyle(1, 0x00000033);
         this.cells[row][col] = cell;
         this.container.add(cell);
       }
