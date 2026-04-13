@@ -13,11 +13,12 @@ export class RotateSystem {
 
   /**
    * 原版实现方式：整个棋盘容器（背景+糖果+石头）一起旋转
-   * 1. Tween 容器 angle ±90°（视觉旋转）
-   * 2. 动画结束后重置 angle=0，更新数据层，重新定位所有元素
+   * 1. 创建临时旋转容器，把 grid container 的所有子元素移进去
+   * 2. Tween 临时容器旋转 ±90°
+   * 3. 动画结束后，更新数据层，把元素移回 grid container 并重新定位
    */
   rotateCW(onComplete: () => void): void {
-    this.rotateContainer(90, () => {
+    this.doRotate(90, () => {
       this.updateDataCW();
       this.repositionAll();
       onComplete();
@@ -25,62 +26,51 @@ export class RotateSystem {
   }
 
   rotateCCW(onComplete: () => void): void {
-    this.rotateContainer(-90, () => {
+    this.doRotate(-90, () => {
       this.updateDataCCW();
       this.repositionAll();
       onComplete();
     });
   }
 
-  // 整个容器旋转动画（和原版一样，用 Tween）
-  private rotateContainer(angleDelta: number, onComplete: () => void): void {
+  private doRotate(angleDelta: number, onComplete: () => void): void {
     const container = this.grid.getContainer();
-
-    // 设置旋转中心为网格中心
     const gridW = GRID_COLS * this.grid.layout.cellSize;
     const gridH = GRID_ROWS * this.grid.layout.cellSize;
-    const pivotX = this.grid.layout.gridOffsetX + gridW / 2;
-    const pivotY = this.grid.layout.gridOffsetY + gridH / 2;
+    // 旋转中心 = 网格中心
+    const cx = this.grid.layout.gridOffsetX + gridW / 2;
+    const cy = this.grid.layout.gridOffsetY + gridH / 2;
 
-    // 容器默认 origin 是 (0,0)，需要调整位置让它围绕中心旋转
-    // 先移动容器到中心点，设置子元素相对偏移
-    // 更简单的方式：直接对容器做旋转动画
-    // Phaser Container 的旋转中心可以通过设置 (x, y) 来控制
-    // 我们把容器的 position 设为旋转中心，子元素坐标相对于中心
+    // 创建临时容器，放在旋转中心
+    const tempContainer = this.scene.add.container(cx, cy);
 
-    // 保存当前容器位置
-    const origX = container.x;
-    const origY = container.y;
-
-    // 把容器移到旋转中心
-    container.setPosition(pivotX, pivotY);
-    // 所有子元素减去中心偏移
-    container.each((child: Phaser.GameObjects.GameObject) => {
-      const go = child as unknown as { x: number; y: number };
-      if (go && typeof go.x === 'number') {
-        go.x -= pivotX;
-        go.y -= pivotY;
-      }
-    });
+    // 把 grid container 的所有子元素移到临时容器（坐标转换为相对中心）
+    const children = container.getAll();
+    for (const child of children) {
+      const go = child as Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject;
+      container.remove(child);
+      tempContainer.add(child);
+      go.x -= cx;
+      go.y -= cy;
+    }
 
     // Tween 旋转
     this.scene.tweens.add({
-      targets: container,
-      angle: container.angle + angleDelta,
+      targets: tempContainer,
+      angle: angleDelta,
       duration: 200,
       ease: 'Quad.easeInOut',
       onComplete: () => {
-        // 动画结束：重置容器位置和角度
-        container.angle = 0;
-        container.setPosition(origX, origY);
-        // 子元素加回偏移（后面 repositionAll 会重新设置位置）
-        container.each((child: Phaser.GameObjects.GameObject) => {
-          const go = child as unknown as { x: number; y: number };
-          if (go && typeof go.x === 'number') {
-            go.x += pivotX;
-            go.y += pivotY;
-          }
-        });
+        // 把子元素移回 grid container，恢复世界坐标
+        const tempChildren = tempContainer.getAll();
+        for (const child of tempChildren) {
+          const go = child as Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject;
+          tempContainer.remove(child);
+          container.add(child);
+          go.x += cx;
+          go.y += cy;
+        }
+        tempContainer.destroy();
 
         onComplete();
       },
@@ -143,7 +133,7 @@ export class RotateSystem {
     }
   }
 
-  // 旋转后重新定位所有元素到正确的网格位置（无动画，瞬间归位）
+  // 旋转后重新定位所有元素到正确的网格位置
   private repositionAll(): void {
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
