@@ -47,7 +47,7 @@ export class GameScene extends Phaser.Scene {
     // 合并系统：BFS扫描相邻同值方块，执行合并
     this.mergeSystem = new MergeSystem(this.grid);
     // 旋转系统：数据层矩阵转置 + 视觉Tween动画
-    this.rotateSystem = new RotateSystem(this.grid);
+    this.rotateSystem = new RotateSystem(this.grid, this);
 
     // 弹弓：拖拽选列、拉弓动画、发射糖果
     this.sling = new Sling(this, this.grid, layout);
@@ -197,6 +197,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 执行旋转：数据层转置 + 视觉动画 + 旋转后检查合并
+  // 执行旋转：整个棋盘容器（背景+糖果+石头）一起旋转动画
+  // 动画结束后更新数据层，重新定位元素，检查合并
   private doRotate(direction: 'cw' | 'ccw'): void {
     if (this.isRotating) return;
     this.isRotating = true;
@@ -204,21 +206,20 @@ export class GameScene extends Phaser.Scene {
     console.log(`[旋转] 方向: ${direction === 'cw' ? '顺时针' : '逆时针'}`);
     this.printGrid('旋转前');
 
-    if (direction === 'cw') {
-      this.rotateSystem.rotateCW();
-    } else {
-      this.rotateSystem.rotateCCW();
-    }
-
     this.sound.play('rotation', { volume: 0.3 });
     this.recorder.recordRotate(direction);
 
-    // 等旋转动画完成后检查合并（不重新生成弹弓糖果）
-    this.time.delayedCall(250, () => {
+    const onComplete = () => {
       this.isRotating = false;
       this.printGrid('旋转后');
       this.checkMergesAfterRotation();
-    });
+    };
+
+    if (direction === 'cw') {
+      this.rotateSystem.rotateCW(onComplete);
+    } else {
+      this.rotateSystem.rotateCCW(onComplete);
+    }
   }
 
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
