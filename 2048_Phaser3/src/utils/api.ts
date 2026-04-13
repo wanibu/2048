@@ -1,20 +1,23 @@
 // 后端 API 客户端
-// 和 Cloudflare Workers 通信：开局、每步操作、结局
 
 const API_BASE = ((window as unknown) as Record<string, unknown>).__API_URL__ as string
   || 'https://giant-2048-api.xdreamstar2025.workers.dev';
 
 interface StartGameResponse {
   gameId: string;
-  currentCandy: number;
-  nextCandy: number;
+  sequence: number[]; // 50个糖果值
+  sequenceConfig: string;
   sign: string;
+}
+
+interface ExtendSequenceResponse {
+  sequence: number[];
+  startIndex: number;
 }
 
 interface ActionResponse {
   step: number;
   sign: string;
-  nextCandy: number;
 }
 
 interface EndGameResponse {
@@ -44,12 +47,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// 开局：获取 gameId + 第1个和第2个糖果
-export async function startGame(fingerprint: string): Promise<StartGameResponse> {
-  return post<StartGameResponse>('/api/start-game', { fingerprint });
+// 开局：获取 gameId + 50个糖果序列
+export async function startGame(fingerprint: string, userId?: string): Promise<StartGameResponse> {
+  return post<StartGameResponse>('/api/start-game', { fingerprint, userId });
 }
 
-// 每步操作：发送 action，获取下一个糖果
+// 请求更多糖果（50个用完后）
+export async function extendSequence(gameId: string): Promise<ExtendSequenceResponse> {
+  return post<ExtendSequenceResponse>('/api/extend-sequence', { gameId });
+}
+
+// 每步操作
 export async function sendAction(gameId: string, action: GameAction): Promise<ActionResponse> {
   return post<ActionResponse>('/api/action', { gameId, action });
 }
@@ -60,6 +68,6 @@ export async function updateScore(gameId: string, score: number): Promise<void> 
 }
 
 // 游戏结束
-export async function endGame(gameId: string, finalSign: string): Promise<EndGameResponse> {
-  return post<EndGameResponse>('/api/end-game', { gameId, finalSign });
+export async function endGame(gameId: string, finalSign: string, endReason?: string): Promise<EndGameResponse> {
+  return post<EndGameResponse>('/api/end-game', { gameId, finalSign, endReason });
 }

@@ -1,521 +1,1894 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Giant 2048 - Sprite Debug</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
-h1 { color: #ffe57f; margin-bottom: 20px; }
-h2 { color: #ff9800; margin: 30px 0 8px; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 4px; }
-.info { color: #888; font-size: 12px; margin-bottom: 10px; }
-.frames { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-.frame-wrap { text-align: center; }
-.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; }
-.frame-wrap .label .idx { color: #ffe57f; }
-.frame-wrap .label .pos { color: #4caf50; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giant 2048 - Sprite Debug</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 30px 0 8px;
+        font-size: 16px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 4px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
 
-/* ============ shape-sheet0.png ============ */
-/* 512x1024, 14帧, 128x128, 4列 */
-.shape { background: url('public/assets/images/shape-sheet0.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.shape-0  { background-position: 0px 0px; }
-.shape-1  { background-position: -128px 0px; }
-.shape-2  { background-position: -256px 0px; }
-.shape-3  { background-position: -384px 0px; }
-.shape-4  { background-position: 0px -128px; }
-.shape-5  { background-position: -128px -128px; }
-.shape-6  { background-position: -256px -128px; }
-.shape-7  { background-position: -384px -128px; }
-.shape-8  { background-position: 0px -256px; }
-.shape-9  { background-position: -128px -256px; }
-.shape-10 { background-position: -256px -256px; }
-.shape-11 { background-position: -384px -256px; }
-.shape-12 { background-position: 0px -384px; }
-.shape-13 { background-position: -128px -384px; }
+      /* ============ shape-sheet0.png ============ */
+      /* 512x1024, 14帧, 128x128, 4列 */
+      .shape {
+        background: url("public/assets/images/shape-sheet0.png") no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .shape-0 {
+        background-position: -2px 0px;
+      }
+      .shape-1 {
+        background-position: -131px 0px;
+      }
+      .shape-2 {
+        background-position: -261px 0px;
+      }
+      .shape-3 {
+        background-position: -384px 0px;
+      }
+      .shape-4 {
+        background-position: -2px -131px;
+      }
+      .shape-5 {
+        background-position: -131px -131px;
+      }
+      .shape-6 {
+        background-position: -256px -128px;
+      }
+      .shape-7 {
+        background-position: -384px -128px;
+      }
+      .shape-8 {
+        background-position: -1px -260px;
+      }
+      .shape-9 {
+        background-position: -131px -262px;
+      }
+      .shape-10 {
+        background-position: -262px -256px;
+      }
+      .shape-11 {
+        background-position: -384px -256px;
+      }
+      .shape-12 {
+        background-position: 0px -384px;
+      }
+      .shape-13 {
+        background-position: -128px -384px;
+      }
 
-/* ============ border-sheet0.png ============ */
-/* 512x1024, 15帧, 128x128, 4列 */
-.border { background: url('public/assets/images/border-sheet0.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.border-0  { background-position: 0px 0px; }
-.border-1  { background-position: -128px 0px; }
-.border-2  { background-position: -256px 0px; }
-.border-3  { background-position: -384px 0px; }
-.border-4  { background-position: 0px -128px; }
-.border-5  { background-position: -128px -128px; }
-.border-6  { background-position: -256px -128px; }
-.border-7  { background-position: -384px -128px; }
-.border-8  { background-position: 0px -256px; }
-.border-9  { background-position: -128px -256px; }
-.border-10 { background-position: -256px -256px; }
-.border-11 { background-position: -384px -256px; }
-.border-12 { background-position: 0px -384px; }
-.border-13 { background-position: -128px -384px; }
-.border-14 { background-position: -256px -384px; }
+      /* ============ border-sheet0.png ============ */
+      /* 512x1024, 15帧, 128x128, 4列 */
+      .border {
+        background: url("public/assets/images/border-sheet0.png") no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .border-0 {
+        background-position: 0px 0px;
+      }
+      .border-1 {
+        background-position: -128px 0px;
+      }
+      .border-2 {
+        background-position: -256px 0px;
+      }
+      .border-3 {
+        background-position: -384px 0px;
+      }
+      .border-4 {
+        background-position: 0px -128px;
+      }
+      .border-5 {
+        background-position: -128px -128px;
+      }
+      .border-6 {
+        background-position: -256px -128px;
+      }
+      .border-7 {
+        background-position: -384px -128px;
+      }
+      .border-8 {
+        background-position: 0px -256px;
+      }
+      .border-9 {
+        background-position: -128px -256px;
+      }
+      .border-10 {
+        background-position: -256px -256px;
+      }
+      .border-11 {
+        background-position: -384px -256px;
+      }
+      .border-12 {
+        background-position: 0px -384px;
+      }
+      .border-13 {
+        background-position: -128px -384px;
+      }
+      .border-14 {
+        background-position: -256px -384px;
+      }
 
-/* ============ displayshape-sheet0.png ============ */
-/* 512x1024, 128x128, 4列 */
-.displayshape { background: url('public/assets/images/displayshape-sheet0.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.displayshape-0  { background-position: 0px 0px; }
-.displayshape-1  { background-position: -128px 0px; }
-.displayshape-2  { background-position: -256px 0px; }
-.displayshape-3  { background-position: -384px 0px; }
-.displayshape-4  { background-position: 0px -128px; }
-.displayshape-5  { background-position: -128px -128px; }
-.displayshape-6  { background-position: -256px -128px; }
-.displayshape-7  { background-position: -384px -128px; }
-.displayshape-8  { background-position: 0px -256px; }
-.displayshape-9  { background-position: -128px -256px; }
-.displayshape-10 { background-position: -256px -256px; }
-.displayshape-11 { background-position: -384px -256px; }
-.displayshape-12 { background-position: 0px -384px; }
-.displayshape-13 { background-position: -128px -384px; }
+      /* ============ displayshape-sheet0.png ============ */
+      /* 512x1024, 128x128, 4列 */
+      .displayshape {
+        background: url("public/assets/images/displayshape-sheet0.png")
+          no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .displayshape-0 {
+        background-position: 0px 0px;
+      }
+      .displayshape-1 {
+        background-position: -128px 0px;
+      }
+      .displayshape-2 {
+        background-position: -256px 0px;
+      }
+      .displayshape-3 {
+        background-position: -384px 0px;
+      }
+      .displayshape-4 {
+        background-position: 0px -128px;
+      }
+      .displayshape-5 {
+        background-position: -128px -128px;
+      }
+      .displayshape-6 {
+        background-position: -256px -128px;
+      }
+      .displayshape-7 {
+        background-position: -384px -128px;
+      }
+      .displayshape-8 {
+        background-position: 0px -256px;
+      }
+      .displayshape-9 {
+        background-position: -128px -256px;
+      }
+      .displayshape-10 {
+        background-position: -256px -256px;
+      }
+      .displayshape-11 {
+        background-position: -384px -256px;
+      }
+      .displayshape-12 {
+        background-position: 0px -384px;
+      }
+      .displayshape-13 {
+        background-position: -128px -384px;
+      }
 
-/* ============ mergeeffect-sheet0.png ============ */
-/* 512x1024, 128x128, 4列 */
-.mergeeffect0 { background: url('public/assets/images/mergeeffect-sheet0.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.mergeeffect0-0  { background-position: 0px 0px; }
-.mergeeffect0-1  { background-position: -128px 0px; }
-.mergeeffect0-2  { background-position: -256px 0px; }
-.mergeeffect0-3  { background-position: -384px 0px; }
-.mergeeffect0-4  { background-position: 0px -128px; }
-.mergeeffect0-5  { background-position: -128px -128px; }
-.mergeeffect0-6  { background-position: -256px -128px; }
-.mergeeffect0-7  { background-position: -384px -128px; }
-.mergeeffect0-8  { background-position: 0px -256px; }
-.mergeeffect0-9  { background-position: -128px -256px; }
-.mergeeffect0-10 { background-position: -256px -256px; }
-.mergeeffect0-11 { background-position: -384px -256px; }
-.mergeeffect0-12 { background-position: 0px -384px; }
-.mergeeffect0-13 { background-position: -128px -384px; }
-.mergeeffect0-14 { background-position: -256px -384px; }
-.mergeeffect0-15 { background-position: -384px -384px; }
-.mergeeffect0-16 { background-position: 0px -512px; }
-.mergeeffect0-17 { background-position: -128px -512px; }
-.mergeeffect0-18 { background-position: -256px -512px; }
-.mergeeffect0-19 { background-position: -384px -512px; }
-.mergeeffect0-20 { background-position: 0px -640px; }
-.mergeeffect0-21 { background-position: -128px -640px; }
-.mergeeffect0-22 { background-position: -256px -640px; }
-.mergeeffect0-23 { background-position: -384px -640px; }
-.mergeeffect0-24 { background-position: 0px -768px; }
-.mergeeffect0-25 { background-position: -128px -768px; }
-.mergeeffect0-26 { background-position: -256px -768px; }
-.mergeeffect0-27 { background-position: -384px -768px; }
-.mergeeffect0-28 { background-position: 0px -896px; }
-.mergeeffect0-29 { background-position: -128px -896px; }
-.mergeeffect0-30 { background-position: -256px -896px; }
-.mergeeffect0-31 { background-position: -384px -896px; }
+      /* ============ mergeeffect-sheet0.png ============ */
+      /* 512x1024, 128x128, 4列 */
+      .mergeeffect0 {
+        background: url("public/assets/images/mergeeffect-sheet0.png") no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .mergeeffect0-0 {
+        background-position: 0px 0px;
+      }
+      .mergeeffect0-1 {
+        background-position: -128px 0px;
+      }
+      .mergeeffect0-2 {
+        background-position: -256px 0px;
+      }
+      .mergeeffect0-3 {
+        background-position: -384px 0px;
+      }
+      .mergeeffect0-4 {
+        background-position: 0px -128px;
+      }
+      .mergeeffect0-5 {
+        background-position: -128px -128px;
+      }
+      .mergeeffect0-6 {
+        background-position: -256px -128px;
+      }
+      .mergeeffect0-7 {
+        background-position: -384px -128px;
+      }
+      .mergeeffect0-8 {
+        background-position: 0px -256px;
+      }
+      .mergeeffect0-9 {
+        background-position: -128px -256px;
+      }
+      .mergeeffect0-10 {
+        background-position: -256px -256px;
+      }
+      .mergeeffect0-11 {
+        background-position: -384px -256px;
+      }
+      .mergeeffect0-12 {
+        background-position: 0px -384px;
+      }
+      .mergeeffect0-13 {
+        background-position: -128px -384px;
+      }
+      .mergeeffect0-14 {
+        background-position: -256px -384px;
+      }
+      .mergeeffect0-15 {
+        background-position: -384px -384px;
+      }
+      .mergeeffect0-16 {
+        background-position: 0px -512px;
+      }
+      .mergeeffect0-17 {
+        background-position: -128px -512px;
+      }
+      .mergeeffect0-18 {
+        background-position: -256px -512px;
+      }
+      .mergeeffect0-19 {
+        background-position: -384px -512px;
+      }
+      .mergeeffect0-20 {
+        background-position: 0px -640px;
+      }
+      .mergeeffect0-21 {
+        background-position: -128px -640px;
+      }
+      .mergeeffect0-22 {
+        background-position: -256px -640px;
+      }
+      .mergeeffect0-23 {
+        background-position: -384px -640px;
+      }
+      .mergeeffect0-24 {
+        background-position: 0px -768px;
+      }
+      .mergeeffect0-25 {
+        background-position: -128px -768px;
+      }
+      .mergeeffect0-26 {
+        background-position: -256px -768px;
+      }
+      .mergeeffect0-27 {
+        background-position: -384px -768px;
+      }
+      .mergeeffect0-28 {
+        background-position: 0px -896px;
+      }
+      .mergeeffect0-29 {
+        background-position: -128px -896px;
+      }
+      .mergeeffect0-30 {
+        background-position: -256px -896px;
+      }
+      .mergeeffect0-31 {
+        background-position: -384px -896px;
+      }
 
-/* ============ mergeeffect-sheet1.png ============ */
-.mergeeffect1 { background: url('public/assets/images/mergeeffect-sheet1.png') no-repeat; width: 64px; height: 64px; border: 1px solid #444; }
-.mergeeffect1-0 { background-position: 0px 0px; }
+      /* ============ mergeeffect-sheet1.png ============ */
+      .mergeeffect1 {
+        background: url("public/assets/images/mergeeffect-sheet1.png") no-repeat;
+        width: 64px;
+        height: 64px;
+        border: 1px solid #444;
+      }
+      .mergeeffect1-0 {
+        background-position: 0px 0px;
+      }
 
-/* ============ mergeeffect-sheet2.png ============ */
-.mergeeffect2 { background: url('public/assets/images/mergeeffect-sheet2.png') no-repeat; width: 16px; height: 16px; border: 1px solid #444; }
-.mergeeffect2-0 { background-position: 0px 0px; }
+      /* ============ mergeeffect-sheet2.png ============ */
+      .mergeeffect2 {
+        background: url("public/assets/images/mergeeffect-sheet2.png") no-repeat;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #444;
+      }
+      .mergeeffect2-0 {
+        background-position: 0px 0px;
+      }
 
-/* ============ borderexplodeanimation-sheet0/1/2.png ============ */
-/* 512x512, 128x128, 4列4行=16帧 */
-.explode0 { background: url('public/assets/images/borderexplodeanimation-sheet0.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.explode0-0  { background-position: 0px 0px; }
-.explode0-1  { background-position: -128px 0px; }
-.explode0-2  { background-position: -256px 0px; }
-.explode0-3  { background-position: -384px 0px; }
-.explode0-4  { background-position: 0px -128px; }
-.explode0-5  { background-position: -128px -128px; }
-.explode0-6  { background-position: -256px -128px; }
-.explode0-7  { background-position: -384px -128px; }
-.explode0-8  { background-position: 0px -256px; }
-.explode0-9  { background-position: -128px -256px; }
-.explode0-10 { background-position: -256px -256px; }
-.explode0-11 { background-position: -384px -256px; }
-.explode0-12 { background-position: 0px -384px; }
-.explode0-13 { background-position: -128px -384px; }
-.explode0-14 { background-position: -256px -384px; }
-.explode0-15 { background-position: -384px -384px; }
+      /* ============ borderexplodeanimation-sheet0/1/2.png ============ */
+      /* 512x512, 128x128, 4列4行=16帧 */
+      .explode0 {
+        background: url("public/assets/images/borderexplodeanimation-sheet0.png")
+          no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .explode0-0 {
+        background-position: 0px 0px;
+      }
+      .explode0-1 {
+        background-position: -128px 0px;
+      }
+      .explode0-2 {
+        background-position: -256px 0px;
+      }
+      .explode0-3 {
+        background-position: -384px 0px;
+      }
+      .explode0-4 {
+        background-position: 0px -128px;
+      }
+      .explode0-5 {
+        background-position: -128px -128px;
+      }
+      .explode0-6 {
+        background-position: -256px -128px;
+      }
+      .explode0-7 {
+        background-position: -384px -128px;
+      }
+      .explode0-8 {
+        background-position: 0px -256px;
+      }
+      .explode0-9 {
+        background-position: -128px -256px;
+      }
+      .explode0-10 {
+        background-position: -256px -256px;
+      }
+      .explode0-11 {
+        background-position: -384px -256px;
+      }
+      .explode0-12 {
+        background-position: 0px -384px;
+      }
+      .explode0-13 {
+        background-position: -128px -384px;
+      }
+      .explode0-14 {
+        background-position: -256px -384px;
+      }
+      .explode0-15 {
+        background-position: -384px -384px;
+      }
 
-.explode1 { background: url('public/assets/images/borderexplodeanimation-sheet1.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.explode1-0  { background-position: 0px 0px; }
-.explode1-1  { background-position: -128px 0px; }
-.explode1-2  { background-position: -256px 0px; }
-.explode1-3  { background-position: -384px 0px; }
-.explode1-4  { background-position: 0px -128px; }
-.explode1-5  { background-position: -128px -128px; }
-.explode1-6  { background-position: -256px -128px; }
-.explode1-7  { background-position: -384px -128px; }
-.explode1-8  { background-position: 0px -256px; }
-.explode1-9  { background-position: -128px -256px; }
-.explode1-10 { background-position: -256px -256px; }
-.explode1-11 { background-position: -384px -256px; }
-.explode1-12 { background-position: 0px -384px; }
-.explode1-13 { background-position: -128px -384px; }
-.explode1-14 { background-position: -256px -384px; }
-.explode1-15 { background-position: -384px -384px; }
+      .explode1 {
+        background: url("public/assets/images/borderexplodeanimation-sheet1.png")
+          no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .explode1-0 {
+        background-position: 0px 0px;
+      }
+      .explode1-1 {
+        background-position: -128px 0px;
+      }
+      .explode1-2 {
+        background-position: -256px 0px;
+      }
+      .explode1-3 {
+        background-position: -384px 0px;
+      }
+      .explode1-4 {
+        background-position: 0px -128px;
+      }
+      .explode1-5 {
+        background-position: -128px -128px;
+      }
+      .explode1-6 {
+        background-position: -256px -128px;
+      }
+      .explode1-7 {
+        background-position: -384px -128px;
+      }
+      .explode1-8 {
+        background-position: 0px -256px;
+      }
+      .explode1-9 {
+        background-position: -128px -256px;
+      }
+      .explode1-10 {
+        background-position: -256px -256px;
+      }
+      .explode1-11 {
+        background-position: -384px -256px;
+      }
+      .explode1-12 {
+        background-position: 0px -384px;
+      }
+      .explode1-13 {
+        background-position: -128px -384px;
+      }
+      .explode1-14 {
+        background-position: -256px -384px;
+      }
+      .explode1-15 {
+        background-position: -384px -384px;
+      }
 
-.explode2 { background: url('public/assets/images/borderexplodeanimation-sheet2.png') no-repeat; width: 128px; height: 128px; border: 1px solid #444; }
-.explode2-0  { background-position: 0px 0px; }
-.explode2-1  { background-position: -128px 0px; }
-.explode2-2  { background-position: -256px 0px; }
-.explode2-3  { background-position: -384px 0px; }
-.explode2-4  { background-position: 0px -128px; }
-.explode2-5  { background-position: -128px -128px; }
-.explode2-6  { background-position: -256px -128px; }
-.explode2-7  { background-position: -384px -128px; }
-.explode2-8  { background-position: 0px -256px; }
-.explode2-9  { background-position: -128px -256px; }
-.explode2-10 { background-position: -256px -256px; }
-.explode2-11 { background-position: -384px -256px; }
-.explode2-12 { background-position: 0px -384px; }
-.explode2-13 { background-position: -128px -384px; }
-.explode2-14 { background-position: -256px -384px; }
-.explode2-15 { background-position: -384px -384px; }
+      .explode2 {
+        background: url("public/assets/images/borderexplodeanimation-sheet2.png")
+          no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .explode2-0 {
+        background-position: 0px 0px;
+      }
+      .explode2-1 {
+        background-position: -128px 0px;
+      }
+      .explode2-2 {
+        background-position: -256px 0px;
+      }
+      .explode2-3 {
+        background-position: -384px 0px;
+      }
+      .explode2-4 {
+        background-position: 0px -128px;
+      }
+      .explode2-5 {
+        background-position: -128px -128px;
+      }
+      .explode2-6 {
+        background-position: -256px -128px;
+      }
+      .explode2-7 {
+        background-position: -384px -128px;
+      }
+      .explode2-8 {
+        background-position: 0px -256px;
+      }
+      .explode2-9 {
+        background-position: -128px -256px;
+      }
+      .explode2-10 {
+        background-position: -256px -256px;
+      }
+      .explode2-11 {
+        background-position: -384px -256px;
+      }
+      .explode2-12 {
+        background-position: 0px -384px;
+      }
+      .explode2-13 {
+        background-position: -128px -384px;
+      }
+      .explode2-14 {
+        background-position: -256px -384px;
+      }
+      .explode2-15 {
+        background-position: -384px -384px;
+      }
 
-/* ============ stonedestroy-sheet0.png ============ */
-/* 1024x1024, 256x256, 4列4行=16帧 */
-.stonedestroy { background: url('public/assets/images/stonedestroy-sheet0.png') no-repeat; width: 256px; height: 256px; border: 1px solid #444; }
-.stonedestroy-0  { background-position: 0px 0px; }
-.stonedestroy-1  { background-position: -256px 0px; }
-.stonedestroy-2  { background-position: -512px 0px; }
-.stonedestroy-3  { background-position: -768px 0px; }
-.stonedestroy-4  { background-position: 0px -256px; }
-.stonedestroy-5  { background-position: -256px -256px; }
-.stonedestroy-6  { background-position: -512px -256px; }
-.stonedestroy-7  { background-position: -768px -256px; }
-.stonedestroy-8  { background-position: 0px -512px; }
-.stonedestroy-9  { background-position: -256px -512px; }
-.stonedestroy-10 { background-position: -512px -512px; }
-.stonedestroy-11 { background-position: -768px -512px; }
-.stonedestroy-12 { background-position: 0px -768px; }
-.stonedestroy-13 { background-position: -256px -768px; }
-.stonedestroy-14 { background-position: -512px -768px; }
-.stonedestroy-15 { background-position: -768px -768px; }
+      /* ============ stonedestroy-sheet0.png ============ */
+      /* 1024x1024, 256x256, 4列4行=16帧 */
+      .stonedestroy {
+        background: url("public/assets/images/stonedestroy-sheet0.png")
+          no-repeat;
+        width: 256px;
+        height: 256px;
+        border: 1px solid #444;
+      }
+      .stonedestroy-0 {
+        background-position: 0px 0px;
+      }
+      .stonedestroy-1 {
+        background-position: -256px 0px;
+      }
+      .stonedestroy-2 {
+        background-position: -512px 0px;
+      }
+      .stonedestroy-3 {
+        background-position: -768px 0px;
+      }
+      .stonedestroy-4 {
+        background-position: 0px -256px;
+      }
+      .stonedestroy-5 {
+        background-position: -256px -256px;
+      }
+      .stonedestroy-6 {
+        background-position: -512px -256px;
+      }
+      .stonedestroy-7 {
+        background-position: -768px -256px;
+      }
+      .stonedestroy-8 {
+        background-position: 0px -512px;
+      }
+      .stonedestroy-9 {
+        background-position: -256px -512px;
+      }
+      .stonedestroy-10 {
+        background-position: -512px -512px;
+      }
+      .stonedestroy-11 {
+        background-position: -768px -512px;
+      }
+      .stonedestroy-12 {
+        background-position: 0px -768px;
+      }
+      .stonedestroy-13 {
+        background-position: -256px -768px;
+      }
+      .stonedestroy-14 {
+        background-position: -512px -768px;
+      }
+      .stonedestroy-15 {
+        background-position: -768px -768px;
+      }
 
-/* ============ highestnumbermerge-sheet0.png ============ */
-/* 1024x1024, 256x256, 4列4行=16帧 */
-.highmerge { background: url('public/assets/images/highestnumbermerge-sheet0.png') no-repeat; width: 256px; height: 256px; border: 1px solid #444; }
-.highmerge-0  { background-position: 0px 0px; }
-.highmerge-1  { background-position: -256px 0px; }
-.highmerge-2  { background-position: -512px 0px; }
-.highmerge-3  { background-position: -768px 0px; }
-.highmerge-4  { background-position: 0px -256px; }
-.highmerge-5  { background-position: -256px -256px; }
-.highmerge-6  { background-position: -512px -256px; }
-.highmerge-7  { background-position: -768px -256px; }
-.highmerge-8  { background-position: 0px -512px; }
-.highmerge-9  { background-position: -256px -512px; }
-.highmerge-10 { background-position: -512px -512px; }
-.highmerge-11 { background-position: -768px -512px; }
-.highmerge-12 { background-position: 0px -768px; }
-.highmerge-13 { background-position: -256px -768px; }
-.highmerge-14 { background-position: -512px -768px; }
-.highmerge-15 { background-position: -768px -768px; }
+      /* ============ highestnumbermerge-sheet0.png ============ */
+      /* 1024x1024, 256x256, 4列4行=16帧 */
+      .highmerge {
+        background: url("public/assets/images/highestnumbermerge-sheet0.png")
+          no-repeat;
+        width: 256px;
+        height: 256px;
+        border: 1px solid #444;
+      }
+      .highmerge-0 {
+        background-position: 0px 0px;
+      }
+      .highmerge-1 {
+        background-position: -256px 0px;
+      }
+      .highmerge-2 {
+        background-position: -512px 0px;
+      }
+      .highmerge-3 {
+        background-position: -768px 0px;
+      }
+      .highmerge-4 {
+        background-position: 0px -256px;
+      }
+      .highmerge-5 {
+        background-position: -256px -256px;
+      }
+      .highmerge-6 {
+        background-position: -512px -256px;
+      }
+      .highmerge-7 {
+        background-position: -768px -256px;
+      }
+      .highmerge-8 {
+        background-position: 0px -512px;
+      }
+      .highmerge-9 {
+        background-position: -256px -512px;
+      }
+      .highmerge-10 {
+        background-position: -512px -512px;
+      }
+      .highmerge-11 {
+        background-position: -768px -512px;
+      }
+      .highmerge-12 {
+        background-position: 0px -768px;
+      }
+      .highmerge-13 {
+        background-position: -256px -768px;
+      }
+      .highmerge-14 {
+        background-position: -512px -768px;
+      }
+      .highmerge-15 {
+        background-position: -768px -768px;
+      }
 
-/* ============ girl-sheet0.png ============ */
-/* 1024x1024 — 可能单帧或多帧，先按整图 */
-.girl { background: url('public/assets/images/girl-sheet0.png') no-repeat; width: 1024px; height: 1024px; border: 1px solid #444; }
-.girl-full { background-position: 0px 0px; }
+      /* ============ girl-sheet0.png ============ */
+      /* 1024x1024 — 可能单帧或多帧，先按整图 */
+      .girl {
+        background: url("public/assets/images/girl-sheet0.png") no-repeat;
+        width: 1024px;
+        height: 1024px;
+        border: 1px solid #444;
+      }
+      .girl-full {
+        background-position: 0px 0px;
+      }
 
-/* ============ 背景/UI 整图 ============ */
-.playbackground { background: url('public/assets/images/playbackground-sheet0.png') no-repeat; width: 958px; height: 1630px; border: 1px solid #444; }
-.playbackground-full { background-position: 0px 0px; }
+      /* ============ 背景/UI 整图 ============ */
+      .playbackground {
+        background: url("public/assets/images/playbackground-sheet0.png")
+          no-repeat;
+        width: 958px;
+        height: 1630px;
+        border: 1px solid #444;
+      }
+      .playbackground-full {
+        background-position: 0px 0px;
+      }
 
-.popupbackground { background: url('public/assets/images/popupbackground-sheet0.png') no-repeat; width: 256px; height: 256px; border: 1px solid #444; }
-.popupbackground-full { background-position: 0px 0px; }
+      .popupbackground {
+        background: url("public/assets/images/popupbackground-sheet0.png")
+          no-repeat;
+        width: 256px;
+        height: 256px;
+        border: 1px solid #444;
+      }
+      .popupbackground-full {
+        background-position: 0px 0px;
+      }
 
-/* ============ shared sheets — 纹理图集，整图展示 ============ */
-.shared0 { background: url('public/assets/images/shared-0-sheet0.png') no-repeat; width: 2048px; height: 2048px; border: 1px solid #444; }
-.shared0-full { background-position: 0px 0px; }
+      /* ============ shared sheets — 纹理图集，整图展示 ============ */
+      .shared0 {
+        background: url("public/assets/images/shared-0-sheet0.png") no-repeat;
+        width: 2048px;
+        height: 2048px;
+        border: 1px solid #444;
+      }
+      .shared0-full {
+        background-position: 0px 0px;
+      }
 
-.shared1 { background: url('public/assets/images/shared-0-sheet1.png') no-repeat; width: 1024px; height: 2048px; border: 1px solid #444; }
-.shared1-full { background-position: 0px 0px; }
+      .shared1 {
+        background: url("public/assets/images/shared-0-sheet1.png") no-repeat;
+        width: 1024px;
+        height: 2048px;
+        border: 1px solid #444;
+      }
+      .shared1-full {
+        background-position: 0px 0px;
+      }
 
-.shared2 { background: url('public/assets/images/shared-0-sheet2.png') no-repeat; width: 512px; height: 1024px; border: 1px solid #444; }
-.shared2-full { background-position: 0px 0px; }
+      .shared2 {
+        background: url("public/assets/images/shared-0-sheet2.png") no-repeat;
+        width: 512px;
+        height: 1024px;
+        border: 1px solid #444;
+      }
+      .shared2-full {
+        background-position: 0px 0px;
+      }
 
-.shared3 { background: url('public/assets/images/shared-0-sheet3.png') no-repeat; width: 128px; height: 256px; border: 1px solid #444; }
-.shared3-full { background-position: 0px 0px; }
+      .shared3 {
+        background: url("public/assets/images/shared-0-sheet3.png") no-repeat;
+        width: 128px;
+        height: 256px;
+        border: 1px solid #444;
+      }
+      .shared3-full {
+        background-position: 0px 0px;
+      }
 
-.shared4 { background: url('public/assets/images/shared-0-sheet4.png') no-repeat; width: 16px; height: 32px; border: 1px solid #444; }
-.shared4-full { background-position: 0px 0px; }
+      .shared4 {
+        background: url("public/assets/images/shared-0-sheet4.png") no-repeat;
+        width: 16px;
+        height: 32px;
+        border: 1px solid #444;
+      }
+      .shared4-full {
+        background-position: 0px 0px;
+      }
 
-.tiledbackground { background: url('public/assets/images/tiledbackground-sheet0.png') no-repeat; width: 10px; height: 10px; border: 1px solid #444; }
-.tiledbackground-full { background-position: 0px 0px; }
+      .tiledbackground {
+        background: url("public/assets/images/tiledbackground-sheet0.png")
+          no-repeat;
+        width: 10px;
+        height: 10px;
+        border: 1px solid #444;
+      }
+      .tiledbackground-full {
+        background-position: 0px 0px;
+      }
 
-.loaderbar { background: url('public/assets/images/loaderbar-sheet0.png') no-repeat; width: 10px; height: 10px; border: 1px solid #444; }
-.loaderbar-full { background-position: 0px 0px; }
-</style>
-</head>
-<body>
-<h1>Giant 2048 — Sprite Debug</h1>
+      .loaderbar {
+        background: url("public/assets/images/loaderbar-sheet0.png") no-repeat;
+        width: 10px;
+        height: 10px;
+        border: 1px solid #444;
+      }
+      .loaderbar-full {
+        background-position: 0px 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Giant 2048 — Sprite Debug</h1>
 
-<!-- ======== shape ======== -->
-<h2>shape-sheet0.png — 可发射数字方块 (Shape) | 512×1024 | 128×128/帧 | 14帧</h2>
-<div class="info">帧映射: #0=2, #1=4, #2=8, #3=16, #4=32, #5=64, #6=128, #7=256, #8=512, #9=1024, #10=2048, #11=4096, #12=8192, #13=16384</div>
-<div class="frames">
-  <div class="frame-wrap"><div class="shape shape-0"></div><div class="label"><span class="idx">#0</span> = 2<br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-1"></div><div class="label"><span class="idx">#1</span> = 4<br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-2"></div><div class="label"><span class="idx">#2</span> = 8<br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-3"></div><div class="label"><span class="idx">#3</span> = 16<br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-4"></div><div class="label"><span class="idx">#4</span> = 32<br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-5"></div><div class="label"><span class="idx">#5</span> = 64<br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-6"></div><div class="label"><span class="idx">#6</span> = 128<br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-7"></div><div class="label"><span class="idx">#7</span> = 256<br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-8"></div><div class="label"><span class="idx">#8</span> = 512<br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-9"></div><div class="label"><span class="idx">#9</span> = 1024<br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-10"></div><div class="label"><span class="idx">#10</span> = 2048<br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-11"></div><div class="label"><span class="idx">#11</span> = 4096<br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-12"></div><div class="label"><span class="idx">#12</span> = 8192<br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="shape shape-13"></div><div class="label"><span class="idx">#13</span> = 16384<br><span class="pos">-128, -384</span></div></div>
-</div>
+    <!-- ======== shape ======== -->
+    <h2>
+      shape-sheet0.png — 可发射数字方块 (Shape) | 512×1024 | 128×128/帧 | 14帧
+    </h2>
+    <div class="info">
+      帧映射: #0=2, #1=4, #2=8, #3=16, #4=32, #5=64, #6=128, #7=256, #8=512,
+      #9=1024, #10=2048, #11=4096, #12=8192, #13=16384
+    </div>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shape shape-0"></div>
+        <div class="label">
+          <span class="idx">#0</span> = 2<br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-1"></div>
+        <div class="label">
+          <span class="idx">#1</span> = 4<br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-2"></div>
+        <div class="label">
+          <span class="idx">#2</span> = 8<br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-4"></div>
+        <div class="label">
+          <span class="idx">#4</span> = 32<br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-5"></div>
+        <div class="label">
+          <span class="idx">#5</span> = 64<br /><span class="pos"
+            >-128, -128</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-8"></div>
+        <div class="label">
+          <span class="idx">#8</span> = 512<br /><span class="pos"
+            >0, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-9"></div>
+        <div class="label">
+          <span class="idx">#9</span> = 1024<br /><span class="pos"
+            >-128, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-10"></div>
+        <div class="label">
+          <span class="idx">#10</span> = 2048<br /><span class="pos"
+            >-256, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-11"></div>
+        <div class="label">
+          <span class="idx">#11</span> = 4096<br /><span class="pos"
+            >-384, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-12"></div>
+        <div class="label">
+          <span class="idx">#12</span> = 8192<br /><span class="pos"
+            >0, -384</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-13"></div>
+        <div class="label">
+          <span class="idx">#13</span> = 16384<br /><span class="pos"
+            >-128, -384</span
+          >
+        </div>
+      </div>
+    </div>
 
-<!-- ======== border ======== -->
-<h2>border-sheet0.png — 网格固定方块 (Border) | 512×1024 | 128×128/帧 | 15帧</h2>
-<div class="info">帧映射: #0=2, #1=4, ... #13=16384, #14=stone?</div>
-<div class="frames">
-  <div class="frame-wrap"><div class="border border-0"></div><div class="label"><span class="idx">#0</span> = 2<br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="border border-1"></div><div class="label"><span class="idx">#1</span> = 4<br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="border border-2"></div><div class="label"><span class="idx">#2</span> = 8<br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="border border-3"></div><div class="label"><span class="idx">#3</span> = 16<br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="border border-4"></div><div class="label"><span class="idx">#4</span> = 32<br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="border border-5"></div><div class="label"><span class="idx">#5</span> = 64<br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="border border-6"></div><div class="label"><span class="idx">#6</span> = 128<br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="border border-7"></div><div class="label"><span class="idx">#7</span> = 256<br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="border border-8"></div><div class="label"><span class="idx">#8</span> = 512<br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="border border-9"></div><div class="label"><span class="idx">#9</span> = 1024<br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="border border-10"></div><div class="label"><span class="idx">#10</span> = 2048<br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="border border-11"></div><div class="label"><span class="idx">#11</span> = 4096<br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="border border-12"></div><div class="label"><span class="idx">#12</span> = 8192<br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="border border-13"></div><div class="label"><span class="idx">#13</span> = 16384<br><span class="pos">-128, -384</span></div></div>
-  <div class="frame-wrap"><div class="border border-14"></div><div class="label"><span class="idx">#14</span> = stone?<br><span class="pos">-256, -384</span></div></div>
-</div>
+    <!-- ======== border ======== -->
+    <h2>
+      border-sheet0.png — 网格固定方块 (Border) | 512×1024 | 128×128/帧 | 15帧
+    </h2>
+    <div class="info">帧映射: #0=2, #1=4, ... #13=16384, #14=stone?</div>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="border border-0"></div>
+        <div class="label">
+          <span class="idx">#0</span> = 2<br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-1"></div>
+        <div class="label">
+          <span class="idx">#1</span> = 4<br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-2"></div>
+        <div class="label">
+          <span class="idx">#2</span> = 8<br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-3"></div>
+        <div class="label">
+          <span class="idx">#3</span> = 16<br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-4"></div>
+        <div class="label">
+          <span class="idx">#4</span> = 32<br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-5"></div>
+        <div class="label">
+          <span class="idx">#5</span> = 64<br /><span class="pos"
+            >-128, -128</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-6"></div>
+        <div class="label">
+          <span class="idx">#6</span> = 128<br /><span class="pos"
+            >-256, -128</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-7"></div>
+        <div class="label">
+          <span class="idx">#7</span> = 256<br /><span class="pos"
+            >-384, -128</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-8"></div>
+        <div class="label">
+          <span class="idx">#8</span> = 512<br /><span class="pos"
+            >0, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-9"></div>
+        <div class="label">
+          <span class="idx">#9</span> = 1024<br /><span class="pos"
+            >-128, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-10"></div>
+        <div class="label">
+          <span class="idx">#10</span> = 2048<br /><span class="pos"
+            >-256, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-11"></div>
+        <div class="label">
+          <span class="idx">#11</span> = 4096<br /><span class="pos"
+            >-384, -256</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-12"></div>
+        <div class="label">
+          <span class="idx">#12</span> = 8192<br /><span class="pos"
+            >0, -384</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-13"></div>
+        <div class="label">
+          <span class="idx">#13</span> = 16384<br /><span class="pos"
+            >-128, -384</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-14"></div>
+        <div class="label">
+          <span class="idx">#14</span> = stone?<br /><span class="pos"
+            >-256, -384</span
+          >
+        </div>
+      </div>
+    </div>
 
-<!-- ======== displayshape ======== -->
-<h2>displayshape-sheet0.png — 预览方块 (DisplayShape) | 512×1024 | 128×128/帧 | 14帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="displayshape displayshape-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="displayshape displayshape-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-128, -384</span></div></div>
-</div>
+    <!-- ======== displayshape ======== -->
+    <h2>
+      displayshape-sheet0.png — 预览方块 (DisplayShape) | 512×1024 | 128×128/帧
+      | 14帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-128, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-256, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-384, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-128, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-384, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="displayshape displayshape-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-128, -384</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== mergeeffect-sheet0 ======== -->
-<h2>mergeeffect-sheet0.png — 合并特效 第1张 | 512×1024 | 128×128/帧 | 32帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-128, -384</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-256, -384</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-384, -384</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-16"></div><div class="label"><span class="idx">#16</span><br><span class="pos">0, -512</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-17"></div><div class="label"><span class="idx">#17</span><br><span class="pos">-128, -512</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-18"></div><div class="label"><span class="idx">#18</span><br><span class="pos">-256, -512</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-19"></div><div class="label"><span class="idx">#19</span><br><span class="pos">-384, -512</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-20"></div><div class="label"><span class="idx">#20</span><br><span class="pos">0, -640</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-21"></div><div class="label"><span class="idx">#21</span><br><span class="pos">-128, -640</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-22"></div><div class="label"><span class="idx">#22</span><br><span class="pos">-256, -640</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-23"></div><div class="label"><span class="idx">#23</span><br><span class="pos">-384, -640</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-24"></div><div class="label"><span class="idx">#24</span><br><span class="pos">0, -768</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-25"></div><div class="label"><span class="idx">#25</span><br><span class="pos">-128, -768</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-26"></div><div class="label"><span class="idx">#26</span><br><span class="pos">-256, -768</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-27"></div><div class="label"><span class="idx">#27</span><br><span class="pos">-384, -768</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-28"></div><div class="label"><span class="idx">#28</span><br><span class="pos">0, -896</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-29"></div><div class="label"><span class="idx">#29</span><br><span class="pos">-128, -896</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-30"></div><div class="label"><span class="idx">#30</span><br><span class="pos">-256, -896</span></div></div>
-  <div class="frame-wrap"><div class="mergeeffect0 mergeeffect0-31"></div><div class="label"><span class="idx">#31</span><br><span class="pos">-384, -896</span></div></div>
-</div>
+    <!-- ======== mergeeffect-sheet0 ======== -->
+    <h2>
+      mergeeffect-sheet0.png — 合并特效 第1张 | 512×1024 | 128×128/帧 | 32帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-128, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-256, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-384, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-128, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-384, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-128, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-256, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-384, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-16"></div>
+        <div class="label">
+          <span class="idx">#16</span><br /><span class="pos">0, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-17"></div>
+        <div class="label">
+          <span class="idx">#17</span><br /><span class="pos">-128, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-18"></div>
+        <div class="label">
+          <span class="idx">#18</span><br /><span class="pos">-256, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-19"></div>
+        <div class="label">
+          <span class="idx">#19</span><br /><span class="pos">-384, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-20"></div>
+        <div class="label">
+          <span class="idx">#20</span><br /><span class="pos">0, -640</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-21"></div>
+        <div class="label">
+          <span class="idx">#21</span><br /><span class="pos">-128, -640</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-22"></div>
+        <div class="label">
+          <span class="idx">#22</span><br /><span class="pos">-256, -640</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-23"></div>
+        <div class="label">
+          <span class="idx">#23</span><br /><span class="pos">-384, -640</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-24"></div>
+        <div class="label">
+          <span class="idx">#24</span><br /><span class="pos">0, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-25"></div>
+        <div class="label">
+          <span class="idx">#25</span><br /><span class="pos">-128, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-26"></div>
+        <div class="label">
+          <span class="idx">#26</span><br /><span class="pos">-256, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-27"></div>
+        <div class="label">
+          <span class="idx">#27</span><br /><span class="pos">-384, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-28"></div>
+        <div class="label">
+          <span class="idx">#28</span><br /><span class="pos">0, -896</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-29"></div>
+        <div class="label">
+          <span class="idx">#29</span><br /><span class="pos">-128, -896</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-30"></div>
+        <div class="label">
+          <span class="idx">#30</span><br /><span class="pos">-256, -896</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="mergeeffect0 mergeeffect0-31"></div>
+        <div class="label">
+          <span class="idx">#31</span><br /><span class="pos">-384, -896</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== mergeeffect-sheet1 ======== -->
-<h2>mergeeffect-sheet1.png — 合并特效 第2张 | 64×64 | 单帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="mergeeffect1 mergeeffect1-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <!-- ======== mergeeffect-sheet1 ======== -->
+    <h2>mergeeffect-sheet1.png — 合并特效 第2张 | 64×64 | 单帧</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="mergeeffect1 mergeeffect1-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== mergeeffect-sheet2 ======== -->
-<h2>mergeeffect-sheet2.png — 合并特效 第3张 | 16×16 | 单帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="mergeeffect2 mergeeffect2-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <!-- ======== mergeeffect-sheet2 ======== -->
+    <h2>mergeeffect-sheet2.png — 合并特效 第3张 | 16×16 | 单帧</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="mergeeffect2 mergeeffect2-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== borderexplodeanimation-sheet0 ======== -->
-<h2>borderexplodeanimation-sheet0.png — 边框爆炸动画 第1张 | 512×512 | 128×128/帧 | 16帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="explode0 explode0-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-128, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-256, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode0 explode0-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-384, -384</span></div></div>
-</div>
+    <!-- ======== borderexplodeanimation-sheet0 ======== -->
+    <h2>
+      borderexplodeanimation-sheet0.png — 边框爆炸动画 第1张 | 512×512 |
+      128×128/帧 | 16帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="explode0 explode0-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-128, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-256, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-384, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-128, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-384, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-128, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-256, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode0 explode0-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-384, -384</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== borderexplodeanimation-sheet1 ======== -->
-<h2>borderexplodeanimation-sheet1.png — 边框爆炸动画 第2张 | 512×512 | 128×128/帧 | 16帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="explode1 explode1-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-128, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-256, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode1 explode1-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-384, -384</span></div></div>
-</div>
+    <!-- ======== borderexplodeanimation-sheet1 ======== -->
+    <h2>
+      borderexplodeanimation-sheet1.png — 边框爆炸动画 第2张 | 512×512 |
+      128×128/帧 | 16帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="explode1 explode1-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-128, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-256, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-384, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-128, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-384, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-128, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-256, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode1 explode1-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-384, -384</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== borderexplodeanimation-sheet2 ======== -->
-<h2>borderexplodeanimation-sheet2.png — 边框爆炸动画 第3张 | 512×512 | 128×128/帧 | 16帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="explode2 explode2-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-128, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-384, 0</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-128, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-256, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-384, -128</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-128, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-384, -256</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-128, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-256, -384</span></div></div>
-  <div class="frame-wrap"><div class="explode2 explode2-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-384, -384</span></div></div>
-</div>
+    <!-- ======== borderexplodeanimation-sheet2 ======== -->
+    <h2>
+      borderexplodeanimation-sheet2.png — 边框爆炸动画 第3张 | 512×512 |
+      128×128/帧 | 16帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="explode2 explode2-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-128, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-384, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-128, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-256, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-384, -128</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-128, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-384, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-128, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-256, -384</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="explode2 explode2-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-384, -384</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== stonedestroy ======== -->
-<h2>stonedestroy-sheet0.png — 石头消除动画 | 1024×1024 | 256×256/帧 | 16帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-512, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-768, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-512, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-768, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -512</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-256, -512</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-512, -512</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-768, -512</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -768</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-256, -768</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-512, -768</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy stonedestroy-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-768, -768</span></div></div>
-</div>
+    <!-- ======== stonedestroy ======== -->
+    <h2>
+      stonedestroy-sheet0.png — 石头消除动画 | 1024×1024 | 256×256/帧 | 16帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-512, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-768, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-512, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-768, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-256, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-512, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-768, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-256, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-512, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy stonedestroy-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-768, -768</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== highestnumbermerge ======== -->
-<h2>highestnumbermerge-sheet0.png — 最高数字合并特效 | 1024×1024 | 256×256/帧 | 16帧</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="highmerge highmerge-0"></div><div class="label"><span class="idx">#0</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-1"></div><div class="label"><span class="idx">#1</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-2"></div><div class="label"><span class="idx">#2</span><br><span class="pos">-512, 0</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-3"></div><div class="label"><span class="idx">#3</span><br><span class="pos">-768, 0</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-4"></div><div class="label"><span class="idx">#4</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-5"></div><div class="label"><span class="idx">#5</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-6"></div><div class="label"><span class="idx">#6</span><br><span class="pos">-512, -256</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-7"></div><div class="label"><span class="idx">#7</span><br><span class="pos">-768, -256</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-8"></div><div class="label"><span class="idx">#8</span><br><span class="pos">0, -512</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-9"></div><div class="label"><span class="idx">#9</span><br><span class="pos">-256, -512</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-10"></div><div class="label"><span class="idx">#10</span><br><span class="pos">-512, -512</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-11"></div><div class="label"><span class="idx">#11</span><br><span class="pos">-768, -512</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-12"></div><div class="label"><span class="idx">#12</span><br><span class="pos">0, -768</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-13"></div><div class="label"><span class="idx">#13</span><br><span class="pos">-256, -768</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-14"></div><div class="label"><span class="idx">#14</span><br><span class="pos">-512, -768</span></div></div>
-  <div class="frame-wrap"><div class="highmerge highmerge-15"></div><div class="label"><span class="idx">#15</span><br><span class="pos">-768, -768</span></div></div>
-</div>
+    <!-- ======== highestnumbermerge ======== -->
+    <h2>
+      highestnumbermerge-sheet0.png — 最高数字合并特效 | 1024×1024 | 256×256/帧
+      | 16帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-0"></div>
+        <div class="label">
+          <span class="idx">#0</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-1"></div>
+        <div class="label">
+          <span class="idx">#1</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-2"></div>
+        <div class="label">
+          <span class="idx">#2</span><br /><span class="pos">-512, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-3"></div>
+        <div class="label">
+          <span class="idx">#3</span><br /><span class="pos">-768, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-4"></div>
+        <div class="label">
+          <span class="idx">#4</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-5"></div>
+        <div class="label">
+          <span class="idx">#5</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-6"></div>
+        <div class="label">
+          <span class="idx">#6</span><br /><span class="pos">-512, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-7"></div>
+        <div class="label">
+          <span class="idx">#7</span><br /><span class="pos">-768, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-8"></div>
+        <div class="label">
+          <span class="idx">#8</span><br /><span class="pos">0, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-9"></div>
+        <div class="label">
+          <span class="idx">#9</span><br /><span class="pos">-256, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-10"></div>
+        <div class="label">
+          <span class="idx">#10</span><br /><span class="pos">-512, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-11"></div>
+        <div class="label">
+          <span class="idx">#11</span><br /><span class="pos">-768, -512</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-12"></div>
+        <div class="label">
+          <span class="idx">#12</span><br /><span class="pos">0, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-13"></div>
+        <div class="label">
+          <span class="idx">#13</span><br /><span class="pos">-256, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-14"></div>
+        <div class="label">
+          <span class="idx">#14</span><br /><span class="pos">-512, -768</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="highmerge highmerge-15"></div>
+        <div class="label">
+          <span class="idx">#15</span><br /><span class="pos">-768, -768</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== girl ======== -->
-<h2>girl-sheet0.png — 角色形象 | 1024×1024 | 整图</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="girl girl-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <!-- ======== girl ======== -->
+    <h2>girl-sheet0.png — 角色形象 | 1024×1024 | 整图</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="girl girl-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== playbackground ======== -->
-<h2>playbackground-sheet0.png — 游戏背景 | 958×1630 | 整图</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="playbackground playbackground-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <!-- ======== playbackground ======== -->
+    <h2>playbackground-sheet0.png — 游戏背景 | 958×1630 | 整图</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="playbackground playbackground-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== popupbackground ======== -->
-<h2>popupbackground-sheet0.png — 弹窗背景 | 256×256 | 整图</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="popupbackground popupbackground-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <!-- ======== popupbackground ======== -->
+    <h2>popupbackground-sheet0.png — 弹窗背景 | 256×256 | 整图</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="popupbackground popupbackground-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<!-- ======== shared sheets ======== -->
-<h2>shared-0-sheet0.png — 共享素材 第1张 (UI/网格/按钮等) | 2048×2048 | 纹理图集</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared0 shared0-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0 | 2048×2048</span></div></div>
-</div>
+    <!-- ======== shared sheets ======== -->
+    <h2>
+      shared-0-sheet0.png — 共享素材 第1张 (UI/网格/按钮等) | 2048×2048 |
+      纹理图集
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared0 shared0-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos"
+            >0, 0 | 2048×2048</span
+          >
+        </div>
+      </div>
+    </div>
 
-<h2>shared-0-sheet1.png — 共享素材 第2张 | 1024×2048 | 纹理图集</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared1 shared1-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0 | 1024×2048</span></div></div>
-</div>
+    <h2>shared-0-sheet1.png — 共享素材 第2张 | 1024×2048 | 纹理图集</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared1 shared1-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos"
+            >0, 0 | 1024×2048</span
+          >
+        </div>
+      </div>
+    </div>
 
-<h2>shared-0-sheet2.png — 共享素材 第3张 | 512×1024 | 纹理图集</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared2 shared2-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0 | 512×1024</span></div></div>
-</div>
+    <h2>shared-0-sheet2.png — 共享素材 第3张 | 512×1024 | 纹理图集</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared2 shared2-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos"
+            >0, 0 | 512×1024</span
+          >
+        </div>
+      </div>
+    </div>
 
-<h2>shared-0-sheet3.png — 共享素材 第4张 | 128×256</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared3 shared3-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0 | 128×256</span></div></div>
-</div>
+    <h2>shared-0-sheet3.png — 共享素材 第4张 | 128×256</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared3 shared3-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos"
+            >0, 0 | 128×256</span
+          >
+        </div>
+      </div>
+    </div>
 
-<h2>shared-0-sheet4.png — 共享素材 第5张 | 16×32</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared4 shared4-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0 | 16×32</span></div></div>
-</div>
+    <h2>shared-0-sheet4.png — 共享素材 第5张 | 16×32</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared4 shared4-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos"
+            >0, 0 | 16×32</span
+          >
+        </div>
+      </div>
+    </div>
 
-<h2>tiledbackground-sheet0.png — 平铺背景 | 10×10</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="tiledbackground tiledbackground-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0</span></div></div>
-</div>
+    <h2>tiledbackground-sheet0.png — 平铺背景 | 10×10</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="tiledbackground tiledbackground-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
 
-<h2>loaderbar-sheet0.png — 加载条 | 10×10</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="loaderbar loaderbar-full"></div><div class="label"><span class="idx">整图</span><br><span class="pos">0, 0</span></div></div>
-</div>
-
-</body>
+    <h2>loaderbar-sheet0.png — 加载条 | 10×10</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="loaderbar loaderbar-full"></div>
+        <div class="label">
+          <span class="idx">整图</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

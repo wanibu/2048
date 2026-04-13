@@ -93,10 +93,14 @@ tr:hover { background: #f8f9ff; }
       <thead>
         <tr>
           <th>局号</th>
+          <th>userId</th>
           <th>玩家指纹</th>
+          <th>配置</th>
           <th>步数</th>
           <th>分数</th>
           <th>状态</th>
+          <th>结束原因</th>
+          <th>最后更新</th>
           <th>开局时间</th>
           <th>操作</th>
         </tr>
@@ -214,13 +218,19 @@ async function loadGames(page) {
   if (!data) return;
 
   const tbody = document.getElementById('gamesBody');
+  const statusMap = { playing: '进行中', finished: '已完成' };
+  const reasonMap = { gameover: '游戏结束', timeout: '超时', new_game: '开新局', crash: '崩溃', '': '-' };
   tbody.innerHTML = data.games.map(g => `
     <tr>
       <td title="${g.game_id}">${g.game_id.slice(0, 16)}...</td>
-      <td title="${g.fingerprint}">${g.fingerprint.slice(0, 12)}...</td>
+      <td>${g.user_id || '-'}</td>
+      <td title="${g.fingerprint}">${g.fingerprint.slice(0, 10)}...</td>
+      <td>${g.sequence_config || '-'}</td>
       <td>${g.step}</td>
       <td><strong>${g.score}</strong></td>
-      <td><span class="status-${g.status}">${g.status === 'playing' ? '进行中' : '已完成'}</span></td>
+      <td><span class="status-${g.status}">${statusMap[g.status] || g.status}</span></td>
+      <td>${reasonMap[g.end_reason] || g.end_reason || '-'}</td>
+      <td>${g.last_update_at ? new Date(g.last_update_at).toLocaleString('zh-CN') : '-'}</td>
       <td>${new Date(g.created_at).toLocaleString('zh-CN')}</td>
       <td>
         <button class="btn-detail" onclick="showDetail('${g.game_id}')">详情</button>
@@ -248,10 +258,14 @@ async function showDetail(gameId) {
 
   document.getElementById('modalContent').innerHTML = `
     <div class="detail-row"><span class="label">局号</span><span class="value">${data.game_id}</span></div>
+    <div class="detail-row"><span class="label">userId</span><span class="value">${data.user_id || '-'}</span></div>
     <div class="detail-row"><span class="label">玩家指纹</span><span class="value">${data.fingerprint}</span></div>
-    <div class="detail-row"><span class="label">浏览器信息</span><span class="value">${ua}</span></div>
     <div class="detail-row"><span class="label">状态</span><span class="value status-${data.status}">${data.status === 'playing' ? '进行中' : '已完成'}</span></div>
+    <div class="detail-row"><span class="label">结束原因</span><span class="value">${data.end_reason || '-'}</span></div>
+    <div class="detail-row"><span class="label">序列配置</span><span class="value">${data.sequence_config || '-'}</span></div>
     <div class="detail-row"><span class="label">开局时间</span><span class="value">${new Date(data.created_at).toLocaleString('zh-CN')}</span></div>
+    <div class="detail-row"><span class="label">最后更新</span><span class="value">${data.last_update_at ? new Date(data.last_update_at).toLocaleString('zh-CN') : '-'}</span></div>
+    <div class="detail-row"><span class="label">结束时间</span><span class="value">${data.ended_at ? new Date(data.ended_at).toLocaleString('zh-CN') : '-'}</span></div>
     <div class="detail-row"><span class="label">Seed（服务端）</span><span class="value">${data.seed}</span></div>
     <div class="detail-row"><span class="label">总步数</span><span class="value">${data.step}</span></div>
     <div class="detail-row"><span class="label">最终分数</span><span class="value"><strong>${data.score}</strong></span></div>
@@ -259,9 +273,9 @@ async function showDetail(gameId) {
     <div class="detail-row"><span class="label">签名验证</span><span class="value ${data.signValid ? 'flag-ok' : 'flag-warn'}">${data.signValid ? '✓ 有效' : '✗ 无效（可能篡改）'}</span></div>
     <div class="detail-row"><span class="label">作弊标记</span><span class="value ${data.suspiciousFlags.length ? 'flag-warn' : 'flag-ok'}">${data.suspiciousFlags.length ? data.suspiciousFlags.join(', ') : '✓ 无异常'}</span></div>
     <div style="margin-top: 16px;">
-      <div class="label" style="margin-bottom: 8px;">糖果序列（由 Seed 生成的随机值）：</div>
+      <div class="label" style="margin-bottom: 8px;">糖果序列（${data.sequence.length}个，由 Seed + ${data.sequence_config} 配置生成）：</div>
       <div class="candy-sequence">
-        ${data.candySequence.map((c, i) => `<span class="candy-item">#${i}: ${c}</span>`).join('')}
+        ${data.sequence.map((c, i) => `<span class="candy-item" style="${i < data.step ? 'opacity:0.5' : ''}">#${i+1}: ${c}</span>`).join('')}
       </div>
     </div>
   `;

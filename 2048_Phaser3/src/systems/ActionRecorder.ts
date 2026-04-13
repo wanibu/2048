@@ -1,5 +1,5 @@
 import { getFingerprint } from '../utils/fingerprint';
-import { startGame, sendAction, updateScore, endGame } from '../utils/api';
+import { startGame, extendSequence, sendAction, updateScore, endGame } from '../utils/api';
 
 interface GameAction {
   type: 'shoot' | 'rotate' | 'direct_merge';
@@ -10,31 +10,73 @@ interface GameAction {
 }
 
 // 和后端通信的操作记录器
-// 每步操作发给后端，后端维护签名链和糖果序列
+// 开局拿50个糖果序列，按顺序消费，用完再请求
 export class ActionRecorder {
   private gameId: string = '';
   private currentSign: string = '';
-  private score: number = 0;
   private ready: boolean = false;
+  private userId: string = '';
 
-  // 回调：当后端返回下一个糖果时通知外部
-  private onNextCandyCallback: ((candy: number) => void) | null = null;
+  // 糖果序列
+  private sequence: number[] = [];
+  private sequenceIndex: number = 0; // 当前消费到第几个
 
-  async init(): Promise<{ currentCandy: number; nextCandy: number }> {
+  async init(userId?: string): Promise<{ currentCandy: number; nextCandy: number }> {
+    this.userId = userId || '';
     const fingerprint = await getFingerprint();
     console.log('[ActionRecorder] fingerprint:', fingerprint.slice(0, 16) + '...');
 
-    const result = await startGame(fingerprint);
+    const result = await startGame(fingerprint, this.userId);
     this.gameId = result.gameId;
     this.currentSign = result.sign;
+    this.sequence = result.sequence;
+    this.sequenceIndex = 0;
     this.ready = true;
 
-    console.log('[ActionRecorder] gameId:', this.gameId);
-    return { currentCandy: result.currentCandy, nextCandy: result.nextCandy };
+    console.log(`[ActionRecorder] gameId=${this.gameId}, config=${result.sequenceConfig}, sequence length=${this.sequence.length}`);
+
+    // 第一个糖果和第二个作为预览
+    const currentCandy = this.consumeNext();
+    const nextCandy = this.peekNext();
+    return { currentCandy, nextCandy };
   }
 
-  onNextCandy(callback: (candy: number) => void): void {
-    this.onNextCandyCallback = callback;
+  // 消费下一个糖果值（弹弓发射后调用）
+  consumeNext(): number {
+    if (this.sequenceIndex >= this.sequence.length) {
+      // 应该不会到这里，因为会提前请求更多
+      console.warn('[ActionRecorder] sequence exhausted, using fallback');
+      return 2;
+    }
+    const value = this.sequence[this.sequenceIndex];
+    this.sequenceIndex++;
+
+    // 如果快用完了（剩10个以内），提前请求更多
+    if (this.sequence.length - this.sequenceIndex <= 10) {
+      this.fetchMoreSequence();
+    }
+
+    return value;
+  }
+
+  // 查看下一个糖果值（不消费，用于预览）
+  peekNext(): number {
+    if (this.sequenceIndex >= this.sequence.length) {
+      return 2;
+    }
+    return this.sequence[this.sequenceIndex];
+  }
+
+  // 请求更多糖果序列
+  private async fetchMoreSequence(): Promise<void> {
+    try {
+      console.log('[ActionRecorder] fetching more sequence...');
+      const result = await extendSequence(this.gameId);
+      this.sequence = [...this.sequence, ...result.sequence];
+      console.log(`[ActionRecorder] extended, total sequence: ${this.sequence.length}`);
+    } catch (e) {
+      console.error('[ActionRecorder] fetchMoreSequence failed:', e);
+    }
   }
 
   async recordShoot(col: number, value: number): Promise<void> {
@@ -43,10 +85,7 @@ export class ActionRecorder {
     try {
       const result = await sendAction(this.gameId, action);
       this.currentSign = result.sign;
-      console.log(`[ActionRecorder] shoot col=${col} value=${value} → nextCandy=${result.nextCandy}`);
-      if (this.onNextCandyCallback) {
-        this.onNextCandyCallback(result.nextCandy);
-      }
+      console.log(`[ActionRecorder] shoot col=${col} value=${value}`);
     } catch (e) {
       console.error('[ActionRecorder] shoot failed:', e);
     }
@@ -58,7 +97,6 @@ export class ActionRecorder {
     try {
       const result = await sendAction(this.gameId, action);
       this.currentSign = result.sign;
-      console.log(`[ActionRecorder] rotate ${direction}`);
     } catch (e) {
       console.error('[ActionRecorder] rotate failed:', e);
     }
@@ -70,10 +108,6 @@ export class ActionRecorder {
     try {
       const result = await sendAction(this.gameId, action);
       this.currentSign = result.sign;
-      console.log(`[ActionRecorder] direct_merge col=${col} ${value}→${resultValue} → nextCandy=${result.nextCandy}`);
-      if (this.onNextCandyCallback) {
-        this.onNextCandyCallback(result.nextCandy);
-      }
     } catch (e) {
       console.error('[ActionRecorder] direct_merge failed:', e);
     }
@@ -81,7 +115,6 @@ export class ActionRecorder {
 
   async reportScore(score: number): Promise<void> {
     if (!this.ready) return;
-    this.score = score;
     try {
       await updateScore(this.gameId, score);
     } catch (e) {
@@ -89,11 +122,11 @@ export class ActionRecorder {
     }
   }
 
-  async finish(): Promise<{ rank: number } | null> {
+  async finish(endReason?: string): Promise<{ rank: number } | null> {
     if (!this.ready) return null;
     try {
-      const result = await endGame(this.gameId, this.currentSign);
-      console.log(`[ActionRecorder] game ended, rank=${result.rank}`);
+      const result = await endGame(this.gameId, this.currentSign, endReason);
+      console.log(`[ActionRecorder] game ended, reason=${endReason}, rank=${result.rank}`);
       return { rank: result.rank };
     } catch (e) {
       console.error('[ActionRecorder] endGame failed:', e);
@@ -101,11 +134,6 @@ export class ActionRecorder {
     }
   }
 
-  getGameId(): string {
-    return this.gameId;
-  }
-
-  getSign(): string {
-    return this.currentSign;
-  }
+  getGameId(): string { return this.gameId; }
+  getSign(): string { return this.currentSign; }
 }

@@ -71,13 +71,12 @@ export class GameScene extends Phaser.Scene {
     // 监听窗口resize：保存状态后刷新页面
     window.addEventListener('resize', this.onResize);
 
-    // 后端开局：获取 gameId + 第1/2个糖果
-    this.initBackend();
+    // 解析 URL 参数 userId
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId') || '';
 
-    // 后端返回下一个糖果时更新弹弓
-    this.recorder.onNextCandy((candy: number) => {
-      this.sling.setNextCandy(candy);
-    });
+    // 后端开局：获取 gameId + 50个糖果序列
+    this.initBackend(userId);
 
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
@@ -146,20 +145,116 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 后端开局：获取 gameId 和第一批糖果
-  private async initBackend(): Promise<void> {
+  // 后端开局：获取 gameId 和50个糖果序列
+  private async initBackend(userId: string): Promise<void> {
     try {
-      const { currentCandy, nextCandy } = await this.recorder.init();
+      const { currentCandy, nextCandy } = await this.recorder.init(userId);
       console.log(`[开局] gameId=${this.recorder.getGameId()}, current=${currentCandy}, next=${nextCandy}`);
       this.sling.initCandies(currentCandy, nextCandy);
     } catch (e) {
       console.error('[开局失败] 使用本地随机模式', e);
-      // fallback: 本地随机
       const pool = [2, 4, 8, 16, 32];
       const c = pool[Math.floor(Math.random() * pool.length)];
       const n = pool[Math.floor(Math.random() * pool.length)];
       this.sling.initCandies(c, n);
     }
+
+    // 启动超时检测
+    this.startIdleTimer();
+  }
+
+  // ===== 超时机制：45秒无操作提示，60秒结束 =====
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private hurryUpTimer: ReturnType<typeof setTimeout> | null = null;
+  private hurryUpOverlay: Phaser.GameObjects.Container | null = null;
+
+  private startIdleTimer(): void {
+    this.resetIdleTimer();
+  }
+
+  // 每次操作后调用，重置计时器
+  private resetIdleTimer(): void {
+    // 清除旧的计时器
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (this.hurryUpTimer) clearTimeout(this.hurryUpTimer);
+    this.hideHurryUp();
+
+    // 45秒后弹出 Hurry Up 提示
+    this.idleTimer = setTimeout(() => {
+      this.showHurryUp();
+
+      // 再等15秒，如果还没操作就结束
+      this.hurryUpTimer = setTimeout(() => {
+        this.timeoutGameOver();
+      }, 15000);
+    }, 45000);
+  }
+
+  private showHurryUp(): void {
+    if (this.hurryUpOverlay) return;
+    const w = GAME_WIDTH;
+    const h = GAME_HEIGHT;
+
+    this.hurryUpOverlay = this.add.container(0, 0).setDepth(300);
+
+    const bg = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.4);
+    this.hurryUpOverlay.add(bg);
+
+    const text = this.add.text(w / 2, h * 0.4, 'HURRY UP!', {
+      fontSize: `${Math.round(w * 0.12)}px`,
+      color: '#ff5555',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+    this.hurryUpOverlay.add(text);
+
+    const subText = this.add.text(w / 2, h * 0.5, '15 seconds left...', {
+      fontSize: `${Math.round(w * 0.05)}px`,
+      color: '#ffffff',
+    }).setOrigin(0.5);
+    this.hurryUpOverlay.add(subText);
+
+    // 倒计时更新
+    let countdown = 15;
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      if (countdown > 0 && subText.active) {
+        subText.setText(`${countdown} seconds left...`);
+      } else {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
+  }
+
+  private hideHurryUp(): void {
+    if (this.hurryUpOverlay) {
+      this.hurryUpOverlay.destroy();
+      this.hurryUpOverlay = null;
+    }
+  }
+
+  private timeoutGameOver(): void {
+    console.log('[超时] 60秒无操作，游戏结束');
+    this.hideHurryUp();
+    this.recorder.finish('timeout');
+    this.gameOver();
+  }
+
+  // 从后端序列取下一个糖果，设置到弹弓上
+  private respawnWithSequence(): void {
+    // 消费序列中的下一个值作为弹弓上的糖果
+    const nextValue = this.recorder.consumeNext();
+    this.sling.setNextCandy(nextValue);
+    this.sling.respawn();
+
+    // 更新预览：peek 下一个
+    const peekValue = this.recorder.peekNext();
+    // respawn 后 300ms 弹弓会调用 spawnNextShape → updateNextPreview
+    // 这里提前设好 nextValue
+    this.time.delayedCall(350, () => {
+      this.sling.setNextCandy(peekValue);
+    });
   }
 
   // ===== DEBUG: 打印棋盘 =====
@@ -207,8 +302,8 @@ export class GameScene extends Phaser.Scene {
 
   // 执行旋转：数据层转置 + 视觉动画 + 旋转后检查合并
   // 执行旋转：整个棋盘容器（背景+糖果+石头）一起旋转动画
-  // 动画结束后更新数据层，重新定位元素，检查合并
   private doRotate(direction: 'cw' | 'ccw'): void {
+    this.resetIdleTimer(); // 用户操作，重置超时
     if (this.isRotating) return;
     this.isRotating = true;
 
@@ -233,6 +328,7 @@ export class GameScene extends Phaser.Scene {
 
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
   private handleShoot(shape: Shape, col: number): void {
+    this.resetIdleTimer(); // 用户操作，重置超时
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
     this.printGrid('发射前');
 
@@ -266,7 +362,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.addScore(newValue);
         this.printGrid('直接合并后');
         this.time.delayedCall(150, () => this.checkMerges());
-        this.sling.respawn();
+        this.respawnWithSequence();
         return;
       }
       // 打不出去，不换糖果，糖果回到弹弓上

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giant 2048 - Sprite Debug</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 30px 0 8px;
+        font-size: 16px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 4px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
+
+      /* ============ shape-sheet0.png ============ */
+      /* 512x1024, 14帧, 128x128, 4列 */
+      .shape {
+        background: url("public/assets/images/shape-sheet0.png") no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .shape-0 {
+        background-position: -2px 0px;
+      }
+      .shape-1 {
+        background-position: -131px 0px;
+      }
+      .shape-2 {
+        background-position: -261px 0px;
+      }
+      .shape-3 {
+        background-position: -384px 0px;
+      }
+      .shape-4 {
+        background-position: -2px -131px;
+      }
+      .shape-5 {
+        background-position: -131px -131px;
+      }
+      .shape-6 {
+        background-position: -256px -128px;
+      }
+      .shape-7 {
+        background-position: -384px -128px;
+      }
+      .shape-8 {
+        background-position: -1px -260px;
+      }
+      .shape-9 {
+        background-position: -131px -262px;
+      }
+      .shape-10 {
+        background-position: -262px -256px;
+      }
+      .shape-11 {
+        background-position: -263px -514px;
+      }
+      .shape-12 {
+        background-position: -2px -514px;
+      }
+      .shape-13 {
+        background-position: -128px -384px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Giant 2048 — Sprite Debug</h1>
+
+    <!-- ======== shape ======== -->
+    <h2>
+      shape-sheet0.png — 可发射数字方块 (Shape) | 512×1024 | 128×128/帧 | 14帧
+    </h2>
+    <div class="info">
+      帧映射: #0=2, #1=4, #2=8, #3=16, #4=32, #5=64, #6=128, #7=256, #8=512,
+      #9=1024, #10=2048, #11=4096, #12=8192, #13=16384
+    </div>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shape shape-0"></div>
+        <div class="label"><span class="idx">#0</span> = 8192</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-1"></div>
+        <div class="label"><span class="idx">#1</span> = 4096</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-2"></div>
+        <div class="label"><span class="idx">#2</span> = 2048</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-4"></div>
+        <div class="label"><span class="idx">#4</span> = 1024</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-5"></div>
+        <div class="label"><span class="idx">#5</span> = 512</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-10"></div>
+        <div class="label"><span class="idx">#10</span> = 256</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-8"></div>
+        <div class="label"><span class="idx">#8</span> = 128</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-9"></div>
+        <div class="label"><span class="idx">#9</span> = 64</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-11"></div>
+        <div class="label"><span class="idx">#11</span> = 32</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-12"></div>
+        <div class="label"><span class="idx">#12</span> = 16</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shape shape-13"></div>
+        <div class="label"><span class="idx">#13</span> = 8</div>
+      </div>
+    </div>
+  </body>
+</html>
