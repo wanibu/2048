@@ -261,7 +261,7 @@ export class GameScene extends Phaser.Scene {
   private printGrid(label: string): void {
     console.log(`\n===== ${label} =====`);
     for (let r = 0; r < GRID_ROWS; r++) {
-      const row = this.grid.data[r].map(v => v === 0 ? '  .' : String(v).padStart(3));
+      const row = this.grid.data[r].map(v => v === 0 ? '  .' : v === -1 ? ' ST' : String(v).padStart(3));
       console.log(`行${r + 1}: [${row.join(',')}]`);
     }
     console.log('========================\n');
