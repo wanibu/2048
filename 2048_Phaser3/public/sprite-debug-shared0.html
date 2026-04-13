@@ -1,25 +1,250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — 共享素材 第1张 (UI/网格/巨人等)</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
-h1 { color: #ffe57f; margin-bottom: 10px; font-size: 20px; }
-h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
-.info { color: #888; font-size: 12px; margin-bottom: 16px; }
-.back { color: #4caf50; text-decoration: none; font-size: 13px; }
-.back:hover { text-decoration: underline; }
-.full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
-</style>
-</head>
-<body>
-<a class="back" href="sprite-debug-index.html">← 返回索引</a>
-<h1>shared-0-sheet0.png — 共享素材 第1张 (UI/网格/巨人等)</h1>
-<div class="info">尺寸: 2048×2048px</div>
-<h2>整图预览</h2>
-<img class="full-img" src="assets/images/shared-0-sheet0.png" alt="shared-0-sheet0.png">
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprite Debug — shared-0-sheet0.png</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #1a1a2e;
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 10px;
+        font-size: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 20px 0 8px;
+        font-size: 16px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      .back {
+        color: #4caf50;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .back:hover {
+        text-decoration: underline;
+      }
+      .full-img {
+        margin: 16px 0;
+        border: 1px solid #444;
+        display: block;
+        max-width: 100%;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+        font-weight: bold;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
+
+      /* 共享素材图 2048×2048 */
+      .shared0 {
+        background: url("assets/images/shared-0-sheet0.png") no-repeat;
+        border: 1px solid #444;
+      }
+
+      /* === 11个对象 — 坐标待你定位 === */
+      /* 暂停背景 */
+      .obj-1 {
+        background-position: 0px 0px;
+        width: 769px;
+        height: 1028px;
+      }
+
+      .obj-2 {
+        background-position: -786px 21px;
+        width: 771px;
+        height: 771px;
+      }
+      .obj-3 {
+        background-position: -768px -754px;
+        width: 1030px;
+        height: 260px;
+      }
+
+
+      .obj-4 {
+        background-position: -1622px -1025px;
+        width: 420px;
+        height: 611px;
+      }
+      .obj-6 {
+        background-position: -5px -1027px;
+        width: 420px;
+        height: 611px;
+      }
+
+      
+      .obj-8 {
+        background-position: -1564px -2px;
+        width: 420px;
+        height: 611px;
+      }
+      .obj-7 {
+        background-position: -1200px -1012px;
+        width: 420px;
+        height: 611px;
+      }
+      .obj-5 {
+        background-position: -773px -1014px;
+        width: 420px;
+        height: 611px;
+      }
+     
+      /* combo */
+      .obj-9 {
+        background-position: -421px -1622px;
+    width: 515px;
+    height: 386px;
+      }
+      .obj-10 {
+        background-position: -800px -1700px;
+        width: 200px;
+        height: 200px;
+      }
+      .obj-11 {
+        background-position: -1200px -1700px;
+        width: 200px;
+        height: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="sprite-debug-index.html">← 返回索引</a>
+    <h1>shared-0-sheet0.png — 共享素材 第1张 (UI/网格/巨人等)</h1>
+    <div class="info">尺寸: 2048×2048px | 11个对象</div>
+
+    <h2>整图预览</h2>
+    <img
+      class="full-img"
+      src="assets/images/shared-0-sheet0.png"
+      alt="shared-0-sheet0.png"
+    />
+
+    <h2>对象切割</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared0 obj-1"></div>
+        <div class="label">
+          <span class="idx">对象1</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared0 obj-2"></div>
+        <div class="label">
+          <span class="idx">对象2</span><br /><span class="pos">-784, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared0 obj-3"></div>
+        <div class="label">
+          <span class="idx">对象3</span><br /><span class="pos"
+            >-768, -752</span
+          >
+        </div>
+      </div>
+      <!-- 连续动作 睁眼 闭眼 -->
+      <div class="frames">
+        <div class="frame-wrap">
+          <div class="shared0 obj-4"></div>
+          <div class="label">
+            <span class="idx">对象4</span><br /><span class="pos"
+            >-1621, -1027</span
+            >
+          </div>
+        </div>
+        <div class="frame-wrap">
+          <div class="shared0 obj-6"></div>
+          <div class="label">
+            <span class="idx">对象6</span><br /><span class="pos">0, -1400</span>
+          </div>
+        </div>
+      </div>
+      <!-- 连续动作 张嘴吃糖 -->
+      <div class="frames">
+        <div class="frame-wrap">
+          <div class="shared0 obj-8"></div>
+          <div class="label">
+            <span class="idx">对象8</span><br /><span class="pos"
+              >0, -1700</span
+            >
+          </div>
+        </div>
+        <div class="frame-wrap">
+          <div class="shared0 obj-7"></div>
+          <div class="label">
+            <span class="idx">对象7</span><br /><span class="pos"
+              >-400, -1400</span
+            >
+          </div>
+        </div>
+        <div class="frame-wrap">
+          <div class="shared0 obj-5"></div>
+          <div class="label">
+            <span class="idx">对象5</span><br /><span class="pos"
+              >0, -1027</span
+            >
+          </div>
+        </div>
+      </div>
+      <div>
+     
+
+      <div class="frame-wrap">
+        <div class="shared0 obj-9"></div>
+        <div class="label">
+          <span class="idx">对象9</span><br /><span class="pos"
+            >-400, -1700</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared0 obj-10"></div>
+        <div class="label">
+          <span class="idx">对象10</span><br /><span class="pos"
+            >-800, -1700</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared0 obj-11"></div>
+        <div class="label">
+          <span class="idx">对象11</span><br /><span class="pos"
+            >-1200, -1700</span
+          >
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

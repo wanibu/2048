@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — 角色形象</title>
+<title>Sprite Debug — girl-sheet0.png</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
@@ -13,13 +13,54 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 .back { color: #4caf50; text-decoration: none; font-size: 13px; }
 .back:hover { text-decoration: underline; }
 .full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
+.frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.frame-wrap { text-align: center; }
+.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
+.frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
+.frame-wrap .label .pos { color: #4caf50; }
+
+/* 角色形象 1024×1024 */
+.girl { background: url('assets/images/girl-sheet0.png') no-repeat; border: 1px solid #444; }
+
+/* === 13个对象 — 坐标待你定位 === */
+.obj-1  { background-position: 0px 0px;       width: 150px; height: 150px; }
+.obj-2  { background-position: -150px 0px;    width: 150px; height: 150px; }
+.obj-3  { background-position: -300px 0px;    width: 150px; height: 150px; }
+.obj-4  { background-position: 0px -150px;    width: 150px; height: 150px; }
+.obj-5  { background-position: -150px -150px; width: 150px; height: 150px; }
+.obj-6  { background-position: -300px -150px; width: 150px; height: 150px; }
+.obj-7  { background-position: 0px -300px;    width: 150px; height: 150px; }
+.obj-8  { background-position: -150px -300px; width: 150px; height: 150px; }
+.obj-9  { background-position: -300px -300px; width: 150px; height: 150px; }
+.obj-10 { background-position: -450px -300px; width: 150px; height: 150px; }
+.obj-11 { background-position: 0px -450px;    width: 150px; height: 150px; }
+.obj-12 { background-position: -150px -450px; width: 150px; height: 150px; }
+.obj-13 { background-position: -300px -450px; width: 150px; height: 150px; }
 </style>
 </head>
 <body>
 <a class="back" href="sprite-debug-index.html">← 返回索引</a>
 <h1>girl-sheet0.png — 角色形象</h1>
-<div class="info">尺寸: 1024×1024px</div>
+<div class="info">尺寸: 1024×1024px | 13个对象</div>
+
 <h2>整图预览</h2>
 <img class="full-img" src="assets/images/girl-sheet0.png" alt="girl-sheet0.png">
+
+<h2>对象切割</h2>
+<div class="frames">
+  <div class="frame-wrap"><div class="girl obj-1"></div><div class="label"><span class="idx">对象1</span><br><span class="pos">0, 0</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-2"></div><div class="label"><span class="idx">对象2</span><br><span class="pos">-150, 0</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-3"></div><div class="label"><span class="idx">对象3</span><br><span class="pos">-300, 0</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-4"></div><div class="label"><span class="idx">对象4</span><br><span class="pos">0, -150</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-5"></div><div class="label"><span class="idx">对象5</span><br><span class="pos">-150, -150</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-6"></div><div class="label"><span class="idx">对象6</span><br><span class="pos">-300, -150</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-7"></div><div class="label"><span class="idx">对象7</span><br><span class="pos">0, -300</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-8"></div><div class="label"><span class="idx">对象8</span><br><span class="pos">-150, -300</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-9"></div><div class="label"><span class="idx">对象9</span><br><span class="pos">-300, -300</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-10"></div><div class="label"><span class="idx">对象10</span><br><span class="pos">-450, -300</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-11"></div><div class="label"><span class="idx">对象11</span><br><span class="pos">0, -450</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-12"></div><div class="label"><span class="idx">对象12</span><br><span class="pos">-150, -450</span></div></div>
+  <div class="frame-wrap"><div class="girl obj-13"></div><div class="label"><span class="idx">对象13</span><br><span class="pos">-300, -450</span></div></div>
+</div>
 </body>
 </html>
