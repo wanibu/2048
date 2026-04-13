@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -27,11 +27,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    const w = this.cameras.main.width;
-    const h = this.cameras.main.height;
+    // FIT模式：游戏逻辑尺寸固定640×960
+    const w = GAME_WIDTH;
+    const h = GAME_HEIGHT;
     const layout = calcLayout(w, h);
 
-    // 背景铺满实际可见区域
+    // 背景铺满游戏区域
     const bg = this.add.image(w / 2, h / 2, 'playbackground');
     bg.setScale(Math.max(w / bg.width, h / bg.height));
     // depth越小越在底层，-1000确保背景在所有元素下面
@@ -539,8 +540,8 @@ export class GameScene extends Phaser.Scene {
 
   // 游戏结束处理
   private gameOver(): void {
-    const w = this.cameras.main.width;
-    const h = this.cameras.main.height;
+    const w = GAME_WIDTH;
+    const h = GAME_HEIGHT;
 
     // 半透明遮罩
     const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6);

@@ -18,11 +18,11 @@ export class MenuScene extends Phaser.Scene {
       return;
     }
 
-    // 获取实际可见区域的宽高（ENVELOP模式下可能大于640×960）
-    const w = this.cameras.main.width;
-    const h = this.cameras.main.height;
+    // FIT模式：游戏逻辑尺寸固定640×960
+    const w = GAME_WIDTH;
+    const h = GAME_HEIGHT;
 
-    // 背景铺满实际可见区域
+    // 背景铺满游戏区域
     const bg = this.add.image(w / 2, h / 2, 'playbackground');
     bg.setScale(Math.max(w / bg.width, h / bg.height));
     bg.setDepth(-1000);
