@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giant 2048 - Sprite Debug</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 30px 0 8px;
+        font-size: 16px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 4px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
+      /* ============ border-sheet0.png ============ */
+      /* 512x1024, 15帧, 128x128, 4列 */
+      .border {
+        background: url("public/assets/images/border-sheet0.png") no-repeat;
+        width: 128px;
+        height: 128px;
+        border: 1px solid #444;
+      }
+      .border-0 {
+        background-position: -2px -1px;
+      }
+      .border-1 {
+        background-position: -132px 0px;
+      }
+      .border-2 {
+        background-position: -261px -1px;
+      }
+      .border-3 {
+        background-position: -384px 0px;
+      }
+      .border-4 {
+        background-position: -1px -130px;
+      }
+      .border-5 {
+        background-position: -132px -131px;
+      }
+      .border-6 {
+        background-position: -262px -131px;
+      }
+      .border-7 {
+        background-position: -384px -128px;
+      }
+      .border-8 {
+        background-position: -2px -260px;
+      }
+      .border-9 {
+        background-position: -132px -260px;
+      }
+      .border-10 {
+        background-position: -262px -263px;
+      }
+      .border-11 {
+        background-position: -2px -513px;
+      }
+      .border-12 {
+        background-position: -132px -514px;
+      }
+      .border-13 {
+        background-position: -262px -514px;
+      }
+      .border-14 {
+        background-position: -1px -769px;
+      }
+      .border-15 {
+        background-position: -131px -769px;
+      }
+      .border-16 {
+        background-position: -514px -514px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ======== border ======== -->
+    <h2>
+      border-sheet0.png — 网格固定方块 (Border) | 512×1024 | 128×128/帧 | 15帧
+    </h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="border border-0"></div>
+        <div class="label"><span class="idx"></span> 石头</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-1"></div>
+        <div class="label"><span class="idx"></span> 8192</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-2"></div>
+        <div class="label"><span class="idx"></span> 4096</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-4"></div>
+        <div class="label"><span class="idx"></span> 2048</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-5"></div>
+        <div class="label"><span class="idx"></span> 1024</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-6"></div>
+        <div class="label"><span class="idx"></span> 512</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-8"></div>
+        <div class="label"><span class="idx"></span> 256</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-9"></div>
+        <div class="label"><span class="idx"></span> 128</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-10"></div>
+        <div class="label"><span class="idx"></span> 64</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-11"></div>
+        <div class="label"><span class="idx"></span> 32</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-12"></div>
+        <div class="label"><span class="idx"></span> 16</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-13"></div>
+        <div class="label"><span class="idx"></span> 8</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-14"></div>
+        <div class="label"><span class="idx"></span> 4</div>
+      </div>
+      <div class="frame-wrap">
+        <div class="border border-15"></div>
+        <div class="label"><span class="idx"></span> 2</div>
+      </div>
+    </div>
+  </body>
+</html>
