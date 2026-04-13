@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — 共享素材 第2张 (弹弓/按钮等)</title>
+<title>Sprite Debug — shared-0-sheet1.png</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
@@ -13,13 +13,64 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 .back { color: #4caf50; text-decoration: none; font-size: 13px; }
 .back:hover { text-decoration: underline; }
 .full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
+.frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.frame-wrap { text-align: center; }
+.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
+.frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
+.frame-wrap .label .pos { color: #4caf50; }
+
+/* 共享素材图2 1024×2048 */
+.shared1 { background: url('assets/images/shared-0-sheet1.png') no-repeat; border: 1px solid #444; }
+
+/* === 18个对象 — 坐标待你定位 === */
+.obj-1  { background-position: 0px 0px;       width: 200px; height: 200px; }
+.obj-2  { background-position: -200px 0px;    width: 200px; height: 200px; }
+.obj-3  { background-position: -400px 0px;    width: 200px; height: 200px; }
+.obj-4  { background-position: -600px 0px;    width: 200px; height: 200px; }
+.obj-5  { background-position: -800px 0px;    width: 200px; height: 200px; }
+.obj-6  { background-position: 0px -200px;    width: 200px; height: 200px; }
+.obj-7  { background-position: -200px -200px; width: 200px; height: 200px; }
+.obj-8  { background-position: -400px -200px; width: 200px; height: 200px; }
+.obj-9  { background-position: -600px -200px; width: 200px; height: 200px; }
+.obj-10 { background-position: -800px -200px; width: 200px; height: 200px; }
+.obj-11 { background-position: 0px -400px;    width: 200px; height: 200px; }
+.obj-12 { background-position: -200px -400px; width: 200px; height: 200px; }
+.obj-13 { background-position: -400px -400px; width: 200px; height: 200px; }
+.obj-14 { background-position: -600px -400px; width: 200px; height: 200px; }
+.obj-15 { background-position: -800px -400px; width: 200px; height: 200px; }
+.obj-16 { background-position: 0px -600px;    width: 200px; height: 200px; }
+.obj-17 { background-position: -200px -600px; width: 200px; height: 200px; }
+.obj-18 { background-position: -400px -600px; width: 200px; height: 200px; }
 </style>
 </head>
 <body>
 <a class="back" href="sprite-debug-index.html">← 返回索引</a>
 <h1>shared-0-sheet1.png — 共享素材 第2张 (弹弓/按钮等)</h1>
-<div class="info">尺寸: 1024×2048px</div>
+<div class="info">尺寸: 1024×2048px | 18个对象</div>
+
 <h2>整图预览</h2>
 <img class="full-img" src="assets/images/shared-0-sheet1.png" alt="shared-0-sheet1.png">
+
+<h2>对象切割</h2>
+<div class="frames">
+  <div class="frame-wrap"><div class="shared1 obj-1"></div><div class="label"><span class="idx">对象1</span><br><span class="pos">0, 0</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-2"></div><div class="label"><span class="idx">对象2</span><br><span class="pos">-200, 0</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-3"></div><div class="label"><span class="idx">对象3</span><br><span class="pos">-400, 0</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-4"></div><div class="label"><span class="idx">对象4</span><br><span class="pos">-600, 0</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-5"></div><div class="label"><span class="idx">对象5</span><br><span class="pos">-800, 0</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-6"></div><div class="label"><span class="idx">对象6</span><br><span class="pos">0, -200</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-7"></div><div class="label"><span class="idx">对象7</span><br><span class="pos">-200, -200</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-8"></div><div class="label"><span class="idx">对象8</span><br><span class="pos">-400, -200</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-9"></div><div class="label"><span class="idx">对象9</span><br><span class="pos">-600, -200</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-10"></div><div class="label"><span class="idx">对象10</span><br><span class="pos">-800, -200</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-11"></div><div class="label"><span class="idx">对象11</span><br><span class="pos">0, -400</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-12"></div><div class="label"><span class="idx">对象12</span><br><span class="pos">-200, -400</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-13"></div><div class="label"><span class="idx">对象13</span><br><span class="pos">-400, -400</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-14"></div><div class="label"><span class="idx">对象14</span><br><span class="pos">-600, -400</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-15"></div><div class="label"><span class="idx">对象15</span><br><span class="pos">-800, -400</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-16"></div><div class="label"><span class="idx">对象16</span><br><span class="pos">0, -600</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-17"></div><div class="label"><span class="idx">对象17</span><br><span class="pos">-200, -600</span></div></div>
+  <div class="frame-wrap"><div class="shared1 obj-18"></div><div class="label"><span class="idx">对象18</span><br><span class="pos">-400, -600</span></div></div>
+</div>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — 边框爆炸动画 第3张</title>
+<title>Sprite Debug — borderexplodeanimation-sheet2.png</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
@@ -13,13 +13,34 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 .back { color: #4caf50; text-decoration: none; font-size: 13px; }
 .back:hover { text-decoration: underline; }
 .full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
+.frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.frame-wrap { text-align: center; }
+.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
+.frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
+.frame-wrap .label .pos { color: #4caf50; }
+
+/* 边框爆炸动画第3张 512×512 */
+.explode2 { background: url('assets/images/borderexplodeanimation-sheet2.png') no-repeat; border: 1px solid #444; }
+
+/* === 3个对象 — 坐标待你定位 === */
+.obj-1 { background-position: 0px 0px;    width: 170px; height: 170px; }
+.obj-2 { background-position: -170px 0px; width: 170px; height: 170px; }
+.obj-3 { background-position: -340px 0px; width: 170px; height: 170px; }
 </style>
 </head>
 <body>
 <a class="back" href="sprite-debug-index.html">← 返回索引</a>
 <h1>borderexplodeanimation-sheet2.png — 边框爆炸动画 第3张</h1>
-<div class="info">尺寸: 512×512px</div>
+<div class="info">尺寸: 512×512px | 3个对象</div>
+
 <h2>整图预览</h2>
 <img class="full-img" src="assets/images/borderexplodeanimation-sheet2.png" alt="borderexplodeanimation-sheet2.png">
+
+<h2>对象切割</h2>
+<div class="frames">
+  <div class="frame-wrap"><div class="explode2 obj-1"></div><div class="label"><span class="idx">对象1</span><br><span class="pos">0, 0</span></div></div>
+  <div class="frame-wrap"><div class="explode2 obj-2"></div><div class="label"><span class="idx">对象2</span><br><span class="pos">-170, 0</span></div></div>
+  <div class="frame-wrap"><div class="explode2 obj-3"></div><div class="label"><span class="idx">对象3</span><br><span class="pos">-340, 0</span></div></div>
+</div>
 </body>
 </html>
