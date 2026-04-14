@@ -254,5 +254,95 @@
         </div>
       </div>
     </div>
+
+    <!-- ===== 动画1: 睁眼闭眼 (对象4 → 对象6) ===== -->
+    <h2>动画1: 睁眼闭眼 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:420px; height:611px; border:2px solid red; flex-shrink:0;">
+        <div id="blink-1" class="shared0 obj-4" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+        <div id="blink-2" class="shared0 obj-6" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">睁眼闭眼：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-1').style.display=this.checked?'block':'none'"><span style="width:40px;">对象4</span><input id="bx-1" type="number" value="-1622" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-1" type="number" value="-1025" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-2').style.display=this.checked?'block':'none'"><span style="width:40px;">对象6</span><input id="bx-2" type="number" value="-5" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-2" type="number" value="-1027" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportBlink()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="blink-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+
+    <h2>动画1: 睁眼闭眼 — 预览</h2>
+    <div class="blink-anim" style="width:420px; height:611px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: blink-anim 1s steps(1) infinite;"></div>
+    <style>
+      @keyframes blink-anim {
+        0%   { background-position: -1622px -1025px; }
+        50%  { background-position: -5px -1027px; }
+        100% { background-position: -1622px -1025px; }
+      }
+    </style>
+
+    <!-- ===== 动画2: 张嘴闭嘴 (对象8 → 对象7 → 对象5) ===== -->
+    <h2>动画2: 张嘴闭嘴 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:420px; height:611px; border:2px solid red; flex-shrink:0;">
+        <div id="mouth-1" class="shared0 obj-8" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
+        <div id="mouth-2" class="shared0 obj-7" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
+        <div id="mouth-3" class="shared0 obj-5" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">张嘴闭嘴：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-1').style.display=this.checked?'block':'none'"><span style="width:40px;">对象8</span><input id="mx-1" type="number" value="-1564" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-1" type="number" value="-2" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-2').style.display=this.checked?'block':'none'"><span style="width:40px;">对象7</span><input id="mx-2" type="number" value="-1200" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-2" type="number" value="-1012" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-3').style.display=this.checked?'block':'none'"><span style="width:40px;">对象5</span><input id="mx-3" type="number" value="-773" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-3" type="number" value="-1014" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportMouth()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="mouth-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+
+    <h2>动画2: 张嘴闭嘴 — 预览</h2>
+    <div style="width:420px; height:611px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: mouth-anim 0.6s steps(1) infinite;"></div>
+    <style>
+      @keyframes mouth-anim {
+        0%      { background-position: -1564px -2px; }
+        33.33%  { background-position: -1200px -1012px; }
+        66.66%  { background-position: -773px -1014px; }
+        100%    { background-position: -1564px -2px; }
+      }
+    </style>
+
+    <script>
+      function updateBlink(n) {
+        var x = document.getElementById('bx-' + n).value;
+        var y = document.getElementById('by-' + n).value;
+        document.getElementById('blink-' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function updateMouth(n) {
+        var x = document.getElementById('mx-' + n).value;
+        var y = document.getElementById('my-' + n).value;
+        document.getElementById('mouth-' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function exportBlink() {
+        var out = '';
+        for (var i = 1; i <= 2; i++) {
+          var x = document.getElementById('bx-' + i).value;
+          var y = document.getElementById('by-' + i).value;
+          out += '帧' + i + ': ' + x + 'px ' + y + 'px\n';
+        }
+        var el = document.getElementById('blink-output');
+        el.textContent = out; el.style.display = 'block';
+      }
+      function exportMouth() {
+        var out = '';
+        for (var i = 1; i <= 3; i++) {
+          var x = document.getElementById('mx-' + i).value;
+          var y = document.getElementById('my-' + i).value;
+          out += '帧' + i + ': ' + x + 'px ' + y + 'px\n';
+        }
+        var el = document.getElementById('mouth-output');
+        el.textContent = out; el.style.display = 'block';
+      }
+    </script>
   </body>
 </html>
