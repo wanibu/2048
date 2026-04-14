@@ -1,56 +1,183 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — stonedestroy-sheet0.png</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {  color: #eee; font-family: monospace; padding: 20px; }
-h1 { color: #ffe57f; margin-bottom: 10px; font-size: 20px; }
-h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
-.info { color: #888; font-size: 12px; margin-bottom: 16px; }
-.back { color: #4caf50; text-decoration: none; font-size: 13px; }
-.back:hover { text-decoration: underline; }
-.full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
-.frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.frame-wrap { text-align: center; }
-.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
-.frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
-.frame-wrap .label .pos { color: #4caf50; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprite Debug — stonedestroy-sheet0.png</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 10px;
+        font-size: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 20px 0 8px;
+        font-size: 16px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      .back {
+        color: #4caf50;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .back:hover {
+        text-decoration: underline;
+      }
+      .full-img {
+        margin: 16px 0;
+        border: 1px solid #444;
+        display: block;
+        max-width: 100%;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+        font-weight: bold;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
 
-/* 石头消除动画 1024×1024 */
-.stonedestroy { background: url('assets/images/stonedestroy-sheet0.png') no-repeat; border: 1px solid #444; }
+      /* 石头消除动画 1024×1024 */
+      .stonedestroy {
+        background: url("assets/images/stonedestroy-sheet0.png") no-repeat;
+        border: 1px solid #444;
+      }
 
-/* === 8个对象（连续动画帧） — 坐标待你定位 === */
-.obj-1 { background-position: 0px 0px;       width: 256px; height: 256px; }
-.obj-2 { background-position: -256px 0px;    width: 256px; height: 256px; }
-.obj-3 { background-position: -512px 0px;    width: 256px; height: 256px; }
-.obj-4 { background-position: -768px 0px;    width: 256px; height: 256px; }
-.obj-5 { background-position: 0px -256px;    width: 256px; height: 256px; }
-.obj-6 { background-position: -256px -256px; width: 256px; height: 256px; }
-.obj-7 { background-position: -512px -256px; width: 256px; height: 256px; }
-.obj-8 { background-position: -768px -256px; width: 256px; height: 256px; }
-</style>
-</head>
-<body>
-<a class="back" href="sprite-debug-index.html">← 返回索引</a>
-<h1>stonedestroy-sheet0.png — 石头消除动画</h1>
-<div class="info">尺寸: 1024×1024px | 8个对象（连续动画）</div>
+      /* === 8个对象（连续动画帧） — 坐标待你定位 === */
+      .obj-1 {
+        background-position: 0px 0px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-2 {
+        background-position: -256px 0px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-3 {
+        background-position: -512px 0px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-4 {
+        background-position: -515px -514px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-5 {
+        background-position: -766px -507px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-6 {
+        background-position: 51px -712px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-7 {
+        background-position: -227px -748px;
+        width: 256px;
+        height: 256px;
+      }
+      .obj-8 {
+        background-position: -750px -770px;
+        width: 256px;
+        height: 256px;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="sprite-debug-index.html">← 返回索引</a>
+    <h1>stonedestroy-sheet0.png — 石头消除动画</h1>
+    <div class="info">尺寸: 1024×1024px | 8个对象（连续动画）</div>
 
-<h2>整图预览</h2>
-<img class="full-img" src="assets/images/stonedestroy-sheet0.png" alt="stonedestroy-sheet0.png">
+    <h2>整图预览</h2>
+    <img
+      class="full-img"
+      src="assets/images/stonedestroy-sheet0.png"
+      alt="stonedestroy-sheet0.png"
+    />
 
-<h2>对象切割（动画帧顺序 1→8）</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="stonedestroy obj-1"></div><div class="label"><span class="idx">帧1</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-2"></div><div class="label"><span class="idx">帧2</span><br><span class="pos">-256, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-3"></div><div class="label"><span class="idx">帧3</span><br><span class="pos">-512, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-4"></div><div class="label"><span class="idx">帧4</span><br><span class="pos">-768, 0</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-5"></div><div class="label"><span class="idx">帧5</span><br><span class="pos">0, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-6"></div><div class="label"><span class="idx">帧6</span><br><span class="pos">-256, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-7"></div><div class="label"><span class="idx">帧7</span><br><span class="pos">-512, -256</span></div></div>
-  <div class="frame-wrap"><div class="stonedestroy obj-8"></div><div class="label"><span class="idx">帧8</span><br><span class="pos">-768, -256</span></div></div>
-</div>
-</body>
+    <h2>对象切割（动画帧顺序 1→8）</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-6"></div>
+        <div class="label">
+          <span class="idx">帧6</span><br /><span class="pos">-256, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-7"></div>
+        <div class="label">
+          <span class="idx">帧7</span><br /><span class="pos">-512, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-8"></div>
+        <div class="label">
+          <span class="idx">帧8</span><br /><span class="pos">-768, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-5"></div>
+        <div class="label">
+          <span class="idx">帧5</span><br /><span class="pos">0, -256</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-2"></div>
+        <div class="label">
+          <span class="idx">帧2</span><br /><span class="pos">-256, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-4"></div>
+        <div class="label">
+          <span class="idx">帧4</span><br /><span class="pos">-768, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-1"></div>
+        <div class="label">
+          <span class="idx">帧1</span><br /><span class="pos">0, 0</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="stonedestroy obj-3"></div>
+        <div class="label">
+          <span class="idx">帧3</span><br /><span class="pos">-512, 0</span>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
