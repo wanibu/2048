@@ -1,76 +1,487 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — shared-0-sheet1.png</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {  color: #eee; font-family: monospace; padding: 20px; }
-h1 { color: #ffe57f; margin-bottom: 10px; font-size: 20px; }
-h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
-.info { color: #888; font-size: 12px; margin-bottom: 16px; }
-.back { color: #4caf50; text-decoration: none; font-size: 13px; }
-.back:hover { text-decoration: underline; }
-.full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
-.frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.frame-wrap { text-align: center; }
-.frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
-.frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
-.frame-wrap .label .pos { color: #4caf50; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprite Debug — shared-0-sheet1.png</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        color: #eee;
+        font-family: monospace;
+        padding: 20px;
+      }
+      h1 {
+        color: #ffe57f;
+        margin-bottom: 10px;
+        font-size: 20px;
+      }
+      h2 {
+        color: #ff9800;
+        margin: 20px 0 8px;
+        font-size: 16px;
+      }
+      .info {
+        color: #888;
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      .back {
+        color: #4caf50;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .back:hover {
+        text-decoration: underline;
+      }
+      .full-img {
+        margin: 16px 0;
+        border: 1px solid #444;
+        display: block;
+        max-width: 100%;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .frame-wrap {
+        text-align: center;
+      }
+      .frame-wrap .label {
+        color: #aaa;
+        font-size: 11px;
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+      .frame-wrap .label .idx {
+        color: #ffe57f;
+        font-weight: bold;
+      }
+      .frame-wrap .label .pos {
+        color: #4caf50;
+      }
 
-/* 共享素材图2 1024×2048 */
-.shared1 { background: url('assets/images/shared-0-sheet1.png') no-repeat; border: 1px solid #444; }
+      /* 共享素材图2 1024×2048 */
+      .shared1 {
+        background: url("assets/images/shared-0-sheet1.png") no-repeat;
+        border: 1px solid #444;
+      }
 
-/* === 18个对象 — 坐标待你定位 === */
-.obj-1  { background-position: 0px 0px;       width: 200px; height: 200px; }
-.obj-2  { background-position: -200px 0px;    width: 200px; height: 200px; }
-.obj-3  { background-position: -400px 0px;    width: 200px; height: 200px; }
-.obj-4  { background-position: -600px 0px;    width: 200px; height: 200px; }
-.obj-5  { background-position: -800px 0px;    width: 200px; height: 200px; }
-.obj-6  { background-position: 0px -200px;    width: 200px; height: 200px; }
-.obj-7  { background-position: -200px -200px; width: 200px; height: 200px; }
-.obj-8  { background-position: -400px -200px; width: 200px; height: 200px; }
-.obj-9  { background-position: -600px -200px; width: 200px; height: 200px; }
-.obj-10 { background-position: -800px -200px; width: 200px; height: 200px; }
-.obj-11 { background-position: 0px -400px;    width: 200px; height: 200px; }
-.obj-12 { background-position: -200px -400px; width: 200px; height: 200px; }
-.obj-13 { background-position: -400px -400px; width: 200px; height: 200px; }
-.obj-14 { background-position: -600px -400px; width: 200px; height: 200px; }
-.obj-15 { background-position: -800px -400px; width: 200px; height: 200px; }
-.obj-16 { background-position: 0px -600px;    width: 200px; height: 200px; }
-.obj-17 { background-position: -200px -600px; width: 200px; height: 200px; }
-.obj-18 { background-position: -400px -600px; width: 200px; height: 200px; }
-</style>
-</head>
-<body>
-<a class="back" href="sprite-debug-index.html">← 返回索引</a>
-<h1>shared-0-sheet1.png — 共享素材 第2张 (弹弓/按钮等)</h1>
-<div class="info">尺寸: 1024×2048px | 18个对象</div>
+      /* === 独立对象 === */
+      /* 睡觉小女孩 */
+      .sleep-girl {
+        background-position: 0px -767px;
+        width: 519px;
+        height: 246px;
+      }
+      /* 播放按钮（圆形红色） */
+      .play-btn {
+        background-position: -514px -757px;
+        width: 260px;
+        height: 260px;
+      }
+      /* 绿色播放按钮 */
+      .play-green {
+        background-position: -772px -1277px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 粉色按钮（未激活） */
+      .pink-off {
+        background-position: 0px -1794px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 粉色按钮（激活） */
+      .pink-on {
+        background-position: -773px -1029px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 绿色恢复按钮（未激活） */
+      .green-off {
+        background-position: -521px -1284px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 绿色恢复按钮（激活） */
+      .green-on {
+        background-position: -263px -1284px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 紫色按钮 */
+      .purple-btn {
+        background-position: -255px -1788px;
+        width: 250px;
+        height: 140px;
+      }
+      /* 灰色背景条 */
+      .bar-bg {
+        background-position: -514px -1922px;
+        width: 361px;
+        height: 90px;
+      }
+      /* === 弹弓动画 4帧 === */
+      .sling-1 { background-position: 0px -1281px;     width: 258px; height: 163px; }
+      .sling-2 { background-position: 0px -1026px;     width: 258px; height: 163px; }
+      .sling-3 { background-position: -512px -1025px;   width: 258px; height: 163px; }
+      .sling-4 { background-position: 0px -1537px;     width: 258px; height: 163px; }
 
-<h2>整图预览</h2>
-<img class="full-img" src="assets/images/shared-0-sheet1.png" alt="shared-0-sheet1.png">
+      /* 瞄准线（列高亮光柱） */
+      .aim-line {
+        background-position: -845px 0px;
+        width: 134px;
+        height: 815px;
+      }
 
-<h2>对象切割</h2>
-<div class="frames">
-  <div class="frame-wrap"><div class="shared1 obj-1"></div><div class="label"><span class="idx">对象1</span><br><span class="pos">0, 0</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-2"></div><div class="label"><span class="idx">对象2</span><br><span class="pos">-200, 0</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-3"></div><div class="label"><span class="idx">对象3</span><br><span class="pos">-400, 0</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-4"></div><div class="label"><span class="idx">对象4</span><br><span class="pos">-600, 0</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-5"></div><div class="label"><span class="idx">对象5</span><br><span class="pos">-800, 0</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-6"></div><div class="label"><span class="idx">对象6</span><br><span class="pos">0, -200</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-7"></div><div class="label"><span class="idx">对象7</span><br><span class="pos">-200, -200</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-8"></div><div class="label"><span class="idx">对象8</span><br><span class="pos">-400, -200</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-9"></div><div class="label"><span class="idx">对象9</span><br><span class="pos">-600, -200</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-10"></div><div class="label"><span class="idx">对象10</span><br><span class="pos">-800, -200</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-11"></div><div class="label"><span class="idx">对象11</span><br><span class="pos">0, -400</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-12"></div><div class="label"><span class="idx">对象12</span><br><span class="pos">-200, -400</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-13"></div><div class="label"><span class="idx">对象13</span><br><span class="pos">-400, -400</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-14"></div><div class="label"><span class="idx">对象14</span><br><span class="pos">-600, -400</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-15"></div><div class="label"><span class="idx">对象15</span><br><span class="pos">-800, -400</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-16"></div><div class="label"><span class="idx">对象16</span><br><span class="pos">0, -600</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-17"></div><div class="label"><span class="idx">对象17</span><br><span class="pos">-200, -600</span></div></div>
-  <div class="frame-wrap"><div class="shared1 obj-18"></div><div class="label"><span class="idx">对象18</span><br><span class="pos">-400, -600</span></div></div>
-</div>
-</body>
+      /* === 白色数字 0-9 === */
+      .white-0 {
+        background-position: -260px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-1 {
+        background-position: -316px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-2 {
+        background-position: -378px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-3 {
+        background-position: -436px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-4 {
+        background-position: -495px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-5 {
+        background-position: -555px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-6 {
+        background-position: -615px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-7 {
+        background-position: -675px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-8 {
+        background-position: -732px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+      .white-9 {
+        background-position: -793px -1666px;
+        width: 45px;
+        height: 60px;
+      }
+
+      /* === 黄色数字 0-9 === */
+      .yellow-0 {
+        background-position: -1px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-1 {
+        background-position: -58px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-2 {
+        background-position: -120px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-3 {
+        background-position: -179px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-4 {
+        background-position: -239px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-5 {
+        background-position: -296px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-6 {
+        background-position: -357px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-7 {
+        background-position: -415px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-8 {
+        background-position: -475px  -1730px;
+        width: 45px;
+        height: 60px;
+      }
+      .yellow-9 {
+        background-position: -534px -1730px;
+        width: 45px;
+        height: 60px;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="sprite-debug-index.html">← 返回索引</a>
+    <h1>shared-0-sheet1.png — 共享素材 第2张</h1>
+    <div class="info">尺寸: 1024×2048px | 28个对象</div>
+
+    <h2>整图预览</h2>
+    <img
+      class="full-img"
+      src="assets/images/shared-0-sheet1.png"
+      alt="shared-0-sheet1.png"
+    />
+
+    <h2>独立对象</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared1 sleep-girl"></div>
+        <div class="label">
+          <span class="idx">sleep-girl</span><br /><span class="pos"
+            >睡觉小女孩</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 play-btn"></div>
+        <div class="label">
+          <span class="idx">play-btn</span><br /><span class="pos"
+            >播放按钮</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 play-green"></div>
+        <div class="label">
+          <span class="idx">play-green</span><br /><span class="pos"
+            >绿色播放</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 pink-off"></div>
+        <div class="label">
+          <span class="idx">pink-off</span><br /><span class="pos"
+            >粉色(未激活)</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 pink-on"></div>
+        <div class="label">
+          <span class="idx">pink-on</span><br /><span class="pos"
+            >粉色(激活)</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 green-off"></div>
+        <div class="label">
+          <span class="idx">green-off</span><br /><span class="pos"
+            >绿色(未激活)</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 green-on"></div>
+        <div class="label">
+          <span class="idx">green-on</span><br /><span class="pos"
+            >绿色(激活)</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 purple-btn"></div>
+        <div class="label">
+          <span class="idx">purple-btn</span><br /><span class="pos"
+            >紫色按钮</span
+          >
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 bar-bg"></div>
+        <div class="label">
+          <span class="idx">bar-bg</span><br /><span class="pos">灰色背景条</span>
+        </div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 aim-line"></div>
+        <div class="label">
+          <span class="idx">aim-line</span><br /><span class="pos">瞄准线</span>
+        </div>
+      </div>
+    </div>
+
+    <h2>白色数字 0-9</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared1 white-0"></div>
+        <div class="label"><span class="idx">0</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-1"></div>
+        <div class="label"><span class="idx">1</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-2"></div>
+        <div class="label"><span class="idx">2</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-3"></div>
+        <div class="label"><span class="idx">3</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-4"></div>
+        <div class="label"><span class="idx">4</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-5"></div>
+        <div class="label"><span class="idx">5</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-6"></div>
+        <div class="label"><span class="idx">6</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-7"></div>
+        <div class="label"><span class="idx">7</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-8"></div>
+        <div class="label"><span class="idx">8</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 white-9"></div>
+        <div class="label"><span class="idx">9</span></div>
+      </div>
+    </div>
+
+    <h2>黄色数字 0-9</h2>
+    <div class="frames">
+      <div class="frame-wrap">
+        <div class="shared1 yellow-0"></div>
+        <div class="label"><span class="idx">0</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-1"></div>
+        <div class="label"><span class="idx">1</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-2"></div>
+        <div class="label"><span class="idx">2</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-3"></div>
+        <div class="label"><span class="idx">3</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-4"></div>
+        <div class="label"><span class="idx">4</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-5"></div>
+        <div class="label"><span class="idx">5</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-6"></div>
+        <div class="label"><span class="idx">6</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-7"></div>
+        <div class="label"><span class="idx">7</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-8"></div>
+        <div class="label"><span class="idx">8</span></div>
+      </div>
+      <div class="frame-wrap">
+        <div class="shared1 yellow-9"></div>
+        <div class="label"><span class="idx">9</span></div>
+      </div>
+    </div>
+
+    <h2>弹弓动画（4帧）</h2>
+    <div class="frames">
+      <div class="frame-wrap"><div class="shared1 sling-1"></div><div class="label"><span class="idx">sling-1</span></div></div>
+      <div class="frame-wrap"><div class="shared1 sling-2"></div><div class="label"><span class="idx">sling-2</span></div></div>
+      <div class="frame-wrap"><div class="shared1 sling-3"></div><div class="label"><span class="idx">sling-3</span></div></div>
+      <div class="frame-wrap"><div class="shared1 sling-4"></div><div class="label"><span class="idx">sling-4</span></div></div>
+    </div>
+
+    <h2>弹弓 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:258px; height:163px; flex-shrink:0;">
+        <div id="sling-l1" class="shared1 sling-1" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l2" class="shared1 sling-2" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l3" class="shared1 sling-3" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l4" class="shared1 sling-4" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">弹弓（4帧）：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-1</span><input id="sx-1" type="number" value="0" oninput="updateSling(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-1" type="number" value="-1281" oninput="updateSling(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-2</span><input id="sx-2" type="number" value="0" oninput="updateSling(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-2" type="number" value="-1026" oninput="updateSling(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l3').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-3</span><input id="sx-3" type="number" value="-512" oninput="updateSling(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-3" type="number" value="-1025" oninput="updateSling(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l4').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-4</span><input id="sx-4" type="number" value="0" oninput="updateSling(4)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-4" type="number" value="-1537" oninput="updateSling(4)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportSling()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="sling-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+
+    <h2>弹弓 — 动画预览</h2>
+    <div style="width:258px; height:163px; background:url('assets/images/shared-0-sheet1.png') no-repeat; border:2px solid #ffe57f; animation: sling1-anim 0.8s steps(1) infinite;"></div>
+    <style>
+      @keyframes sling1-anim {
+        0%    { background-position: 0px -1281px; }
+        25%   { background-position: 0px -1026px; }
+        50%   { background-position: -512px -1025px; }
+        75%   { background-position: 0px -1537px; }
+        100%  { background-position: 0px -1281px; }
+      }
+    </style>
+
+    <script>
+      function updateSling(n) {
+        var x = document.getElementById('sx-' + n).value;
+        var y = document.getElementById('sy-' + n).value;
+        document.getElementById('sling-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function exportSling() {
+        var out = '';
+        for (var i = 1; i <= 4; i++) {
+          var x = document.getElementById('sx-' + i).value;
+          var y = document.getElementById('sy-' + i).value;
+          out += 'sling-' + i + ': ' + x + 'px ' + y + 'px\n';
+        }
+        var el = document.getElementById('sling-output');
+        el.textContent = out; el.style.display = 'block';
+      }
+    </script>
+  </body>
 </html>

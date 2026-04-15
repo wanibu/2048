@@ -5,302 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sprite Debug — shared-0-sheet0.png</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        
-        color: #eee;
-        font-family: monospace;
-        padding: 20px;
-      }
-      h1 {
-        color: #ffe57f;
-        margin-bottom: 10px;
-        font-size: 20px;
-      }
-      h2 {
-        color: #ff9800;
-        margin: 20px 0 8px;
-        font-size: 16px;
-      }
-      .info {
-        color: #888;
-        font-size: 12px;
-        margin-bottom: 16px;
-      }
-      .back {
-        color: #4caf50;
-        text-decoration: none;
-        font-size: 13px;
-      }
-      .back:hover {
-        text-decoration: underline;
-      }
-      .full-img {
-        margin: 16px 0;
-        border: 1px solid #444;
-        display: block;
-        max-width: 100%;
-      }
-      .frames {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 12px;
-      }
-      .frame-wrap {
-        text-align: center;
-      }
-      .frame-wrap .label {
-        color: #aaa;
-        font-size: 11px;
-        margin-top: 4px;
-        line-height: 1.4;
-      }
-      .frame-wrap .label .idx {
-        color: #ffe57f;
-        font-weight: bold;
-      }
-      .frame-wrap .label .pos {
-        color: #4caf50;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { color: #eee; font-family: monospace; padding: 20px; }
+      h1 { color: #ffe57f; margin-bottom: 10px; font-size: 20px; }
+      h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+      .info { color: #888; font-size: 12px; margin-bottom: 16px; }
+      .back { color: #4caf50; text-decoration: none; font-size: 13px; }
+      .back:hover { text-decoration: underline; }
+      .full-img { margin: 16px 0; border: 1px solid #444; display: block; max-width: 100%; }
+      .frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+      .frame-wrap { text-align: center; }
+      .frame-wrap .label { color: #aaa; font-size: 11px; margin-top: 4px; line-height: 1.4; }
+      .frame-wrap .label .idx { color: #ffe57f; font-weight: bold; }
+      .frame-wrap .label .pos { color: #4caf50; }
 
-      /* 共享素材图A 2048×2048 */
-      .shared0 {
-        background: url("assets/images/shared-0-sheet0.png") no-repeat;
-        border: 1px solid #444;
-      }
+      /* 共享素材图 2039×4034（含原sheet1拼接） */
+      .shared0 { background: url("assets/images/shared-0-sheet0.png") no-repeat; border: 1px solid #444; }
 
-      /* 睁眼闭眼 帧2/帧3 原图B内容，现在在图A下方(Y+2048) */
-      .obj-b1 { background-position: 0px -2048px; width: 420px; height: 611px; }
-      .obj-b2 { background-position: -420px -2048px; width: 420px; height: 611px; }
+      /* === 独立对象 === */
+      .pause-bg  { background-position: 0px 0px;          width: 769px; height: 1028px; }
+      .board     { background-position: -786px 21px;       width: 771px; height: 771px; }
+      .tray      { background-position: -768px -754px;     width: 1030px; height: 260px; }
+      .wow       { background-position: -421px -1622px;    width: 515px; height: 386px; }
+      .combo     { background-position: -946px -1626px;    width: 500px; height: 310px; }
+      .girl-win  { background-position: -1446px -1794px;   width: 525px; height: 237px; }
 
-      /* === 11+个对象 === */
-      /* 暂停背景 */
-      .obj-1 {
-        background-position: 0px 0px;
-        width: 769px;
-        height: 1028px;
-      }
+      /* === 睁眼闭眼动画 4帧 === */
+      .blink-1 { background-position: -4px -1027px;     width: 420px; height: 611px; }
+      .blink-2 { background-position: -1622px -1025px;  width: 420px; height: 611px; }
+      .blink-3 { background-position: -4px -2023px;     width: 420px; height: 611px; }
+      .blink-4 { background-position: -427px -2023px;   width: 420px; height: 611px; }
 
-      /* 棋盘 5x5 */
-      .obj-2 {
-        background-position: -786px 21px;
-        width: 771px;
-        height: 771px;
-      }
+      /* === 张嘴闭嘴动画 4帧 === */
+      .mouth-1 { background-position: -1622px -1025px;   width: 420px; height: 611px; }
+      .mouth-2 { background-position: -1564px -2px;      width: 420px; height: 611px; }
+      .mouth-3 { background-position: -1200px -1012px;   width: 420px; height: 611px; }
+      .mouth-4 { background-position: -773px -1014px;    width: 420px; height: 611px; }
 
-      /* 底部托盘 */
-      .obj-3 {
-        background-position: -768px -754px;
-        width: 1030px;
-        height: 260px;
-      }
-
-
-      /* 连续动作 睁眼 闭眼 */
-      .obj-4 {
-        background-position: -1622px -1025px;
-        width: 420px;
-        height: 611px;
-      }
-      .obj-6 {
-        background-position: -4px -1027px;
-        width: 420px;
-        height: 611px;
-      }
-
-      
-      /* 张嘴吃糖 */
-      .obj-8 {
-        background-position: -1562px 0px;
-        width: 420px;
-        height: 611px;
-      }
-      .obj-7 {
-        background-position: -1197px -1009px;
-        width: 420px;
-        height: 611px;
-      }
-      .obj-5 {
-        background-position: -771px -1011px;
-        width: 420px;
-        height: 611px;
-      }
-     
-      /* wow */
-      .obj-9 {
-        background-position: -421px -1622px;
-    width: 515px;
-    height: 386px;
-      }
-
-      /* combo */
-      .obj-10 {
-        background-position: -946px -1626px;
-    width: 500px;
-    height: 310px;
-      }
-      /* 小姑娘庆祝 获得胜利 */
-      .obj-11 {
-           background-position: -1446px -1794px;
-    width: 525px;
-    height: 237px;
-      }
+      /* === 弹弓动画 4帧 === */
+      .sling-1 { background-position: 0px -3306px;     width: 258px; height: 163px; }
+      .sling-2 { background-position: 0px -3050px;     width: 258px; height: 163px; }
+      .sling-3 { background-position: -512px -3049px;   width: 258px; height: 163px; }
+      .sling-4 { background-position: 0px -3560px;     width: 258px; height: 163px; }
     </style>
   </head>
   <body>
     <a class="back" href="sprite-debug-index.html">← 返回索引</a>
-    <h1>shared-0-sheet0.png — 共享素材 第1张 (UI/网格/巨人等)</h1>
-    <div class="info">尺寸: 2039×4034px（含原sheet1拼接）</div>
+    <h1>shared-0-sheet0.png — 共享素材（含原sheet1拼接）</h1>
+    <div class="info">尺寸: 2039×4034px | 13个对象</div>
 
     <h2>整图预览</h2>
-    <img
-      class="full-img"
-      src="assets/images/shared-0-sheet0.png"
-      alt="shared-0-sheet0.png"
-    />
+    <img class="full-img" src="assets/images/shared-0-sheet0.png" alt="shared-0-sheet0.png" />
 
-    <h2>对象切割</h2>
+    <h2>独立对象</h2>
     <div class="frames">
-      <div class="frame-wrap">
-        <div class="shared0 obj-1"></div>
-        <div class="label">
-          <span class="idx">对象1</span><br /><span class="pos">0, 0</span>
-        </div>
-      </div>
-      <div class="frame-wrap">
-        <div class="shared0 obj-2"></div>
-        <div class="label">
-          <span class="idx">对象2</span><br /><span class="pos">-784, 0</span>
-        </div>
-      </div>
-      <div class="frame-wrap">
-        <div class="shared0 obj-3"></div>
-        <div class="label">
-          <span class="idx">对象3</span><br /><span class="pos"
-            >-768, -752</span
-          >
-        </div>
-      </div>
-      <!-- 连续动作 睁眼 闭眼 -->
-      <div class="frames">
-        <div class="frame-wrap">
-          <div class="shared0 obj-4"></div>
-          <div class="label">
-            <span class="idx">对象4</span><br /><span class="pos"
-            >-1621, -1027</span
-            >
-          </div>
-        </div>
-        <div class="frame-wrap">
-          <div class="shared0 obj-6"></div>
-          <div class="label">
-            <span class="idx">对象6</span><br /><span class="pos">0, -1400</span>
-          </div>
-        </div>
-      </div>
-      <!-- 连续动作 张嘴吃糖 -->
-      <div class="frames">
-        <div class="frame-wrap">
-          <div class="shared0 obj-8"></div>
-          <div class="label">
-            <span class="idx">对象8</span><br /><span class="pos"
-              >0, -1700</span
-            >
-          </div>
-        </div>
-        <div class="frame-wrap">
-          <div class="shared0 obj-7"></div>
-          <div class="label">
-            <span class="idx">对象7</span><br /><span class="pos"
-              >-400, -1400</span
-            >
-          </div>
-        </div>
-        <div class="frame-wrap">
-          <div class="shared0 obj-5"></div>
-          <div class="label">
-            <span class="idx">对象5</span><br /><span class="pos"
-              >0, -1027</span
-            >
-          </div>
-        </div>
-      </div>
-      <div>
-     
-
-      <div class="frame-wrap">
-        <div class="shared0 obj-9"></div>
-        <div class="label">
-          <span class="idx">对象9</span><br /><span class="pos"
-            >-400, -1700</span
-          >
-        </div>
-      </div>
-      <div class="frame-wrap">
-        <div class="shared0 obj-10"></div>
-        <div class="label">
-          <span class="idx">对象10</span><br /><span class="pos"
-            >-800, -1700</span
-          >
-        </div>
-      </div>
-      <div class="frame-wrap">
-        <div class="shared0 obj-11"></div>
-        <div class="label">
-          <span class="idx">对象11</span><br /><span class="pos"
-            >-1200, -1700</span
-          >
-        </div>
-      </div>
+      <div class="frame-wrap"><div class="shared0 pause-bg"></div><div class="label"><span class="idx">pause-bg</span><br><span class="pos">0, 0</span></div></div>
+      <div class="frame-wrap"><div class="shared0 board"></div><div class="label"><span class="idx">board</span><br><span class="pos">-786, 21</span></div></div>
+      <div class="frame-wrap"><div class="shared0 tray"></div><div class="label"><span class="idx">tray</span><br><span class="pos">-768, -754</span></div></div>
+      <div class="frame-wrap"><div class="shared0 wow"></div><div class="label"><span class="idx">wow</span><br><span class="pos">-421, -1622</span></div></div>
+      <div class="frame-wrap"><div class="shared0 combo"></div><div class="label"><span class="idx">combo</span><br><span class="pos">-946, -1626</span></div></div>
+      <div class="frame-wrap"><div class="shared0 girl-win"></div><div class="label"><span class="idx">girl-win</span><br><span class="pos">-1446, -1794</span></div></div>
     </div>
 
-    <!-- ===== 动画1: 睁眼闭眼 4帧 (图A对象4 → 图B帧2 → 图B帧3 → 图A对象6) ===== -->
-    <h2>动画1: 睁眼闭眼 — 叠加对比（4帧，跨2张图）</h2>
+    <h2>睁眼闭眼动画（4帧）</h2>
+    <div class="frames">
+      <div class="frame-wrap"><div class="shared0 blink-1"></div><div class="label"><span class="idx">blink-1</span><br><span class="pos">-4, -1027</span></div></div>
+      <div class="frame-wrap"><div class="shared0 blink-2"></div><div class="label"><span class="idx">blink-2</span><br><span class="pos">-1622, -1025</span></div></div>
+      <div class="frame-wrap"><div class="shared0 blink-3"></div><div class="label"><span class="idx">blink-3</span><br><span class="pos">-4, -2023</span></div></div>
+      <div class="frame-wrap"><div class="shared0 blink-4"></div><div class="label"><span class="idx">blink-4</span><br><span class="pos">-427, -2023</span></div></div>
+    </div>
+
+    <h2>张嘴闭嘴动画（4帧）</h2>
+    <div class="frames">
+      <div class="frame-wrap"><div class="shared0 mouth-1"></div><div class="label"><span class="idx">mouth-1</span><br><span class="pos">-1622, -1025</span></div></div>
+      <div class="frame-wrap"><div class="shared0 mouth-2"></div><div class="label"><span class="idx">mouth-2</span><br><span class="pos">-1564, -2</span></div></div>
+      <div class="frame-wrap"><div class="shared0 mouth-3"></div><div class="label"><span class="idx">mouth-3</span><br><span class="pos">-1200, -1012</span></div></div>
+      <div class="frame-wrap"><div class="shared0 mouth-4"></div><div class="label"><span class="idx">mouth-4</span><br><span class="pos">-773, -1014</span></div></div>
+    </div>
+
+    <!-- ===== 动画1: 睁眼闭眼 叠加对比 ===== -->
+    <h2>动画1: 睁眼闭眼 — 叠加对比</h2>
     <div style="display:flex; gap:20px; margin-bottom:20px;">
       <div style="position:relative; width:420px; height:611px; border:2px solid red; flex-shrink:0;">
-        <div id="blink-1" class="shared0 obj-4" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
-        <div id="blink-2" class="shared0 obj-b1" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
-        <div id="blink-3" class="shared0 obj-b2" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
-        <div id="blink-4" class="shared0 obj-6" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="blink-l1" class="shared0 blink-1" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="blink-l2" class="shared0 blink-2" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="blink-l3" class="shared0 blink-3" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="blink-l4" class="shared0 blink-4" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
       </div>
       <div style="font-size:13px; color:#333;">
         <div style="margin-bottom:8px; font-weight:bold;">睁眼闭眼（4帧）：</div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-1').style.display=this.checked?'block':'none'"><span style="width:70px;">帧1(图A)</span><input id="bx-1" type="number" value="-1622" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-1" type="number" value="-1025" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-2').style.display=this.checked?'block':'none'"><span style="width:70px;">帧2(图B)</span><input id="bx-2" type="number" value="0" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-2" type="number" value="0" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-3').style.display=this.checked?'block':'none'"><span style="width:70px;">帧3(图B)</span><input id="bx-3" type="number" value="-420" oninput="updateBlink(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-3" type="number" value="0" oninput="updateBlink(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-4').style.display=this.checked?'block':'none'"><span style="width:70px;">帧4(图A)</span><input id="bx-4" type="number" value="-4" oninput="updateBlink(4)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-4" type="number" value="-1027" oninput="updateBlink(4)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">blink-1</span><input id="bx-1" type="number" value="-4" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-1" type="number" value="-1027" oninput="updateBlink(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">blink-2</span><input id="bx-2" type="number" value="-1622" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-2" type="number" value="-1025" oninput="updateBlink(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-l3').style.display=this.checked?'block':'none'"><span style="width:60px;">blink-3</span><input id="bx-3" type="number" value="-4" oninput="updateBlink(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-3" type="number" value="-2023" oninput="updateBlink(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('blink-l4').style.display=this.checked?'block':'none'"><span style="width:60px;">blink-4</span><input id="bx-4" type="number" value="-427" oninput="updateBlink(4)" style="width:70px; font-family:monospace; font-size:12px;"><input id="by-4" type="number" value="-2023" oninput="updateBlink(4)" style="width:70px; font-family:monospace; font-size:12px;"></div>
         <br>
         <button onclick="exportBlink()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
         <pre id="blink-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
       </div>
     </div>
 
-    <h2>动画1: 睁眼闭眼 — 帧预览（跨图无法用纯CSS动画，逐帧展示）</h2>
-    <div class="frames">
-      <div class="frame-wrap"><div class="shared0 obj-4"></div><div class="label"><span class="idx">帧1(图A)</span></div></div>
-      <div class="frame-wrap"><div class="shared0 obj-b1"></div><div class="label"><span class="idx">帧2(图B)</span></div></div>
-      <div class="frame-wrap"><div class="shared0 obj-b2"></div><div class="label"><span class="idx">帧3(图B)</span></div></div>
-      <div class="frame-wrap"><div class="shared0 obj-6"></div><div class="label"><span class="idx">帧4(图A)</span></div></div>
-    </div>
+    <h2>动画1: 睁眼闭眼 — 预览</h2>
+    <div style="width:420px; height:611px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: blink-anim 1.5s steps(1) infinite;"></div>
+    <style>
+      @keyframes blink-anim {
+        0%    { background-position: -4px -1027px; }
+        25%   { background-position: -1622px -1025px; }
+        50%   { background-position: -4px -2023px; }
+        75%   { background-position: -427px -2023px; }
+        100%  { background-position: -4px -1027px; }
+      }
+    </style>
 
-    <!-- ===== 动画2: 张嘴闭嘴 (对象8 → 对象7 → 对象5) ===== -->
+    <!-- ===== 动画2: 张嘴闭嘴 叠加对比 ===== -->
     <h2>动画2: 张嘴闭嘴 — 叠加对比</h2>
     <div style="display:flex; gap:20px; margin-bottom:20px;">
       <div style="position:relative; width:420px; height:611px; border:2px solid red; flex-shrink:0;">
-        <div id="mouth-1" class="shared0 obj-8" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
-        <div id="mouth-2" class="shared0 obj-7" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
-        <div id="mouth-3" class="shared0 obj-5" style="position:absolute; top:0; left:0; opacity:0.4;"></div>
+        <div id="mouth-l1" class="shared0 mouth-1" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="mouth-l2" class="shared0 mouth-2" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="mouth-l3" class="shared0 mouth-3" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="mouth-l4" class="shared0 mouth-4" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
       </div>
       <div style="font-size:13px; color:#333;">
-        <div style="margin-bottom:8px; font-weight:bold;">张嘴闭嘴：</div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-1').style.display=this.checked?'block':'none'"><span style="width:40px;">对象8</span><input id="mx-1" type="number" value="-1564" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-1" type="number" value="-2" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-2').style.display=this.checked?'block':'none'"><span style="width:40px;">对象7</span><input id="mx-2" type="number" value="-1200" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-2" type="number" value="-1012" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
-        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-3').style.display=this.checked?'block':'none'"><span style="width:40px;">对象5</span><input id="mx-3" type="number" value="-773" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-3" type="number" value="-1014" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="margin-bottom:8px; font-weight:bold;">张嘴闭嘴（4帧）：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">mouth-1</span><input id="mx-1" type="number" value="-1622" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-1" type="number" value="-1025" oninput="updateMouth(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">mouth-2</span><input id="mx-2" type="number" value="-1564" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-2" type="number" value="-2" oninput="updateMouth(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-l3').style.display=this.checked?'block':'none'"><span style="width:60px;">mouth-3</span><input id="mx-3" type="number" value="-1200" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-3" type="number" value="-1012" oninput="updateMouth(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('mouth-l4').style.display=this.checked?'block':'none'"><span style="width:60px;">mouth-4</span><input id="mx-4" type="number" value="-773" oninput="updateMouth(4)" style="width:70px; font-family:monospace; font-size:12px;"><input id="my-4" type="number" value="-1014" oninput="updateMouth(4)" style="width:70px; font-family:monospace; font-size:12px;"></div>
         <br>
         <button onclick="exportMouth()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
         <pre id="mouth-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
@@ -308,44 +138,100 @@
     </div>
 
     <h2>动画2: 张嘴闭嘴 — 预览</h2>
-    <div style="width:420px; height:611px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: mouth-anim 0.6s steps(1) infinite;"></div>
+    <div style="width:420px; height:611px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: mouth-anim 0.8s steps(1) infinite;"></div>
     <style>
       @keyframes mouth-anim {
-        0%      { background-position: -1562px 0px; }
-        33.33%  { background-position: -1197px -1009px; }
-        66.66%  { background-position: -771px -1011px; }
-        100%    { background-position: -1562px 0px; }
+        0%    { background-position: -1622px -1025px; }
+        25%   { background-position: -1564px -2px; }
+        50%   { background-position: -1200px -1012px; }
+        75%   { background-position: -773px -1014px; }
+        100%  { background-position: -1622px -1025px; }
+      }
+    </style>
+
+    <!-- ===== 动画3: 弹弓 ===== -->
+    <h2>弹弓动画（4帧）</h2>
+    <div class="frames">
+      <div class="frame-wrap"><div class="shared0 sling-1"></div><div class="label"><span class="idx">sling-1</span><br><span class="pos">0, -3306</span></div></div>
+      <div class="frame-wrap"><div class="shared0 sling-2"></div><div class="label"><span class="idx">sling-2</span><br><span class="pos">0, -3050</span></div></div>
+      <div class="frame-wrap"><div class="shared0 sling-3"></div><div class="label"><span class="idx">sling-3</span><br><span class="pos">-512, -3049</span></div></div>
+      <div class="frame-wrap"><div class="shared0 sling-4"></div><div class="label"><span class="idx">sling-4</span><br><span class="pos">0, -3560</span></div></div>
+    </div>
+
+    <h2>动画3: 弹弓 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:258px; height:163px; border:2px solid red; flex-shrink:0;">
+        <div id="sling-l1" class="shared0 sling-1" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l2" class="shared0 sling-2" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l3" class="shared0 sling-3" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+        <div id="sling-l4" class="shared0 sling-4" style="position:absolute; top:0; left:0; opacity:0.3;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">弹弓（4帧）：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-1</span><input id="sx-1" type="number" value="0" oninput="updateSling(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-1" type="number" value="-3306" oninput="updateSling(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-2</span><input id="sx-2" type="number" value="0" oninput="updateSling(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-2" type="number" value="-3050" oninput="updateSling(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l3').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-3</span><input id="sx-3" type="number" value="-512" oninput="updateSling(3)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-3" type="number" value="-3050" oninput="updateSling(3)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sling-l4').style.display=this.checked?'block':'none'"><span style="width:60px;">sling-4</span><input id="sx-4" type="number" value="0" oninput="updateSling(4)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sy-4" type="number" value="-3560" oninput="updateSling(4)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportSling()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="sling-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+
+    <h2>动画3: 弹弓 — 预览</h2>
+    <div style="width:258px; height:163px; background:url('assets/images/shared-0-sheet0.png') no-repeat; border:2px solid #ffe57f; animation: sling-anim 0.8s steps(1) infinite;"></div>
+    <style>
+      @keyframes sling-anim {
+        0%    { background-position: 0px -3306px; }
+        25%   { background-position: 0px -3050px; }
+        50%   { background-position: -512px -3049px; }
+        75%   { background-position: 0px -3560px; }
+        100%  { background-position: 0px -3306px; }
       }
     </style>
 
     <script>
+      function updateSling(n) {
+        var x = document.getElementById('sx-' + n).value;
+        var y = document.getElementById('sy-' + n).value;
+        document.getElementById('sling-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function exportSling() {
+        var out = '';
+        for (var i = 1; i <= 4; i++) {
+          var x = document.getElementById('sx-' + i).value;
+          var y = document.getElementById('sy-' + i).value;
+          out += 'sling-' + i + ': ' + x + 'px ' + y + 'px\n';
+        }
+        var el = document.getElementById('sling-output');
+        el.textContent = out; el.style.display = 'block';
+      }
       function updateBlink(n) {
         var x = document.getElementById('bx-' + n).value;
         var y = document.getElementById('by-' + n).value;
-        document.getElementById('blink-' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+        document.getElementById('blink-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
       }
       function updateMouth(n) {
         var x = document.getElementById('mx-' + n).value;
         var y = document.getElementById('my-' + n).value;
-        document.getElementById('mouth-' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+        document.getElementById('mouth-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
       }
       function exportBlink() {
         var out = '';
-        var srcs = ['图A', '图B', '图B', '图A'];
         for (var i = 1; i <= 4; i++) {
           var x = document.getElementById('bx-' + i).value;
           var y = document.getElementById('by-' + i).value;
-          out += '帧' + i + '(' + srcs[i-1] + '): ' + x + 'px ' + y + 'px\n';
+          out += 'blink-' + i + ': ' + x + 'px ' + y + 'px\n';
         }
         var el = document.getElementById('blink-output');
         el.textContent = out; el.style.display = 'block';
       }
       function exportMouth() {
         var out = '';
-        for (var i = 1; i <= 3; i++) {
+        for (var i = 1; i <= 4; i++) {
           var x = document.getElementById('mx-' + i).value;
           var y = document.getElementById('my-' + i).value;
-          out += '帧' + i + ': ' + x + 'px ' + y + 'px\n';
+          out += 'mouth-' + i + ': ' + x + 'px ' + y + 'px\n';
         }
         var el = document.getElementById('mouth-output');
         el.textContent = out; el.style.display = 'block';
