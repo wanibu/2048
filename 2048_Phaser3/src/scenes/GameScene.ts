@@ -103,8 +103,9 @@ export class GameScene extends Phaser.Scene {
     if (!tex3.has('pause-btn')) {
       tex3.add('pause-btn', 0, 7, 775, 120, 120);
     }
-    const pauseBtn = this.add.image(w - 60, 60, 'shared2', 'pause-btn');
+    const pauseBtn = this.add.image(w - 140, 58, 'shared2', 'pause-btn');
     pauseBtn.setDepth(100);
+    pauseBtn.setScale(0.70)
     pauseBtn.setInteractive({ useHandCursor: true });
 
     // 声音按钮（开启状态）
@@ -114,8 +115,9 @@ export class GameScene extends Phaser.Scene {
     if (!tex3.has('sound-mute')) {
       tex3.add('sound-mute', 0, 136, 514, 120, 120);
     }
-    const soundBtn = this.add.image(w - 170, 60, 'shared2', 'sound-on');
+    const soundBtn = this.add.image(w - 55, 55, 'shared2', 'sound-on');
     soundBtn.setDepth(100);
+    soundBtn.setScale(0.70)
     soundBtn.setInteractive({ useHandCursor: true });
     let soundOn = true;
     soundBtn.on('pointerdown', () => {
