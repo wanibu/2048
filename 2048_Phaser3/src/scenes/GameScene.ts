@@ -50,6 +50,14 @@ export class GameScene extends Phaser.Scene {
     tray.setScale(trayScale);
     tray.setDepth(-999);
 
+    // 坑（candy-hole）原尺寸120×120，底部居中，在tray上一层
+    const tex2 = this.textures.get('shared2');
+    if (!tex2.has('candy-hole')) {
+      tex2.add('candy-hole', 0, 260, 263, 120, 120);
+    }
+    const hole = this.add.image(w / 2, h - trayH / 2, 'shared2', 'candy-hole');
+    hole.setDepth(-998);
+
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
     this.recorder = new ActionRecorder();
