@@ -7,7 +7,7 @@ export class HUD {
   private score: number = 0;
   private topScore: number = 0;
 
-  constructor(scene: Phaser.Scene, w: number) {
+  constructor(scene: Phaser.Scene, w: number, visible = true) {
     this.scene = scene;
 
     const saved = localStorage.getItem('giant2048_topscore');
@@ -19,12 +19,12 @@ export class HUD {
       fontSize: `${fontSize}px`,
       color: '#ffffff',
       fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(100);
+    }).setOrigin(0.5).setDepth(100).setVisible(visible);
 
     this.topScoreText = scene.add.text(w / 2, w * 0.1, `Best: ${this.topScore}`, {
       fontSize: `${Math.round(fontSize * 0.7)}px`,
       color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(100);
+    }).setOrigin(0.5).setDepth(100).setVisible(visible);
   }
 
   addScore(points: number): void {

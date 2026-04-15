@@ -18,6 +18,8 @@ export class GameScene extends Phaser.Scene {
   private recorder!: ActionRecorder;
   private hud!: HUD;
   private layout!: LayoutConfig;
+  private scoreDigits: Phaser.GameObjects.Image[] = [];
+  private topScoreDigits: Phaser.GameObjects.Image[] = [];
   private isRotating: boolean = false;
   private lastLandedCol: number | undefined;
   private shootCount: number = 0; // 发射计数，每5个生成石头
@@ -48,7 +50,7 @@ export class GameScene extends Phaser.Scene {
     const tray = this.add.image(0, h - trayH, 'shared0', 'mobile-tray');
     tray.setOrigin(0, 0); // 左上角对齐
     tray.setScale(trayScale);
-    tray.setDepth(-999);
+    tray.setDepth(70);
 
     // 坑（candy-hole）原尺寸120×120，底部居中，在tray上一层
     const tex2 = this.textures.get('shared2');
@@ -57,7 +59,7 @@ export class GameScene extends Phaser.Scene {
     }
     const hole = this.add.image(w / 2, h - trayH / 2 + 55, 'shared2', 'candy-hole');
     hole.setScale(0.7)
-    hole.setDepth(-998);
+    hole.setDepth(71);
 
     // 巨人头像睁眼闭眼动画（depth -2，棋盘后面，背景前面）
     const blinkFrames = [
@@ -260,7 +262,7 @@ export class GameScene extends Phaser.Scene {
     star.setDepth(100);
 
     // 星星旁分数（白色数字精灵图）
-    let scoreDigits = renderSpriteNumber(0, 80, 40, 100);
+    this.scoreDigits = renderSpriteNumber(0, 80, 40, 100);
 
     // 皇冠
     if (!tex4.has('crown')) {
@@ -271,12 +273,12 @@ export class GameScene extends Phaser.Scene {
 
     // 皇冠旁最高分（白色数字精灵图）
     const savedScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
-    let topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
+    this.topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
     this.recorder = new ActionRecorder();
-    // this.hud = new HUD(this, w); // 暂时隐藏分数
+    this.hud = new HUD(this, w, false);
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
     this.grid = new Grid(this, layout);
     // 合并系统：BFS扫描相邻同值方块，执行合并
@@ -284,9 +286,9 @@ export class GameScene extends Phaser.Scene {
     // 旋转系统：数据层矩阵转置 + 视觉Tween动画
     this.rotateSystem = new RotateSystem(this.grid, this);
 
-    // // 弹弓：暂时注释，重新放
-    // this.sling = new Sling(this, this.grid, layout);
-    // this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
+    // 弹弓：接回当前场景
+    this.sling = new Sling(this, this.grid, layout);
+    this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
 
     // 旋转按钮：左下↺ 右下↻，键盘A/D
     this.createRotateButtons(w, h, layout);
@@ -304,8 +306,38 @@ export class GameScene extends Phaser.Scene {
     // 后端开局：获取 gameId + 50个糖果序列
     this.initBackend(userId);
 
+    this.refreshScoreSprites(updateSpriteNumber);
+
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
+  }
+
+  private refreshScoreSprites(
+    updater: (
+      images: Phaser.GameObjects.Image[],
+      num: number,
+      startX: number,
+      startY: number,
+      depth: number
+    ) => Phaser.GameObjects.Image[],
+  ): void {
+    this.scoreDigits = updater(this.scoreDigits, this.hud.getScore(), 80, 40, 100);
+    const topScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
+    this.topScoreDigits = updater(this.topScoreDigits, topScore, 80, 100, 100);
+  }
+
+  private addScore(points: number): void {
+    this.hud.addScore(points);
+    this.refreshScoreSprites((images, num, startX, startY, depth) => {
+      images.forEach(img => img.destroy());
+      const digits = String(num).split('');
+      return digits.map((d, i) => {
+        const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
+        img.setScale(0.65);
+        img.setDepth(depth);
+        return img;
+      });
+    });
   }
 
   // 窗口resize处理：保存当前状态，刷新页面
@@ -357,6 +389,16 @@ export class GameScene extends Phaser.Scene {
       // 恢复分数
       if (state.score > 0) {
         this.hud.setScore(state.score);
+        this.refreshScoreSprites((images, num, startX, startY, depth) => {
+          images.forEach(img => img.destroy());
+          const digits = String(num).split('');
+          return digits.map((d, i) => {
+            const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
+            img.setScale(0.65);
+            img.setDepth(depth);
+            return img;
+          });
+        });
       }
 
       // 注意：resize 恢复后后端状态已丢失，需要重新开局
@@ -507,7 +549,7 @@ export class GameScene extends Phaser.Scene {
     // 左旋转按钮 — 原尺寸，左边
     const leftBtn = this.add.image(132 / 2 + 40, btnY, 'shared2', 'rotate_btn');
     leftBtn.setScale(0.8)
-    leftBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
+    leftBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(80);
 
     leftBtn.on('pointerdown', () => this.doRotate('ccw'));
 
@@ -515,7 +557,7 @@ export class GameScene extends Phaser.Scene {
     const rightBtn = this.add.image(w - 132 / 2 - 45, btnY, 'shared2', 'rotate_btn');
     rightBtn.setFlipX(true);
     rightBtn.setScale(0.8)
-    rightBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
+    rightBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(80);
 
     rightBtn.on('pointerdown', () => this.doRotate('cw'));
 
@@ -585,7 +627,7 @@ export class GameScene extends Phaser.Scene {
             ease: 'Back.easeOut',
           });
         }
-        this.hud.addScore(newValue);
+        this.addScore(newValue);
         this.printGrid('直接合并后');
         this.time.delayedCall(150, () => this.checkMerges());
         this.respawnWithSequence();
@@ -724,7 +766,7 @@ export class GameScene extends Phaser.Scene {
     const result = this.mergeSystem.executeMerge(group, this.lastLandedCol);
     console.log(`[合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
 
-    this.hud.addScore(result.newValue);
+    this.addScore(result.newValue);
     this.recorder.reportScore(this.hud.getScore());
     this.sound.play('collapse1', { volume: 0.4 });
     this.lastLandedCol = result.col;
@@ -768,7 +810,7 @@ export class GameScene extends Phaser.Scene {
     const result = this.mergeSystem.executeMerge(group);
     console.log(`[旋转后合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
 
-    this.hud.addScore(result.newValue);
+    this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
 
     const border = this.grid.borders[result.row][result.col];
@@ -819,7 +861,7 @@ export class GameScene extends Phaser.Scene {
           this.grid.borders[r + 1][col] = null;
           this.grid.stones[r + 1][col] = null;
 
-          const { x, y } = this.grid.cellToPixel(r, col);
+          const { x, y } = this.grid.localCellToPixel(r, col);
 
           const border = this.grid.borders[r][col];
           if (border) {

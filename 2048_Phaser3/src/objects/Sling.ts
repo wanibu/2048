@@ -8,6 +8,9 @@ import { Grid } from './Grid';
 import { Shape } from './Shape';
 
 export class Sling {
+  private static readonly CANDY_OFFSET_Y = -40;
+  private static readonly CANDY_SIZE = 130;
+
   private scene: Phaser.Scene;
   private grid: Grid;
   private layout: LayoutConfig;
@@ -19,6 +22,7 @@ export class Sling {
   private slingSprite: Phaser.GameObjects.Image;
   private slingState: number = 0;
   private colHighlight: Phaser.GameObjects.Image;
+  private moveBounds: Phaser.GameObjects.Rectangle;
   private isDragging: boolean = false;
 
   private slingY: number;
@@ -32,8 +36,11 @@ export class Sling {
     this.grid = grid;
     this.layout = layout;
 
-    // 弹弓位置比网格底部往下更多
-    this.slingY = grid.getBottomY() + layout.cellSize * 1.8;
+    // 旧逻辑：跟随格子尺寸联动定位，先保留注释，暂时不用
+    // this.slingY = grid.getBottomY() + layout.cellSize * 1.8 + 50;
+    // this.slingY = grid.getBottomY() - 10;
+    // 现阶段先用纯视觉固定定位：相对页面底边定位
+    this.slingY = layout.height - 163 / 2 - 110;
 
     // Register texture frames for sling states
     const tex = scene.textures.get('shared1');
@@ -51,19 +58,28 @@ export class Sling {
     }
 
     // Column highlight
-    const hlX = grid.colToX(this.selectedCol);
-    this.colHighlight = scene.add.image(hlX, layout.gridOffsetY + (GRID_ROWS * layout.cellSize) / 2, 'shared1', 'col_highlight');
+    const hlX = grid.colToLocalX(this.selectedCol);
+    this.colHighlight = scene.add.image(hlX, grid.getGridCenterLocalY(), 'shared1', 'col_highlight');
     this.colHighlight.setDisplaySize(layout.cellSize, GRID_ROWS * layout.cellSize + layout.cellSize * 1.5);
     this.colHighlight.setAlpha(0.4);
-    this.colHighlight.setDepth(5);
     this.colHighlight.setVisible(false);
+    this.grid.addToContainer(this.colHighlight);
 
     // Sling sprite
-    const slingW = layout.cellSize * 1.54;
-    this.slingH = slingW * (163 / 258);
-    this.slingSprite = scene.add.image(hlX, this.slingY, 'shared1', 'sling_0');
+    const slingW = 258;
+    this.slingH = 163;
+    this.slingSprite = scene.add.image(grid.colToX(this.selectedCol), this.slingY, 'shared1', 'sling_0');
     this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
+
+    // 弹弓横向可移动区间调试框
+    const leftEdge = this.layout.gridOffsetX;
+    const rightEdge = this.layout.gridOffsetX + GRID_COLS * this.layout.cellSize;
+    const moveWidth = rightEdge - leftEdge;
+    this.moveBounds = scene.add.rectangle(leftEdge + moveWidth / 2, this.slingY, moveWidth, this.slingH + 20);
+    this.moveBounds.setStrokeStyle(2, 0xffcc00, 0.95);
+    this.moveBounds.setFillStyle(0x000000, 0);
+    this.moveBounds.setDepth(49);
 
     // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
     this.setupInput();
@@ -84,9 +100,9 @@ export class Sling {
     this.currentShape = null;
 
     const x = this.grid.colToX(this.selectedCol);
-    // 糖果球初始位置在弹弓上方
-    this.shapeBaseY = this.slingY - this.slingH * 0.8 + 20;
-    this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, this.layout.cellSize);
+    // 糖果球初始位置：相对弹弓中心固定上移
+    this.shapeBaseY = this.slingY + Sling.CANDY_OFFSET_Y;
+    this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, Sling.CANDY_SIZE);
     this.currentShape.setDepth(60);
     this.shootAvailable = true;
     this.setSlingState(0);
@@ -235,11 +251,12 @@ export class Sling {
   }
 
   private updatePosition(): void {
-    const x = this.grid.colToX(this.selectedCol);
-    this.slingSprite.setX(x);
-    this.colHighlight.setX(x);
+    const worldX = this.grid.colToX(this.selectedCol);
+    const localX = this.grid.colToLocalX(this.selectedCol);
+    this.slingSprite.setX(worldX);
+    this.colHighlight.setX(localX);
     if (this.currentShape) {
-      this.currentShape.setX(x);
+      this.currentShape.setX(worldX);
     }
   }
 
@@ -264,8 +281,8 @@ export class Sling {
     this.currentShape = shape;
     this.shootAvailable = true;
     // 把糖果移回弹弓位置
-    const x = this.grid.colToX(this.selectedCol);
-    shape.setPosition(x, this.shapeBaseY);
+    const worldX = this.grid.colToX(this.selectedCol);
+    shape.setPosition(worldX, this.shapeBaseY);
     const body = shape.getBody();
     body.setVelocity(0, 0);
     this.setSlingState(0);

@@ -113,6 +113,14 @@ export class Grid {
     return this.layout.gridOffsetX + col * this.layout.cellSize + this.layout.cellSize / 2;
   }
 
+  colToLocalX(col: number): number {
+    return this.layout.gridOffsetX - this.layout.boardCenterX + col * this.layout.cellSize + this.layout.cellSize / 2;
+  }
+
+  getGridCenterLocalY(): number {
+    return this.layout.gridOffsetY - this.layout.boardCenterY + (GRID_ROWS * this.layout.cellSize) / 2;
+  }
+
   getBottomY(): number {
     return this.layout.gridOffsetY + GRID_ROWS * this.layout.cellSize;
   }
@@ -170,5 +178,9 @@ export class Grid {
 
   getContainer(): Phaser.GameObjects.Container {
     return this.container;
+  }
+
+  addToContainer(child: Phaser.GameObjects.GameObject): void {
+    this.container.add(child);
   }
 }
