@@ -55,7 +55,8 @@ export class GameScene extends Phaser.Scene {
     if (!tex2.has('candy-hole')) {
       tex2.add('candy-hole', 0, 260, 263, 120, 120);
     }
-    const hole = this.add.image(w / 2, h - trayH / 2, 'shared2', 'candy-hole');
+    const hole = this.add.image(w / 2, h - trayH / 2 + 55, 'shared2', 'candy-hole');
+    hole.setScale(0.7)
     hole.setDepth(-998);
 
     this.layout = layout;
