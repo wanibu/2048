@@ -58,8 +58,10 @@ function updateCanvasSize(game: Phaser.Game): void {
   canvas.style.marginLeft = '0px';
   canvas.style.marginTop = '0px';
 
-  // Phaser内部保持640×960不变
-  // canvas CSS拉伸到视口大小，浏览器自动缩放渲染内容
+  // 告诉Phaser input系统CSS缩放比例，修正点击坐标映射
+  const scaleX = internalW / vw;
+  const scaleY = internalH / vh;
+  game.input.scaleManager.displayScale.set(scaleX, scaleY);
 }
 
 new Phaser.Game(config);

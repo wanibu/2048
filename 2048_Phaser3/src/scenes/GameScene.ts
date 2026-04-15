@@ -103,10 +103,94 @@ export class GameScene extends Phaser.Scene {
     if (!tex3.has('pause-btn')) {
       tex3.add('pause-btn', 0, 7, 775, 120, 120);
     }
+    if (!tex3.has('pause-btn-active')) {
+      tex3.add('pause-btn-active', 0, 267, 523, 120, 120);
+    }
     const pauseBtn = this.add.image(w - 140, 58, 'shared2', 'pause-btn');
-    pauseBtn.setDepth(100);
-    pauseBtn.setScale(0.70)
+    pauseBtn.setDepth(200);
+    pauseBtn.setScale(0.70);
     pauseBtn.setInteractive({ useHandCursor: true });
+
+    // ===== 暂停面板 =====
+    const pauseContainer = this.add.container(0, 0).setDepth(150).setVisible(false);
+
+    // 白色遮罩
+    const pauseOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0xffffff, 0.6);
+    pauseContainer.add(pauseOverlay);
+
+    // 暂停背景面板（pause-bg）
+    if (!tex.has('pause-bg')) {
+      tex.add('pause-bg', 0, 0, 0, 769, 1028);
+    }
+    const pauseBg = this.add.image(w / 2, h / 2, 'shared0', 'pause-bg');
+    const pauseBgScale = (w * 0.85) / 769;
+    pauseBg.setScale(pauseBgScale);
+    pauseContainer.add(pauseBg);
+
+    // 睡觉小女孩
+    const texS1 = this.textures.get('shared1');
+    if (!texS1.has('sleep-girl')) {
+      texS1.add('sleep-girl', 0, 0, 767, 519, 246);
+    }
+    const sleepGirl = this.add.image(w / 2, h / 2 - 180, 'shared1', 'sleep-girl');
+    sleepGirl.setScale(0.7);
+    pauseContainer.add(sleepGirl);
+
+    // 首页按钮
+    if (!tex3.has('home-btn')) {
+      tex3.add('home-btn', 0, 262, 4, 232, 108);
+    }
+    const homeBtn = this.add.image(w / 2, h / 2 - 20, 'shared2', 'home-btn');
+    homeBtn.setScale(0.8);
+    homeBtn.setInteractive({ useHandCursor: true });
+    homeBtn.on('pointerdown', () => {
+      pauseContainer.setVisible(false);
+      this.scene.start('MenuScene');
+    });
+    pauseContainer.add(homeBtn);
+
+    // 恢复按钮（粉色）
+    if (!texS1.has('pink-off-btn')) {
+      texS1.add('pink-off-btn', 0, 0, 1794, 250, 140);
+    }
+    const resumeBtn = this.add.image(w / 2, h / 2 + 80, 'shared1', 'pink-off-btn');
+    resumeBtn.setScale(0.8);
+    resumeBtn.setInteractive({ useHandCursor: true });
+    resumeBtn.on('pointerdown', () => {
+      isPaused = false;
+      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseContainer.setVisible(false);
+    });
+    pauseContainer.add(resumeBtn);
+
+    // 绿色播放按钮
+    if (!texS1.has('play-green-btn')) {
+      texS1.add('play-green-btn', 0, 772, 1277, 250, 140);
+    }
+    const playGreenBtn = this.add.image(w / 2, h / 2 + 180, 'shared1', 'play-green-btn');
+    playGreenBtn.setScale(0.8);
+    playGreenBtn.setInteractive({ useHandCursor: true });
+    playGreenBtn.on('pointerdown', () => {
+      isPaused = false;
+      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseContainer.setVisible(false);
+    });
+    pauseContainer.add(playGreenBtn);
+
+    let isPaused = false;
+    pauseBtn.on('pointerdown', () => {
+      console.log('[暂停按钮] 点击了');
+      isPaused = !isPaused;
+      pauseBtn.setTexture('shared2', isPaused ? 'pause-btn-active' : 'pause-btn');
+      pauseContainer.setVisible(isPaused);
+    });
+
+    // DEBUG: 全屏点击监控
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      const hitObjects = this.input.hitTestPointer(pointer);
+      const names = hitObjects.map((obj: Phaser.GameObjects.GameObject) => obj.constructor.name + (obj instanceof Phaser.GameObjects.Image ? ` (${(obj as Phaser.GameObjects.Image).frame?.name || ''})` : ''));
+      console.log(`[点击] x=${Math.round(pointer.x)} y=${Math.round(pointer.y)} 命中: [${names.join(', ')}]`);
+    });
 
     // 声音按钮（开启状态）
     if (!tex3.has('sound-on')) {
@@ -126,6 +210,46 @@ export class GameScene extends Phaser.Scene {
       this.sound.mute = !soundOn;
     });
 
+    // ===== 注册白色数字精灵帧（shared-0-sheet1.png）=====
+    const texDigits = this.textures.get('shared1');
+    const whiteDigitCoords = [
+      { x: 260, y: 1666 }, // 0
+      { x: 316, y: 1666 }, // 1
+      { x: 378, y: 1666 }, // 2
+      { x: 436, y: 1666 }, // 3
+      { x: 495, y: 1666 }, // 4
+      { x: 555, y: 1666 }, // 5
+      { x: 615, y: 1666 }, // 6
+      { x: 675, y: 1666 }, // 7
+      { x: 732, y: 1666 }, // 8
+      { x: 793, y: 1666 }, // 9
+    ];
+    for (let d = 0; d <= 9; d++) {
+      const key = `white-${d}`;
+      if (!texDigits.has(key)) {
+        texDigits.add(key, 0, whiteDigitCoords[d].x, whiteDigitCoords[d].y, 45, 60);
+      }
+    }
+
+    // 用精灵数字渲染一个数字的函数
+    const renderSpriteNumber = (num: number, startX: number, startY: number, depth: number): Phaser.GameObjects.Image[] => {
+      const digits = String(num).split('');
+      const images: Phaser.GameObjects.Image[] = [];
+      digits.forEach((d, i) => {
+        const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
+        img.setScale(0.65);
+        img.setDepth(depth);
+        images.push(img);
+      });
+      return images;
+    };
+
+    // 更新精灵数字的函数
+    const updateSpriteNumber = (images: Phaser.GameObjects.Image[], num: number, startX: number, startY: number, depth: number): Phaser.GameObjects.Image[] => {
+      images.forEach(img => img.destroy());
+      return renderSpriteNumber(num, startX, startY, depth);
+    };
+
     // ===== 左上角：星星 + 分数 / 皇冠 + 最高分 =====
     const tex4 = this.textures.get('shared3');
     // 星星
@@ -135,12 +259,8 @@ export class GameScene extends Phaser.Scene {
     const star = this.add.image(40, 40, 'shared3', 'star');
     star.setDepth(100);
 
-    // 星星旁分数
-    const scoreText = this.add.text(80, 28, '0', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setDepth(100);
+    // 星星旁分数（白色数字精灵图）
+    let scoreDigits = renderSpriteNumber(0, 80, 40, 100);
 
     // 皇冠
     if (!tex4.has('crown')) {
@@ -149,13 +269,9 @@ export class GameScene extends Phaser.Scene {
     const crown = this.add.image(40, 100, 'shared3', 'crown');
     crown.setDepth(100);
 
-    // 皇冠旁最高分
-    const saved = localStorage.getItem('giant2048_topscore') || '0';
-    const topScoreText = this.add.text(80, 88, saved, {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-    }).setDepth(100);
+    // 皇冠旁最高分（白色数字精灵图）
+    const savedScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
+    let topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证

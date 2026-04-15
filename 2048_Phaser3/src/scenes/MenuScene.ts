@@ -42,7 +42,8 @@ export class MenuScene extends Phaser.Scene {
     playBtn.setInteractive({ useHandCursor: true });
     playBtn.on('pointerdown', () => this.scene.start('GameScene'));
 
-    // ===== 4. 眨眼头像（depth 10，原尺寸420×611，倾斜6度）=====
+    // ===== 4. 眨眼头像（depth 10，原尺寸420×611，倾斜7度）=====
+    this.headImages = []; // 清空旧引用
     const headX = w / 2;
     const headY = h * 0.60 - 130 - 611 / 2 - 40; // 播放按钮Y - 按钮半径 - 头像半高，紧挨着
     for (let i = 0; i < GIANT_HEAD_FRAMES.length; i++) {
