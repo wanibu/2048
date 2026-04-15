@@ -97,10 +97,11 @@ export const SLING_REGIONS: SpriteRegion[] = [
 export const COL_HIGHLIGHT_REGION: SpriteRegion = { x: 846, y: 0, w: 132, h: 816 };
 
 // Giant head animation frames (421×610 each)
-// Order: 1-1(open eyes) → 1-2 → 1-3 → 1-4(blink) → back to 1-1
+// 睁眼闭眼动画帧（全部来自shared0合并图）
+// 顺序：睁眼 → 过渡 → 过渡 → 闭眼
 export const GIANT_HEAD_FRAMES: { texture: string; region: SpriteRegion }[] = [
-  { texture: 'shared0', region: { x: 1621, y: 1027, w: 421, h: 610 } }, // 1-1: eyes open
-  { texture: 'shared1', region: { x: 2.8,    y: 2.7,    w: 421, h: 610 } }, // 1-2: closing
-  { texture: 'shared1', region: { x: 425.8,  y: 2.6,    w: 421, h: 610 } }, // 1-3: almost closed
-  { texture: 'shared0', region: { x: 2.5,    y: 1028.5, w: 421, h: 610 } }, // 1-4: closed
+  { texture: 'shared0', region: { x: 1622, y: 1025, w: 420, h: 611 } }, // blink-1: 睁眼
+  { texture: 'shared0', region: { x: 4,    y: 2023, w: 420, h: 611 } }, // blink-2
+  { texture: 'shared0', region: { x: 427,  y: 2023, w: 420, h: 611 } }, // blink-3
+  { texture: 'shared0', region: { x: 4,    y: 1027, w: 420, h: 611 } }, // blink-4: 闭眼
 ];

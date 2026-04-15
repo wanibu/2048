@@ -59,6 +59,44 @@ export class GameScene extends Phaser.Scene {
     hole.setScale(0.7)
     hole.setDepth(-998);
 
+    // 巨人头像睁眼闭眼动画（depth -2，棋盘后面，背景前面）
+    const blinkFrames = [
+      { x: 1622, y: 1025, w: 420, h: 611 }, // blink-1 睁眼
+      { x: 4, y: 2023, w: 420, h: 611 },    // blink-2
+      { x: 427, y: 2023, w: 420, h: 611 },  // blink-3
+      { x: 4, y: 1027, w: 420, h: 611 },    // blink-4 闭眼
+    ];
+    const headImages: Phaser.GameObjects.Image[] = [];
+    const headX = w / 2;
+    const headY = h * 0.60 - 130 - 611 / 2 - 40; // 和首页一致
+    for (let i = 0; i < blinkFrames.length; i++) {
+      const f = blinkFrames[i];
+      const key = `game_blink_${i}`;
+      if (!tex.has(key)) {
+        tex.add(key, 0, f.x, f.y, f.w, f.h);
+      }
+      const img = this.add.image(headX, headY, 'shared0', key);
+      img.setAngle(7);
+      img.setDepth(-2);
+      img.setVisible(i === 0);
+      headImages.push(img);
+    }
+    // 眨眼循环
+    const doBlink = () => {
+      const showFrame = (idx: number) => {
+        headImages.forEach((img, i) => img.setVisible(i === idx));
+      };
+      showFrame(0);
+      this.time.delayedCall(Phaser.Math.Between(2000, 3500), () => {
+        const seq = [1, 2, 3, 2, 1, 0];
+        seq.forEach((frame, i) => {
+          this.time.delayedCall(i * 48, () => showFrame(frame));
+        });
+        this.time.delayedCall(seq.length * 48, doBlink);
+      });
+    };
+    doBlink();
+
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
     this.recorder = new ActionRecorder();
@@ -70,9 +108,9 @@ export class GameScene extends Phaser.Scene {
     // 旋转系统：数据层矩阵转置 + 视觉Tween动画
     this.rotateSystem = new RotateSystem(this.grid, this);
 
-    // 弹弓：拖拽选列、拉弓动画、发射糖果
-    this.sling = new Sling(this, this.grid, layout);
-    this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
+    // // 弹弓：暂时注释，重新放
+    // this.sling = new Sling(this, this.grid, layout);
+    // this.sling.onShoot((shape, col) => this.handleShoot(shape, col));
 
     // 旋转按钮：左下↺ 右下↻，键盘A/D
     this.createRotateButtons(w, h, layout);
