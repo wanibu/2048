@@ -539,6 +539,15 @@ export class GameScene extends Phaser.Scene {
     this.sound.play('rotation', { volume: 0.3 });
     this.recorder.recordRotate(direction);
 
+    // 棋盘背景旋转动画
+    const targetAngle = this.grid.boardBg.angle + (direction === 'cw' ? 90 : -90);
+    this.tweens.add({
+      targets: this.grid.boardBg,
+      angle: targetAngle,
+      duration: 300,
+      ease: 'Cubic.easeInOut',
+    });
+
     const onComplete = () => {
       this.isRotating = false;
       this.printGrid('旋转后');

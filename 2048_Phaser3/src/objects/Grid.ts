@@ -8,6 +8,7 @@ export class Grid {
   private cells: Phaser.GameObjects.Rectangle[][] = [];
   private container: Phaser.GameObjects.Container;
   public layout: LayoutConfig;
+  public boardBg!: Phaser.GameObjects.Image;
 
   public data: number[][] = [];
   public borders: (Border | null)[][] = [];
@@ -41,10 +42,10 @@ export class Grid {
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
-    boardBg.setScale(0.80);
-    boardBg.setDepth(-1);
-    this.container.add(boardBg);
+    this.boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
+    this.boardBg.setScale(0.80);
+    this.boardBg.setDepth(-1);
+    this.container.add(this.boardBg);
 
     // 棋盘背景四边红色边框（调试用，标识实际渲染范围）
     const bw = 771 * 0.80;
