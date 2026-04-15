@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, LayoutConfig } from '../config';
+import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, BOARD_WIDTH_RATIO, LayoutConfig } from '../config';
 import { Border } from './Border';
 import { Stone } from './Stone';
 
@@ -36,29 +36,43 @@ export class Grid {
   }
 
   private drawGrid(): void {
-    // 棋盘背景图（shared-0-sheet0.png 裁切）原尺寸771×771，居中显示
+    // 棋盘背景 771×771，固定裁切坐标(x=-786px, y=21px)，居中页面，等比缩放
     const tex = this.scene.textures.get('shared0');
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    const boardScale = this.layout.width / 771 * 0.97; // 宽度100%铺满
-    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2 - 40, 'shared0', 'board_bg');
-    boardBg.setScale(boardScale);
+    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
+    boardBg.setScale(0.80);
     boardBg.setDepth(-1);
     this.container.add(boardBg);
 
-    // // 网格格子（暂时隐藏）
-    // for (let row = 0; row < GRID_ROWS; row++) {
-    //   this.cells[row] = [];
-    //   for (let col = 0; col < GRID_COLS; col++) {
-    //     const { x, y } = this.cellToPixel(row, col);
-    //     const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x000000, 0);
-    //     this.cells[row][col] = cell;
-    //     this.container.add(cell);
-    //   }
-    // }
+    // 棋盘背景四边红色边框（调试用，标识实际渲染范围）
+    const bw = 771 * 0.80;
+    const bh = 771 * 0.80;
+    const bx = this.layout.width / 2 - bw / 2;
+    const by = this.layout.height / 2 - bh / 2;
+    const border = this.scene.add.rectangle(this.layout.width / 2, this.layout.height / 2, bw, bh);
+    border.setStrokeStyle(2, 0xff0000, 1);
+    border.setFillStyle(0x000000, 0);
+    border.setDepth(999);
+    this.container.add(border);
 
-    // 初始化空的cells数组（保持数据结构不报错）
+    // 中心点十字线（调试用）
+    const cx = this.layout.width / 2;
+    const cy = this.layout.height / 2;
+    const crossSize = 20;
+    const hLine = this.scene.add.line(0, 0, cx - crossSize, cy, cx + crossSize, cy, 0xff0000);
+    hLine.setOrigin(0, 0);
+    hLine.setLineWidth(1);
+    hLine.setDepth(999);
+    this.container.add(hLine);
+    const vLine = this.scene.add.line(0, 0, cx, cy - crossSize, cx, cy + crossSize, 0xff0000);
+    vLine.setOrigin(0, 0);
+    vLine.setLineWidth(1);
+    vLine.setDepth(999);
+    this.container.add(vLine);
+
+    // 网格格子（隐藏）
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {

@@ -15,15 +15,19 @@ export interface LayoutConfig {
   height: number;
 }
 
+// 棋盘背景占画面宽度的比例（等比缩放基准）
+export const BOARD_WIDTH_RATIO = 0.85;
+// 网格在棋盘背景内部的比例（网格区域 / 棋盘背景）
+export const GRID_INSIDE_RATIO = 0.67;
+
 export function calcLayout(w: number, h: number): LayoutConfig {
-  // 网格占画面宽度的73%（原版 93.5*5/640 ≈ 73%）
-  // 棋盘占画面宽度70%（缩小3%）
-  const gridWidth = w * 0.52;
+  // 棋盘背景 771×771，居中页面中心，等比缩放
+  const boardDisplaySize = w * BOARD_WIDTH_RATIO;
+  const gridWidth = boardDisplaySize * GRID_INSIDE_RATIO;
   const cellSize = gridWidth / GRID_COLS;
-  // 网格水平居中
-  const gridOffsetX = (w - gridWidth) / 2;
-  // 网格顶部在画面21%处（原版 200/960 ≈ 21%）
-  const gridOffsetY = h * 0.21;
+  // 网格中心 = 页面中心，反推 offset
+  const gridOffsetX = w / 2 - gridWidth / 2;
+  const gridOffsetY = h / 2 - (GRID_ROWS * cellSize) / 2;
   return { cellSize, gridOffsetX, gridOffsetY, width: w, height: h };
 }
 
@@ -54,27 +58,28 @@ export interface SpriteRegion {
 // value → source region in shape-sheet0.png
 // Derived from background-position values; each ball is ~131×131
 export const SHAPE_REGIONS: Record<number, SpriteRegion> = {
-  8192: { x: 0,   y: 0,   w: 132, h: 131 },
-  4096: { x: 132, y: 0,   w: 130, h: 131 },
-  2048: { x: 262, y: 0,   w: 130, h: 131 },
-  1024: { x: 0,   y: 133, w: 131, h: 127 },
-  512:  { x: 131, y: 131, w: 130, h: 129 },
-  256:  { x: 261, y: 256, w: 131, h: 131 },
-  128:  { x: 0,   y: 260, w: 131, h: 131 },
-  64:   { x: 131, y: 260, w: 130, h: 131 },
-  32:   { x: 261, y: 514, w: 131, h: 131 },
-  16:   { x: 0,   y: 514, w: 132, h: 131 },
-  8:    { x: 132, y: 514, w: 130, h: 131 },
-  4:    { x: 262, y: 770, w: 130, h: 131 },
-  2:    { x: 0,   y: 770, w: 131, h: 131 },
-  0:    { x: 131, y: 770, w: 131, h: 131 },
+  8192: { x: 0, y: 0, w: 132, h: 131 },
+  4096: { x: 132, y: 0, w: 130, h: 131 },
+  2048: { x: 262, y: 0, w: 130, h: 131 },
+  1024: { x: 0, y: 133, w: 131, h: 127 },
+  512: { x: 131, y: 131, w: 130, h: 129 },
+  256: { x: 261, y: 256, w: 131, h: 131 },
+  128: { x: 0, y: 260, w: 131, h: 131 },
+  64: { x: 131, y: 260, w: 130, h: 131 },
+  32: { x: 261, y: 514, w: 131, h: 131 },
+  16: { x: 0, y: 514, w: 132, h: 131 },
+  8: { x: 132, y: 514, w: 130, h: 131 },
+  4: { x: 262, y: 770, w: 130, h: 131 },
+  2: { x: 0, y: 770, w: 131, h: 131 },
+  0: { x: 131, y: 770, w: 131, h: 131 },
 };
 
 // Stone sprite: first frame of border-sheet0.png
 export const STONE_REGION: SpriteRegion = { x: 0, y: 0, w: 128, h: 128 };
 
-// 棋盘背景素材：shared-0-sheet0.png (777×740)
-export const BOARD_BG_REGION: SpriteRegion = { x: 786, y: 0, w: 771, h: 771 };
+// 棋盘背景素材：shared-0-sheet0.png 771×771
+// CSS: background-position: -781px 24px（x=-781px, y=24px 固定不变）
+export const BOARD_BG_REGION: SpriteRegion = { x: 781, y: -24, w: 771, h: 771 };
 
 // 底座背景素材：shared-0-sheet0.png (1026×261)
 export const BASE_BG_REGION: SpriteRegion = { x: 768, y: 752, w: 1026, h: 261 };
@@ -87,10 +92,10 @@ export const SHAPE_VALUES = [8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 
 
 // Sling sprite regions from shared-0-sheet1.png (258×163 each)
 export const SLING_REGIONS: SpriteRegion[] = [
-  { x: 0,   y: 1284, w: 258, h: 163 }, // state 1: relaxed
-  { x: 0,   y: 1026, w: 258, h: 163 }, // state 2: light pull
+  { x: 0, y: 1284, w: 258, h: 163 }, // state 1: relaxed
+  { x: 0, y: 1026, w: 258, h: 163 }, // state 2: light pull
   { x: 512, y: 1026, w: 258, h: 163 }, // state 3: half pull
-  { x: 0,   y: 1539, w: 258, h: 163 }, // state 4: full pull
+  { x: 0, y: 1539, w: 258, h: 163 }, // state 4: full pull
 ];
 
 // Column highlight from shared-0-sheet1.png (132×816)
@@ -101,7 +106,7 @@ export const COL_HIGHLIGHT_REGION: SpriteRegion = { x: 846, y: 0, w: 132, h: 816
 // 顺序：睁眼 → 过渡 → 过渡 → 闭眼
 export const GIANT_HEAD_FRAMES: { texture: string; region: SpriteRegion }[] = [
   { texture: 'shared0', region: { x: 1622, y: 1025, w: 420, h: 611 } }, // blink-1: 睁眼
-  { texture: 'shared0', region: { x: 4,    y: 2023, w: 420, h: 611 } }, // blink-2
-  { texture: 'shared0', region: { x: 427,  y: 2023, w: 420, h: 611 } }, // blink-3
-  { texture: 'shared0', region: { x: 4,    y: 1027, w: 420, h: 611 } }, // blink-4: 闭眼
+  { texture: 'shared0', region: { x: 4, y: 2023, w: 420, h: 611 } }, // blink-2
+  { texture: 'shared0', region: { x: 427, y: 2023, w: 420, h: 611 } }, // blink-3
+  { texture: 'shared0', region: { x: 4, y: 1027, w: 420, h: 611 } }, // blink-4: 闭眼
 ];
