@@ -74,7 +74,7 @@ export const SHAPE_REGIONS: Record<number, SpriteRegion> = {
 export const STONE_REGION: SpriteRegion = { x: 0, y: 0, w: 128, h: 128 };
 
 // 棋盘背景素材：shared-0-sheet0.png (777×740)
-export const BOARD_BG_REGION: SpriteRegion = { x: 784, y: 0, w: 777, h: 740 };
+export const BOARD_BG_REGION: SpriteRegion = { x: 786, y: 0, w: 771, h: 771 };
 
 // 底座背景素材：shared-0-sheet0.png (1026×261)
 export const BASE_BG_REGION: SpriteRegion = { x: 768, y: 752, w: 1026, h: 261 };

@@ -36,28 +36,33 @@ export class Grid {
   }
 
   private drawGrid(): void {
-    // 棋盘背景图（shared-0-sheet0.png 裁切）
+    // 棋盘背景图（shared-0-sheet0.png 裁切）原尺寸771×771，居中显示
     const tex = this.scene.textures.get('shared0');
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    const gridW = GRID_COLS * this.layout.cellSize;
-    const gridH = GRID_ROWS * this.layout.cellSize;
-    const centerX = this.layout.gridOffsetX + gridW / 2;
-    const centerY = this.layout.gridOffsetY + gridH / 2;
-    const boardBg = this.scene.add.image(centerX, centerY, 'shared0', 'board_bg');
-    boardBg.setDisplaySize(gridW * 1.25, gridH * 1.25); // 背景比格子大20%，露出木质边框
+    const boardScale = this.layout.width / 771; // 宽度100%铺满
+    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
+    boardBg.setScale(boardScale);
     boardBg.setDepth(-1);
     this.container.add(boardBg);
 
-    // 网格线
+    // // 网格格子（暂时隐藏）
+    // for (let row = 0; row < GRID_ROWS; row++) {
+    //   this.cells[row] = [];
+    //   for (let col = 0; col < GRID_COLS; col++) {
+    //     const { x, y } = this.cellToPixel(row, col);
+    //     const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x000000, 0);
+    //     this.cells[row][col] = cell;
+    //     this.container.add(cell);
+    //   }
+    // }
+
+    // 初始化空的cells数组（保持数据结构不报错）
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
-        const { x, y } = this.cellToPixel(row, col);
-        const cell = this.scene.add.rectangle(x, y, this.layout.cellSize - 4, this.layout.cellSize - 4, 0x000000, 0);
-        this.cells[row][col] = cell;
-        this.container.add(cell);
+        this.cells[row][col] = null as unknown as Phaser.GameObjects.Rectangle;
       }
     }
   }
