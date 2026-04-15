@@ -27,25 +27,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    // FIT模式：游戏逻辑尺寸固定640×960
-    const w = GAME_WIDTH;
-    const h = GAME_HEIGHT;
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
 
-    // 背景铺满游戏区域
-    const bg = this.add.image(w / 2, h / 2, 'playbackground');
-    bg.setScale(Math.max(w / bg.width, h / bg.height));
-    // depth越小越在底层，-1000确保背景在所有元素下面
+    // 背景：高度100%铺满，宽度auto按比例，从左侧开始（和首页一致）
+    const bg = this.add.image(0, 0, 'playbackground');
+    bg.setOrigin(0, 0);
+    const bgScale = h / bg.height;
+    bg.setScale(bgScale);
     bg.setDepth(-1000);
 
-    // 底座背景（倒数第二层，在蓝天背景之上，棋盘之下）
+    // 底座背景 mobile-tray（原尺寸781×260，居中贴底）
     const tex = this.textures.get('shared0');
-    if (!tex.has('base_bg')) {
-      tex.add('base_bg', 0, BASE_BG_REGION.x, BASE_BG_REGION.y, BASE_BG_REGION.w, BASE_BG_REGION.h);
+    if (!tex.has('mobile-tray')) {
+      tex.add('mobile-tray', 0, 893, 752, 781, 260);
     }
-    const baseBg = this.add.image(w / 2, h * 0.85, 'shared0', 'base_bg');
-    baseBg.setDisplaySize(w, w * (261 / 1026)); // 保持宽高比，宽度铺满
-    baseBg.setDepth(-999);
+    const trayScale = w / 781; // 宽度铺满
+    const trayH = 260 * trayScale;
+    const tray = this.add.image(0, h - trayH, 'shared0', 'mobile-tray');
+    tray.setOrigin(0, 0); // 左上角对齐
+    tray.setScale(trayScale);
+    tray.setDepth(-999);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
@@ -159,8 +162,8 @@ export class GameScene extends Phaser.Scene {
       this.sling.initCandies(c, n);
     }
 
-    // 启动超时检测
-    this.startIdleTimer();
+    // // 启动超时检测（暂时注释）
+    // this.startIdleTimer();
   }
 
   // ===== 超时机制：45秒无操作提示，60秒结束 =====
@@ -269,8 +272,8 @@ export class GameScene extends Phaser.Scene {
 
   // 创建左右旋转按钮，使用素材图片
   private createRotateButtons(w: number, h: number, layout: LayoutConfig): void {
-    const btnDisplaySize = layout.cellSize * 0.7;
-    const btnY = h - btnDisplaySize * 2.5;
+    // 旋转按钮放在底部托盘区域，原尺寸132×118
+    const btnY = h - 260 / 2 + 75; // tray中心高度
 
     // 注册旋转按钮帧
     const tex2 = this.textures.get('shared2');
@@ -278,17 +281,17 @@ export class GameScene extends Phaser.Scene {
       tex2.add('rotate_btn', 0, ROTATE_BTN_REGION.x, ROTATE_BTN_REGION.y, ROTATE_BTN_REGION.w, ROTATE_BTN_REGION.h);
     }
 
-    // 左旋转按钮 — 原图（默认朝左）
-    const leftBtn = this.add.image(w * 0.20, btnY, 'shared2', 'rotate_btn');
-    leftBtn.setDisplaySize(btnDisplaySize, btnDisplaySize * (117 / 133));
+    // 左旋转按钮 — 原尺寸，左边
+    const leftBtn = this.add.image(132 / 2 + 40, btnY, 'shared2', 'rotate_btn');
+    leftBtn.setScale(0.8)
     leftBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
 
     leftBtn.on('pointerdown', () => this.doRotate('ccw'));
 
-    // 右旋转按钮 — 同一张图水平翻转
-    const rightBtn = this.add.image(w * 0.80, btnY, 'shared2', 'rotate_btn');
-    rightBtn.setDisplaySize(btnDisplaySize, btnDisplaySize * (117 / 133));
-    rightBtn.setFlipX(true); // 水平翻转
+    // 右旋转按钮 — 原尺寸，右边，水平翻转
+    const rightBtn = this.add.image(w - 132 / 2 - 45, btnY, 'shared2', 'rotate_btn');
+    rightBtn.setFlipX(true);
+    rightBtn.setScale(0.8)
     rightBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(50);
 
     rightBtn.on('pointerdown', () => this.doRotate('cw'));
@@ -303,7 +306,7 @@ export class GameScene extends Phaser.Scene {
   // 执行旋转：数据层转置 + 视觉动画 + 旋转后检查合并
   // 执行旋转：整个棋盘容器（背景+糖果+石头）一起旋转动画
   private doRotate(direction: 'cw' | 'ccw'): void {
-    this.resetIdleTimer(); // 用户操作，重置超时
+    // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
     if (this.isRotating) return;
     this.isRotating = true;
 
@@ -328,7 +331,7 @@ export class GameScene extends Phaser.Scene {
 
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
   private handleShoot(shape: Shape, col: number): void {
-    this.resetIdleTimer(); // 用户操作，重置超时
+    // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
     this.printGrid('发射前');
 
