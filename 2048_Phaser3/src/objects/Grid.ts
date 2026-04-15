@@ -19,7 +19,7 @@ export class Grid {
   constructor(scene: Phaser.Scene, layout: LayoutConfig) {
     this.scene = scene;
     this.layout = layout;
-    this.container = scene.add.container(0, 0);
+    this.container = scene.add.container(layout.boardCenterX, layout.boardCenterY);
     this.initData();
     this.drawGrid();
   }
@@ -43,7 +43,7 @@ export class Grid {
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    this.boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
+    this.boardBg = this.scene.add.image(0, 0, 'shared0', 'board_bg');
     this.boardBg.setScale(BOARD_SCALE);
     this.boardBg.setDepth(-1);
     this.container.add(this.boardBg);
@@ -52,23 +52,21 @@ export class Grid {
     const boardH = this.boardBg.displayHeight;
 
     // 棋盘背景四边红色边框（调试用，标识背景真实渲染范围）
-    const boardBorder = this.scene.add.rectangle(this.layout.width / 2, this.layout.height / 2, boardW, boardH);
+    const boardBorder = this.scene.add.rectangle(0, 0, boardW, boardH);
     boardBorder.setStrokeStyle(2, 0xff0000, 1);
     boardBorder.setFillStyle(0x000000, 0);
     boardBorder.setDepth(999);
     this.container.add(boardBorder);
 
     // 中心点十字线（调试用）
-    const cx = this.layout.width / 2;
-    const cy = this.layout.height / 2;
     const crossSize = 20;
-    const hLine = this.scene.add.line(0, 0, cx - crossSize, cy, cx + crossSize, cy, 0xff0000);
-    hLine.setOrigin(0, 0);
+    const hLine = this.scene.add.line(0, 0, -crossSize, 0, crossSize, 0, 0xff0000);
+    hLine.setOrigin(0.5, 0.5);
     hLine.setLineWidth(1);
     hLine.setDepth(999);
     this.container.add(hLine);
-    const vLine = this.scene.add.line(0, 0, cx, cy - crossSize, cx, cy + crossSize, 0xff0000);
-    vLine.setOrigin(0, 0);
+    const vLine = this.scene.add.line(0, 0, 0, -crossSize, 0, crossSize, 0xff0000);
+    vLine.setOrigin(0.5, 0.5);
     vLine.setLineWidth(1);
     vLine.setDepth(999);
     this.container.add(vLine);
@@ -77,7 +75,7 @@ export class Grid {
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
-        const { x, y } = this.cellToPixel(row, col);
+        const { x, y } = this.cellToLocal(row, col);
         const cellSize = Math.max(1, this.layout.cellSize - this.debugCellGap);
         const cell = this.scene.add.rectangle(x, y, cellSize, cellSize);
         cell.setStrokeStyle(2, 0x00ff88, 0.95);
@@ -89,10 +87,18 @@ export class Grid {
     }
   }
 
-  cellToPixel(row: number, col: number): { x: number; y: number } {
+  private cellToLocal(row: number, col: number): { x: number; y: number } {
     return {
-      x: this.layout.gridOffsetX + col * this.layout.cellSize + this.layout.cellSize / 2,
-      y: this.layout.gridOffsetY + row * this.layout.cellSize + this.layout.cellSize / 2,
+      x: this.layout.gridOffsetX - this.layout.boardCenterX + col * this.layout.cellSize + this.layout.cellSize / 2,
+      y: this.layout.gridOffsetY - this.layout.boardCenterY + row * this.layout.cellSize + this.layout.cellSize / 2,
+    };
+  }
+
+  cellToPixel(row: number, col: number): { x: number; y: number } {
+    const local = this.cellToLocal(row, col);
+    return {
+      x: this.container.x + local.x,
+      y: this.container.y + local.y,
     };
   }
 
@@ -116,7 +122,7 @@ export class Grid {
   }
 
   placeBorder(row: number, col: number, value: number): Border {
-    const { x, y } = this.cellToPixel(row, col);
+    const { x, y } = this.cellToLocal(row, col);
     const border = new Border(this.scene, x, y, value, row, col, this.layout.cellSize);
     this.data[row][col] = value;
     this.borders[row][col] = border;
@@ -135,12 +141,16 @@ export class Grid {
 
   // 石头：在指定位置放置石头
   placeStone(row: number, col: number): Stone {
-    const { x, y } = this.cellToPixel(row, col);
+    const { x, y } = this.cellToLocal(row, col);
     const stone = new Stone(this.scene, x, y, row, col, this.layout.cellSize);
     this.data[row][col] = STONE_VALUE;
     this.stones[row][col] = stone;
     this.container.add(stone);
     return stone;
+  }
+
+  localCellToPixel(row: number, col: number): { x: number; y: number } {
+    return this.cellToLocal(row, col);
   }
 
   // 移除石头

@@ -35,45 +35,13 @@ export class RotateSystem {
 
   private doRotate(angleDelta: number, onComplete: () => void): void {
     const container = this.grid.getContainer();
-    const gridW = GRID_COLS * this.grid.layout.cellSize;
-    const gridH = GRID_ROWS * this.grid.layout.cellSize;
-    // 旋转中心 = 网格中心
-    const cx = this.grid.layout.gridOffsetX + gridW / 2;
-    const cy = this.grid.layout.gridOffsetY + gridH / 2;
-
-    // 创建临时容器，放在旋转中心
-    const tempContainer = this.scene.add.container(cx, cy);
-
-    // 把 grid container 的所有子元素移到临时容器（坐标转换为相对中心）
-    const children = container.getAll();
-    for (const child of children) {
-      const go = child as Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject;
-      container.remove(child);
-      tempContainer.add(child);
-      go.x -= cx;
-      go.y -= cy;
-    }
-
-    // Tween 旋转
+    const targetAngle = container.angle + angleDelta;
     this.scene.tweens.add({
-      targets: tempContainer,
-      angle: angleDelta,
+      targets: container,
+      angle: targetAngle,
       duration: 200,
       ease: 'Quad.easeInOut',
-      onComplete: () => {
-        // 把子元素移回 grid container，恢复世界坐标
-        const tempChildren = tempContainer.getAll();
-        for (const child of tempChildren) {
-          const go = child as Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject;
-          tempContainer.remove(child);
-          container.add(child);
-          go.x += cx;
-          go.y += cy;
-        }
-        tempContainer.destroy();
-
-        onComplete();
-      },
+      onComplete,
     });
   }
 
@@ -137,7 +105,7 @@ export class RotateSystem {
   private repositionAll(): void {
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
-        const { x, y } = this.grid.cellToPixel(r, c);
+        const { x, y } = this.grid.localCellToPixel(r, c);
 
         const border = this.grid.borders[r][c];
         if (border) {

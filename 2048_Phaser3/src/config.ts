@@ -11,12 +11,16 @@ export interface LayoutConfig {
   cellSize: number;
   gridOffsetX: number;
   gridOffsetY: number;
+  boardCenterX: number;
+  boardCenterY: number;
   width: number;
   height: number;
 }
 
 // 棋盘背景固定按 771×771 的原始尺寸缩放到 0.8
 export const BOARD_SCALE = 0.8;
+export const BOARD_OFFSET_X = 0;
+export const BOARD_OFFSET_Y = -55;
 // 网格在棋盘背景内部的比例（网格区域 / 棋盘背景）
 // 调试中略微放大一点，便于和底图格槽对齐
 export const GRID_INSIDE_RATIO = 0.78;
@@ -26,10 +30,12 @@ export function calcLayout(w: number, h: number): LayoutConfig {
   const boardDisplaySize = BOARD_BG_REGION.w * BOARD_SCALE;
   const gridWidth = boardDisplaySize * GRID_INSIDE_RATIO;
   const cellSize = gridWidth / GRID_COLS;
+  const boardCenterX = w / 2 + BOARD_OFFSET_X;
+  const boardCenterY = h / 2 + BOARD_OFFSET_Y;
   // 网格中心 = 页面中心，反推 offset
-  const gridOffsetX = w / 2 - gridWidth / 2;
-  const gridOffsetY = h / 2 - (GRID_ROWS * cellSize) / 2;
-  return { cellSize, gridOffsetX, gridOffsetY, width: w, height: h };
+  const gridOffsetX = boardCenterX - gridWidth / 2;
+  const gridOffsetY = boardCenterY - (GRID_ROWS * cellSize) / 2;
+  return { cellSize, gridOffsetX, gridOffsetY, boardCenterX, boardCenterY, width: w, height: h };
 }
 
 // Shooting
