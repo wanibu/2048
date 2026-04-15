@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, BOARD_WIDTH_RATIO, LayoutConfig } from '../config';
+import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, BOARD_SCALE, LayoutConfig } from '../config';
 import { Border } from './Border';
 import { Stone } from './Stone';
 
@@ -9,6 +9,7 @@ export class Grid {
   private container: Phaser.GameObjects.Container;
   public layout: LayoutConfig;
   public boardBg!: Phaser.GameObjects.Image;
+  private readonly debugCellGap = 8;
 
   public data: number[][] = [];
   public borders: (Border | null)[][] = [];
@@ -43,20 +44,19 @@ export class Grid {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
     this.boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
-    this.boardBg.setScale(0.80);
+    this.boardBg.setScale(BOARD_SCALE);
     this.boardBg.setDepth(-1);
     this.container.add(this.boardBg);
 
-    // 棋盘背景四边红色边框（调试用，标识实际渲染范围）
-    const bw = 771 * 0.80;
-    const bh = 771 * 0.80;
-    const bx = this.layout.width / 2 - bw / 2;
-    const by = this.layout.height / 2 - bh / 2;
-    const border = this.scene.add.rectangle(this.layout.width / 2, this.layout.height / 2, bw, bh);
-    border.setStrokeStyle(2, 0xff0000, 1);
-    border.setFillStyle(0x000000, 0);
-    border.setDepth(999);
-    this.container.add(border);
+    const boardW = this.boardBg.displayWidth;
+    const boardH = this.boardBg.displayHeight;
+
+    // 棋盘背景四边红色边框（调试用，标识背景真实渲染范围）
+    const boardBorder = this.scene.add.rectangle(this.layout.width / 2, this.layout.height / 2, boardW, boardH);
+    boardBorder.setStrokeStyle(2, 0xff0000, 1);
+    boardBorder.setFillStyle(0x000000, 0);
+    boardBorder.setDepth(999);
+    this.container.add(boardBorder);
 
     // 中心点十字线（调试用）
     const cx = this.layout.width / 2;
@@ -73,11 +73,18 @@ export class Grid {
     vLine.setDepth(999);
     this.container.add(vLine);
 
-    // 网格格子（隐藏）
+    // 5×5 棋盘格子边框：按背景中心点反推位置，便于肉眼校准
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
-        this.cells[row][col] = null as unknown as Phaser.GameObjects.Rectangle;
+        const { x, y } = this.cellToPixel(row, col);
+        const cellSize = Math.max(1, this.layout.cellSize - this.debugCellGap);
+        const cell = this.scene.add.rectangle(x, y, cellSize, cellSize);
+        cell.setStrokeStyle(2, 0x00ff88, 0.95);
+        cell.setFillStyle(0x000000, 0);
+        cell.setDepth(998);
+        this.container.add(cell);
+        this.cells[row][col] = cell;
       }
     }
   }

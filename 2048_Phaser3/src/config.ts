@@ -15,14 +15,15 @@ export interface LayoutConfig {
   height: number;
 }
 
-// 棋盘背景占画面宽度的比例（等比缩放基准）
-export const BOARD_WIDTH_RATIO = 0.85;
+// 棋盘背景固定按 771×771 的原始尺寸缩放到 0.8
+export const BOARD_SCALE = 0.8;
 // 网格在棋盘背景内部的比例（网格区域 / 棋盘背景）
-export const GRID_INSIDE_RATIO = 0.67;
+// 调试中略微放大一点，便于和底图格槽对齐
+export const GRID_INSIDE_RATIO = 0.78;
 
 export function calcLayout(w: number, h: number): LayoutConfig {
-  // 棋盘背景 771×771，居中页面中心，等比缩放
-  const boardDisplaySize = w * BOARD_WIDTH_RATIO;
+  // 以棋盘背景的真实显示尺寸为准，而不是按视口宽度估算
+  const boardDisplaySize = BOARD_BG_REGION.w * BOARD_SCALE;
   const gridWidth = boardDisplaySize * GRID_INSIDE_RATIO;
   const cellSize = gridWidth / GRID_COLS;
   // 网格中心 = 页面中心，反推 offset
