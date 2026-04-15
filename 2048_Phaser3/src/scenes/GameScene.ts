@@ -62,7 +62,7 @@ export class GameScene extends Phaser.Scene {
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证
     this.recorder = new ActionRecorder();
-    this.hud = new HUD(this, w);
+    // this.hud = new HUD(this, w); // 暂时隐藏分数
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
     this.grid = new Grid(this, layout);
     // 合并系统：BFS扫描相邻同值方块，执行合并
