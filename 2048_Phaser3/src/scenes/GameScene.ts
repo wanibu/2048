@@ -68,7 +68,7 @@ export class GameScene extends Phaser.Scene {
     ];
     const headImages: Phaser.GameObjects.Image[] = [];
     const headX = w / 2;
-    const headY = h * 0.60 - 130 - 611 / 2 - 40; // 和首页一致
+    const headY = h * 0.60 - 130 - 611 / 2 - 67; // 和首页一致
     for (let i = 0; i < blinkFrames.length; i++) {
       const f = blinkFrames[i];
       const key = `game_blink_${i}`;
@@ -96,6 +96,64 @@ export class GameScene extends Phaser.Scene {
       });
     };
     doBlink();
+
+    // ===== 右上角：暂停按钮 + 声音按钮 =====
+    const tex3 = this.textures.get('shared2');
+    // 暂停按钮（默认状态）
+    if (!tex3.has('pause-btn')) {
+      tex3.add('pause-btn', 0, 7, 775, 120, 120);
+    }
+    const pauseBtn = this.add.image(w - 60, 60, 'shared2', 'pause-btn');
+    pauseBtn.setDepth(100);
+    pauseBtn.setInteractive({ useHandCursor: true });
+
+    // 声音按钮（开启状态）
+    if (!tex3.has('sound-on')) {
+      tex3.add('sound-on', 0, 6, 514, 120, 120);
+    }
+    if (!tex3.has('sound-mute')) {
+      tex3.add('sound-mute', 0, 136, 514, 120, 120);
+    }
+    const soundBtn = this.add.image(w - 170, 60, 'shared2', 'sound-on');
+    soundBtn.setDepth(100);
+    soundBtn.setInteractive({ useHandCursor: true });
+    let soundOn = true;
+    soundBtn.on('pointerdown', () => {
+      soundOn = !soundOn;
+      soundBtn.setTexture('shared2', soundOn ? 'sound-on' : 'sound-mute');
+      this.sound.mute = !soundOn;
+    });
+
+    // ===== 左上角：星星 + 分数 / 皇冠 + 最高分 =====
+    const tex4 = this.textures.get('shared3');
+    // 星星
+    if (!tex4.has('star')) {
+      tex4.add('star', 0, 58, 60, 64, 64);
+    }
+    const star = this.add.image(40, 40, 'shared3', 'star');
+    star.setDepth(100);
+
+    // 星星旁分数
+    const scoreText = this.add.text(80, 28, '0', {
+      fontSize: '28px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setDepth(100);
+
+    // 皇冠
+    if (!tex4.has('crown')) {
+      tex4.add('crown', 0, 58, 189, 64, 64);
+    }
+    const crown = this.add.image(40, 100, 'shared3', 'crown');
+    crown.setDepth(100);
+
+    // 皇冠旁最高分
+    const saved = localStorage.getItem('giant2048_topscore') || '0';
+    const topScoreText = this.add.text(80, 88, saved, {
+      fontSize: '28px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+    }).setDepth(100);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证

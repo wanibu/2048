@@ -88,28 +88,28 @@
 
       /* 音量按键 正常 */
       .obj-5 {
-        background-position: -12px -518px;
-        width: 110px;
-        height: 110px;
+        background-position: -6px -514px;
+        width: 120px;
+        height: 120px;
       }
       /* 音量按键 静音 */
       .obj-4 {
-        background-position: -142px -518px;
-        width: 110px;
-        height: 110px;
+        background-position: -136px -514px;
+        width: 120px;
+        height: 120px;
       }
 
-      /* 暂停按钮 */
+      /* 暂停按钮 按下 */
       .obj-3 {
-        background-position: -271px -520px;
-        width: 110px;
-        height: 110px;
+        background-position: -267px -523px;
+        width: 120px;
+        height: 120px;
       }
-      /* 暂停按钮 */
+      /* 暂停按钮 默认 */
       .obj-6 {
-        background-position: -12px -774px;
-        width: 110px;
-        height: 110px;
+        background-position: -7px -775px;
+        width: 120px;
+        height: 120px;
       }
       /* 旋转按钮 左侧的 逆时针转 */
       .obj-7 {
@@ -436,6 +436,93 @@
         var el = document.getElementById("hand-output");
         el.textContent = out;
         el.style.display = "block";
+      }
+    </script>
+
+    <!-- ===== 动画: 暂停按钮（默认/按下）===== -->
+    <h2>暂停按钮 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:120px; height:120px; border:2px solid red; flex-shrink:0;">
+        <div id="pause-l1" class="shared2 obj-6" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+        <div id="pause-l2" class="shared2 obj-3" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">暂停按钮（2帧）：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('pause-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">默认</span><input id="px-1" type="number" value="-7" oninput="updatePause(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="py-1" type="number" value="-775" oninput="updatePause(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('pause-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">按下</span><input id="px-2" type="number" value="-267" oninput="updatePause(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="py-2" type="number" value="-523" oninput="updatePause(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportPause()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="pause-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+    <h2>暂停按钮 — 动画预览</h2>
+    <div style="width:120px; height:120px; background:url('assets/images/shared-0-sheet2.png') no-repeat; border:2px solid #ffe57f; animation: pause-anim 1s steps(1) infinite;"></div>
+    <style>
+      @keyframes pause-anim {
+        0%   { background-position: -7px -775px; }
+        50%  { background-position: -267px -523px; }
+        100% { background-position: -7px -775px; }
+      }
+    </style>
+
+    <!-- ===== 动画: 声音按钮（开启/静音）===== -->
+    <h2>声音按钮 — 叠加对比</h2>
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+      <div style="position:relative; width:120px; height:120px; border:2px solid red; flex-shrink:0;">
+        <div id="sound-l1" class="shared2 obj-5" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+        <div id="sound-l2" class="shared2 obj-4" style="position:absolute; top:0; left:0; opacity:0.5;"></div>
+      </div>
+      <div style="font-size:13px; color:#333;">
+        <div style="margin-bottom:8px; font-weight:bold;">声音按钮（2帧）：</div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sound-l1').style.display=this.checked?'block':'none'"><span style="width:60px;">开启</span><input id="snx-1" type="number" value="-6" oninput="updateSound(1)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sny-1" type="number" value="-514" oninput="updateSound(1)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <div style="display:flex; align-items:center; margin:3px 0; gap:4px;"><input type="checkbox" checked onchange="document.getElementById('sound-l2').style.display=this.checked?'block':'none'"><span style="width:60px;">静音</span><input id="snx-2" type="number" value="-136" oninput="updateSound(2)" style="width:70px; font-family:monospace; font-size:12px;"><input id="sny-2" type="number" value="-514" oninput="updateSound(2)" style="width:70px; font-family:monospace; font-size:12px;"></div>
+        <br>
+        <button onclick="exportSound()" style="padding:4px 12px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px;">导出</button>
+        <pre id="sound-output" style="margin-top:6px; padding:6px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; display:none;"></pre>
+      </div>
+    </div>
+    <h2>声音按钮 — 动画预览</h2>
+    <div style="width:120px; height:120px; background:url('assets/images/shared-0-sheet2.png') no-repeat; border:2px solid #ffe57f; animation: sound-anim 1s steps(1) infinite;"></div>
+    <style>
+      @keyframes sound-anim {
+        0%   { background-position: -6px -514px; }
+        50%  { background-position: -136px -514px; }
+        100% { background-position: -6px -514px; }
+      }
+    </style>
+
+    <script>
+      function updatePause(n) {
+        var x = document.getElementById('px-' + n).value;
+        var y = document.getElementById('py-' + n).value;
+        document.getElementById('pause-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function exportPause() {
+        var out = '';
+        var names = ['默认', '按下'];
+        for (var i = 1; i <= 2; i++) {
+          var x = document.getElementById('px-' + i).value;
+          var y = document.getElementById('py-' + i).value;
+          out += names[i-1] + ': ' + x + 'px ' + y + 'px\n';
+        }
+        document.getElementById('pause-output').textContent = out;
+        document.getElementById('pause-output').style.display = 'block';
+      }
+      function updateSound(n) {
+        var x = document.getElementById('snx-' + n).value;
+        var y = document.getElementById('sny-' + n).value;
+        document.getElementById('sound-l' + n).style.backgroundPosition = x + 'px ' + y + 'px';
+      }
+      function exportSound() {
+        var out = '';
+        var names = ['开启', '静音'];
+        for (var i = 1; i <= 2; i++) {
+          var x = document.getElementById('snx-' + i).value;
+          var y = document.getElementById('sny-' + i).value;
+          out += names[i-1] + ': ' + x + 'px ' + y + 'px\n';
+        }
+        document.getElementById('sound-output').textContent = out;
+        document.getElementById('sound-output').style.display = 'block';
       }
     </script>
   </body>

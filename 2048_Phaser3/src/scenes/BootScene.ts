@@ -37,6 +37,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('shared0', 'assets/images/shared-0-sheet0.png');
     this.load.image('shared1', 'assets/images/shared-0-sheet1.png');
     this.load.image('shared2', 'assets/images/shared-0-sheet2.png');
+    this.load.image('shared3', 'assets/images/shared-0-sheet3.png');
 
     // Background
     this.load.image('playbackground', 'assets/images/playbackground-sheet0.png');
