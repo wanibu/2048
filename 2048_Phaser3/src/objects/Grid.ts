@@ -41,8 +41,8 @@ export class Grid {
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    const boardScale = this.layout.width / 771; // 宽度100%铺满
-    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2, 'shared0', 'board_bg');
+    const boardScale = this.layout.width / 771 * 0.97; // 宽度100%铺满
+    const boardBg = this.scene.add.image(this.layout.width / 2, this.layout.height / 2 - 40, 'shared0', 'board_bg');
     boardBg.setScale(boardScale);
     boardBg.setDepth(-1);
     this.container.add(boardBg);
