@@ -112,13 +112,15 @@ export class Sling {
     if (this.nextPreview && this.nextPreview.active) {
       this.nextPreview.destroy();
     }
-    // 在页面底部中间显示下一个糖果（缩小显示）
-    const previewX = this.layout.width / 2;
-    const previewY = this.layout.height - this.layout.cellSize * 2.0;
-    const previewSize = this.layout.cellSize * 0.7;
-    this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, previewSize);
+    // 放在坑（candy-hole）的位置，原尺寸显示
+    const w = this.layout.width;
+    const h = this.layout.height;
+    const trayScale = w / 781;
+    const trayH = 260 * trayScale;
+    const previewX = w / 2;
+    const previewY = h - trayH / 2 + 55; // 和坑的Y坐标一致
+    this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, 90);
     this.nextPreview.setDepth(100);
-    this.nextPreview.setAlpha(0.8);
   }
 
   private setupInput(): void {
