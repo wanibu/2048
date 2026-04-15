@@ -29,6 +29,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.ensureBackgroundMusic();
+
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
@@ -308,17 +310,6 @@ export class GameScene extends Phaser.Scene {
 
     this.refreshScoreSprites(updateSpriteNumber);
 
-    // 调试：进场直接演示一次石头碎裂效果
-    this.time.delayedCall(200, () => {
-      const demoRow = 2;
-      const demoCol = 2;
-      this.grid.placeStone(demoRow, demoCol);
-      this.time.delayedCall(300, () => {
-        this.playStoneDestroyEffects([{ row: demoRow, col: demoCol }]);
-        this.sound.play('stonedestroy', { volume: 0.3 });
-      });
-    });
-
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
   }
@@ -349,6 +340,18 @@ export class GameScene extends Phaser.Scene {
         return img;
       });
     });
+  }
+
+  private ensureBackgroundMusic(): void {
+    const bgm = this.sound.get('bgm');
+    if (bgm) {
+      if (!bgm.isPlaying) {
+        bgm.play({ loop: true, volume: 0.4 });
+      }
+      return;
+    }
+
+    this.sound.play('bgm', { loop: true, volume: 0.4 });
   }
 
   // 窗口resize处理：保存当前状态，刷新页面
@@ -567,7 +570,7 @@ export class GameScene extends Phaser.Scene {
           frame: `stone_destroy_${index}`,
         })),
         duration: STONE_DESTROY_FRAMES.length * STONE_DESTROY_FRAME_DURATION_MS,
-        repeat: -1,
+        repeat: 0,
       });
     }
 
@@ -575,11 +578,6 @@ export class GameScene extends Phaser.Scene {
       const { x, y } = this.grid.localCellToPixel(row, col);
       const baseX = x + STONE_DESTROY_CONTAINER_OFFSET_X;
       const baseY = y + STONE_DESTROY_CONTAINER_OFFSET_Y;
-      const debugBounds = this.add.rectangle(baseX, baseY, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_FRAME_SIZE);
-      debugBounds.setOrigin(0.5, 0.5);
-      debugBounds.setStrokeStyle(2, 0xffff00, 0.9);
-      debugBounds.setFillStyle(0x000000, 0);
-      this.grid.addToEffectLayer(debugBounds);
       const effect = this.add.sprite(
         baseX,
         baseY,
@@ -597,6 +595,9 @@ export class GameScene extends Phaser.Scene {
         effect.setPosition(baseX + offset.x, baseY + offset.y);
       });
       effect.play(animKey);
+      effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        effect.destroy();
+      });
     });
   }
 
@@ -851,7 +852,6 @@ export class GameScene extends Phaser.Scene {
     // 石头碎掉音效
     if (result.destroyedStones.length > 0) {
       console.log(`[石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
-      this.playStoneDestroyEffects(result.destroyedStones);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
 
@@ -893,7 +893,6 @@ export class GameScene extends Phaser.Scene {
 
     if (result.destroyedStones.length > 0) {
       console.log(`[旋转石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
-      this.playStoneDestroyEffects(result.destroyedStones);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
     this.printGrid('旋转合并后');

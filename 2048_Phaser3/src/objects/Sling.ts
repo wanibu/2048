@@ -22,7 +22,6 @@ export class Sling {
   private slingSprite: Phaser.GameObjects.Image;
   private slingState: number = 0;
   private colHighlight: Phaser.GameObjects.Image;
-  private moveBounds: Phaser.GameObjects.Rectangle;
   private isDragging: boolean = false;
 
   private slingY: number;
@@ -71,15 +70,6 @@ export class Sling {
     this.slingSprite = scene.add.image(grid.colToX(this.selectedCol), this.slingY, 'shared1', 'sling_0');
     this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
-
-    // 弹弓横向可移动区间调试框
-    const leftEdge = this.layout.gridOffsetX;
-    const rightEdge = this.layout.gridOffsetX + GRID_COLS * this.layout.cellSize;
-    const moveWidth = rightEdge - leftEdge;
-    this.moveBounds = scene.add.rectangle(leftEdge + moveWidth / 2, this.slingY, moveWidth, this.slingH + 20);
-    this.moveBounds.setStrokeStyle(2, 0xffcc00, 0.95);
-    this.moveBounds.setFillStyle(0x000000, 0);
-    this.moveBounds.setDepth(49);
 
     // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
     this.setupInput();

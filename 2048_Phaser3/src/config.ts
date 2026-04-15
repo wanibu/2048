@@ -65,9 +65,8 @@ export interface SpriteRegion {
 export const STONE_DESTROY_FRAME_SIZE = 160;
 export const STONE_DESTROY_CONTAINER_OFFSET_X = 0;
 export const STONE_DESTROY_CONTAINER_OFFSET_Y = 0;
-export const STONE_DESTROY_FRAME_DURATION_MS = 3000;
+export const STONE_DESTROY_FRAME_DURATION_MS = 800;
 export const STONE_DESTROY_FRAME_OFFSETS = [
-  { x: 30, y: 13 },
   { x: 0, y: 0 },
   { x: 0, y: 0 },
   { x: 0, y: 0 },

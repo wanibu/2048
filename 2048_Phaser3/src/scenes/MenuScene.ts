@@ -9,6 +9,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.ensureBackgroundMusic();
+
     // 如果是resize后刷新，直接跳到GameScene恢复游戏
     if (sessionStorage.getItem('giant2048_playing') === '1') {
       sessionStorage.removeItem('giant2048_playing');
@@ -145,6 +147,23 @@ export class MenuScene extends Phaser.Scene {
     if (!tex.has(frameKey)) {
       tex.add(frameKey, 0, region.x, region.y, region.w, region.h);
     }
+  }
+
+  private ensureBackgroundMusic(): void {
+    if (this.sound.locked) {
+      this.sound.once(Phaser.Sound.Events.UNLOCKED, () => this.ensureBackgroundMusic());
+      return;
+    }
+
+    const bgm = this.sound.get('bgm');
+    if (bgm) {
+      if (!bgm.isPlaying) {
+        bgm.play({ loop: true, volume: 0.4 });
+      }
+      return;
+    }
+
+    this.sound.play('bgm', { loop: true, volume: 0.4 });
   }
 
   private showFrame(index: number): void {

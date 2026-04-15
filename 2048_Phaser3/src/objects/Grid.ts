@@ -57,41 +57,11 @@ export class Grid {
     this.boardBg.setDepth(-1);
     this.backgroundLayer.add(this.boardBg);
 
-    const boardW = this.boardBg.displayWidth;
-    const boardH = this.boardBg.displayHeight;
-
-    // 棋盘背景四边红色边框（调试用，标识背景真实渲染范围）
-    const boardBorder = this.scene.add.rectangle(0, 0, boardW, boardH);
-    boardBorder.setStrokeStyle(2, 0xff0000, 1);
-    boardBorder.setFillStyle(0x000000, 0);
-    boardBorder.setDepth(999);
-    this.backgroundLayer.add(boardBorder);
-
-    // 中心点十字线（调试用）
-    const crossSize = 20;
-    const hLine = this.scene.add.line(0, 0, -crossSize, 0, crossSize, 0, 0xff0000);
-    hLine.setOrigin(0.5, 0.5);
-    hLine.setLineWidth(1);
-    hLine.setDepth(999);
-    this.backgroundLayer.add(hLine);
-    const vLine = this.scene.add.line(0, 0, 0, -crossSize, 0, crossSize, 0xff0000);
-    vLine.setOrigin(0.5, 0.5);
-    vLine.setLineWidth(1);
-    vLine.setDepth(999);
-    this.backgroundLayer.add(vLine);
-
-    // 5×5 棋盘格子边框：按背景中心点反推位置，便于肉眼校准
+    // 5×5 棋盘格子调试框：测试时先隐藏
     for (let row = 0; row < GRID_ROWS; row++) {
       this.cells[row] = [];
       for (let col = 0; col < GRID_COLS; col++) {
-        const { x, y } = this.cellToLocal(row, col);
-        const cellSize = Math.max(1, this.layout.cellSize - this.debugCellGap);
-        const cell = this.scene.add.rectangle(x, y, cellSize, cellSize);
-        cell.setStrokeStyle(2, 0x00ff88, 0.95);
-        cell.setFillStyle(0x000000, 0);
-        cell.setDepth(998);
-        this.contentLayer.add(cell);
-        this.cells[row][col] = cell;
+        this.cells[row][col] = null as unknown as Phaser.GameObjects.Rectangle;
       }
     }
   }
