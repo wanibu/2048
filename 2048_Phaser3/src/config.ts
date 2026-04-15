@@ -62,6 +62,29 @@ export interface SpriteRegion {
   h: number;
 }
 
+export const STONE_DESTROY_FRAME_SIZE = 160;
+export const STONE_DESTROY_CONTAINER_OFFSET_X = 0;
+export const STONE_DESTROY_CONTAINER_OFFSET_Y = 0;
+export const STONE_DESTROY_FRAME_DURATION_MS = 3000;
+export const STONE_DESTROY_FRAME_OFFSETS = [
+  { x: 30, y: 13 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
+export const STONE_DESTROY_FRAMES: SpriteRegion[] = [
+  { x: 0, y: 736, w: 256, h: 256 },
+  { x: 256, y: 768, w: 256, h: 256 },
+  { x: 768, y: 768, w: 256, h: 256 },
+  { x: 768, y: 512, w: 256, h: 256 },
+  { x: 256, y: 0, w: 256, h: 256 },
+  { x: 512, y: 512, w: 256, h: 256 },
+  { x: 0, y: 0, w: 256, h: 256 },
+  { x: 512, y: 0, w: 256, h: 256 },
+];
+
 // value → source region in shape-sheet0.png
 // Derived from background-position values; each ball is ~131×131
 export const SHAPE_REGIONS: Record<number, SpriteRegion> = {

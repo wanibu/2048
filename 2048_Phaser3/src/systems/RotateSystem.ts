@@ -34,14 +34,28 @@ export class RotateSystem {
   }
 
   private doRotate(angleDelta: number, onComplete: () => void): void {
-    const container = this.grid.getContainer();
-    const targetAngle = container.angle + angleDelta;
+    const backgroundLayer = this.grid.getBackgroundLayer();
+    const contentLayer = this.grid.getContentLayer();
+    const bgTargetAngle = backgroundLayer.angle + angleDelta;
+
     this.scene.tweens.add({
-      targets: container,
-      angle: targetAngle,
+      targets: backgroundLayer,
+      angle: bgTargetAngle,
       duration: 200,
       ease: 'Quad.easeInOut',
-      onComplete,
+    });
+
+    this.scene.tweens.add({
+      targets: contentLayer,
+      angle: angleDelta,
+      duration: 200,
+      ease: 'Quad.easeInOut',
+      onComplete: () => {
+        // 内容层的旋转只用于过渡，结束后恢复正向，
+        // 最终位置由数据重排后的局部坐标决定。
+        contentLayer.setAngle(0);
+        onComplete();
+      },
     });
   }
 

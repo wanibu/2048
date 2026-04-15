@@ -7,6 +7,9 @@ export class Grid {
   private scene: Phaser.Scene;
   private cells: Phaser.GameObjects.Rectangle[][] = [];
   private container: Phaser.GameObjects.Container;
+  private backgroundLayer: Phaser.GameObjects.Container;
+  private contentLayer: Phaser.GameObjects.Container;
+  private effectLayer: Phaser.GameObjects.Container;
   public layout: LayoutConfig;
   public boardBg!: Phaser.GameObjects.Image;
   private readonly debugCellGap = 8;
@@ -20,6 +23,12 @@ export class Grid {
     this.scene = scene;
     this.layout = layout;
     this.container = scene.add.container(layout.boardCenterX, layout.boardCenterY);
+    this.backgroundLayer = scene.add.container(0, 0);
+    this.contentLayer = scene.add.container(0, 0);
+    this.effectLayer = scene.add.container(0, 0);
+    this.container.add(this.backgroundLayer);
+    this.container.add(this.contentLayer);
+    this.container.add(this.effectLayer);
     this.initData();
     this.drawGrid();
   }
@@ -46,7 +55,7 @@ export class Grid {
     this.boardBg = this.scene.add.image(0, 0, 'shared0', 'board_bg');
     this.boardBg.setScale(BOARD_SCALE);
     this.boardBg.setDepth(-1);
-    this.container.add(this.boardBg);
+    this.backgroundLayer.add(this.boardBg);
 
     const boardW = this.boardBg.displayWidth;
     const boardH = this.boardBg.displayHeight;
@@ -56,7 +65,7 @@ export class Grid {
     boardBorder.setStrokeStyle(2, 0xff0000, 1);
     boardBorder.setFillStyle(0x000000, 0);
     boardBorder.setDepth(999);
-    this.container.add(boardBorder);
+    this.backgroundLayer.add(boardBorder);
 
     // 中心点十字线（调试用）
     const crossSize = 20;
@@ -64,12 +73,12 @@ export class Grid {
     hLine.setOrigin(0.5, 0.5);
     hLine.setLineWidth(1);
     hLine.setDepth(999);
-    this.container.add(hLine);
+    this.backgroundLayer.add(hLine);
     const vLine = this.scene.add.line(0, 0, 0, -crossSize, 0, crossSize, 0xff0000);
     vLine.setOrigin(0.5, 0.5);
     vLine.setLineWidth(1);
     vLine.setDepth(999);
-    this.container.add(vLine);
+    this.backgroundLayer.add(vLine);
 
     // 5×5 棋盘格子边框：按背景中心点反推位置，便于肉眼校准
     for (let row = 0; row < GRID_ROWS; row++) {
@@ -81,7 +90,7 @@ export class Grid {
         cell.setStrokeStyle(2, 0x00ff88, 0.95);
         cell.setFillStyle(0x000000, 0);
         cell.setDepth(998);
-        this.container.add(cell);
+        this.contentLayer.add(cell);
         this.cells[row][col] = cell;
       }
     }
@@ -134,7 +143,7 @@ export class Grid {
     const border = new Border(this.scene, x, y, value, row, col, this.layout.cellSize);
     this.data[row][col] = value;
     this.borders[row][col] = border;
-    this.container.add(border);
+    this.contentLayer.add(border);
     return border;
   }
 
@@ -153,7 +162,7 @@ export class Grid {
     const stone = new Stone(this.scene, x, y, row, col, this.layout.cellSize);
     this.data[row][col] = STONE_VALUE;
     this.stones[row][col] = stone;
-    this.container.add(stone);
+    this.contentLayer.add(stone);
     return stone;
   }
 
@@ -181,6 +190,18 @@ export class Grid {
   }
 
   addToContainer(child: Phaser.GameObjects.GameObject): void {
-    this.container.add(child);
+    this.contentLayer.add(child);
+  }
+
+  getBackgroundLayer(): Phaser.GameObjects.Container {
+    return this.backgroundLayer;
+  }
+
+  getContentLayer(): Phaser.GameObjects.Container {
+    return this.contentLayer;
+  }
+
+  addToEffectLayer(child: Phaser.GameObjects.GameObject): void {
+    this.effectLayer.add(child);
   }
 }

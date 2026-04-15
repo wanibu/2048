@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, BASE_BG_REGION, ROTATE_BTN_REGION, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -308,6 +308,17 @@ export class GameScene extends Phaser.Scene {
 
     this.refreshScoreSprites(updateSpriteNumber);
 
+    // 调试：进场直接演示一次石头碎裂效果
+    this.time.delayedCall(200, () => {
+      const demoRow = 2;
+      const demoCol = 2;
+      this.grid.placeStone(demoRow, demoCol);
+      this.time.delayedCall(300, () => {
+        this.playStoneDestroyEffects([{ row: demoRow, col: demoCol }]);
+        this.sound.play('stonedestroy', { volume: 0.3 });
+      });
+    });
+
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
   }
@@ -533,6 +544,60 @@ export class GameScene extends Phaser.Scene {
       console.log(`行${r + 1}: [${row.join(',')}]`);
     }
     console.log('========================\n');
+  }
+
+  private playStoneDestroyEffects(cells: { row: number; col: number }[]): void {
+    if (cells.length === 0) return;
+
+    const texture = this.textures.get('stonedestroy-full');
+    const animKey = 'stone-destroy-anim';
+
+    STONE_DESTROY_FRAMES.forEach((frame, index) => {
+      const frameKey = `stone_destroy_${index}`;
+      if (!texture.has(frameKey)) {
+        texture.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+      }
+    });
+
+    if (!this.anims.exists(animKey)) {
+      this.anims.create({
+        key: animKey,
+        frames: STONE_DESTROY_FRAMES.map((_, index) => ({
+          key: 'stonedestroy-full',
+          frame: `stone_destroy_${index}`,
+        })),
+        duration: STONE_DESTROY_FRAMES.length * STONE_DESTROY_FRAME_DURATION_MS,
+        repeat: -1,
+      });
+    }
+
+    cells.forEach(({ row, col }) => {
+      const { x, y } = this.grid.localCellToPixel(row, col);
+      const baseX = x + STONE_DESTROY_CONTAINER_OFFSET_X;
+      const baseY = y + STONE_DESTROY_CONTAINER_OFFSET_Y;
+      const debugBounds = this.add.rectangle(baseX, baseY, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_FRAME_SIZE);
+      debugBounds.setOrigin(0.5, 0.5);
+      debugBounds.setStrokeStyle(2, 0xffff00, 0.9);
+      debugBounds.setFillStyle(0x000000, 0);
+      this.grid.addToEffectLayer(debugBounds);
+      const effect = this.add.sprite(
+        baseX,
+        baseY,
+        'stonedestroy-full',
+        'stone_destroy_0',
+      );
+      effect.setDisplaySize(STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_FRAME_SIZE);
+      effect.setOrigin(0.5, 0.5);
+      this.grid.addToEffectLayer(effect);
+      effect.on(Phaser.Animations.Events.ANIMATION_UPDATE, (_anim: Phaser.Animations.Animation, frame: Phaser.Animations.AnimationFrame) => {
+        const frameName = String(frame.textureFrame);
+        const match = frameName.match(/stone_destroy_(\d+)/);
+        const frameIndex = match ? parseInt(match[1], 10) : 0;
+        const offset = STONE_DESTROY_FRAME_OFFSETS[frameIndex] || { x: 0, y: 0 };
+        effect.setPosition(baseX + offset.x, baseY + offset.y);
+      });
+      effect.play(animKey);
+    });
   }
 
   // 创建左右旋转按钮，使用素材图片
@@ -786,6 +851,7 @@ export class GameScene extends Phaser.Scene {
     // 石头碎掉音效
     if (result.destroyedStones.length > 0) {
       console.log(`[石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.playStoneDestroyEffects(result.destroyedStones);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
 
@@ -827,6 +893,7 @@ export class GameScene extends Phaser.Scene {
 
     if (result.destroyedStones.length > 0) {
       console.log(`[旋转石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.playStoneDestroyEffects(result.destroyedStones);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
     this.printGrid('旋转合并后');
