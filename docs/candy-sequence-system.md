@@ -66,7 +66,6 @@ plan3 = ...
 | `name` | TEXT | 阶段名称，如 `A`、`B`、`early_easy` |
 | `length` | INTEGER | 该阶段包含多少个位置 |
 | `probabilities` | JSON / TEXT | 概率配置，键为内容类型，值为百分比 |
-| `is_active` | BOOLEAN | 是否启用 |
 | `created_at` | DATETIME | 创建时间 |
 | `updated_at` | DATETIME | 更新时间 |
 
@@ -83,7 +82,6 @@ plan3 = ...
 | `id` | UUID / TEXT PK | 方案唯一标识 |
 | `name` | TEXT | 方案名称，如 `plan1` |
 | `description` | TEXT | 方案说明 |
-| `is_active` | BOOLEAN | 是否可用于分配 |
 | `created_at` | DATETIME | 创建时间 |
 | `updated_at` | DATETIME | 更新时间 |
 
