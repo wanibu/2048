@@ -1,7 +1,7 @@
 // Giant 2048 — Cloudflare Workers 后端
 // 职责：序列配置管理、局管理、链式签名验证、排行榜、Admin
 
-import { generateSequence, randomConfig, getConfigById, SEQUENCE_CONFIGS } from './sequence-config';
+import { generateSequence, randomConfig, getConfigById, SEQUENCE_CONFIGS, generateSequenceFromPlan, PlanStageRow } from './sequence-config';
 
 interface GameAction {
   type: 'shoot' | 'rotate' | 'direct_merge';
@@ -77,25 +77,41 @@ export default {
         const sign = await initSign(gameId);
         const now = new Date().toISOString();
 
-        // 选择序列配置（随机选一套）
-        const config = randomConfig(seed);
+        // 优先从预生成序列中随机取一条 enabled 的
+        const genSeq = await env.DB.prepare(
+          "SELECT * FROM generated_sequences WHERE status = 'enabled' ORDER BY RANDOM() LIMIT 1"
+        ).first() as Record<string, unknown> | null;
 
-        // 生成第一批50个糖果
-        const sequence = await generateSequence(seed, 1, BATCH_SIZE, config);
+        let sequence: (string | number)[];
+        let sequenceConfig: string;
+        let generatedSequenceId = '';
+
+        if (genSeq) {
+          // 使用预生成序列
+          const fullSeq = JSON.parse(genSeq.sequence_data as string) as string[];
+          sequence = fullSeq.slice(0, BATCH_SIZE);
+          sequenceConfig = `plan:${genSeq.sequence_plan_id}`;
+          generatedSequenceId = genSeq.id as string;
+        } else {
+          // 没有预生成序列时，降级用旧的硬编码配置
+          const config = randomConfig(seed);
+          sequence = await generateSequence(seed, 1, BATCH_SIZE, config);
+          sequenceConfig = config.id;
+        }
 
         await env.DB.prepare(
           `INSERT INTO games (game_id, fingerprint, user_id, seed, step, score, sign, status,
-           sequence_config, sequence, end_reason, ended_at, last_update_at, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           sequence_config, sequence, end_reason, ended_at, last_update_at, created_at, generated_sequence_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           gameId, fingerprint, userId || '', seed, 0, 0, sign, 'playing',
-          config.id, JSON.stringify(sequence), '', '', now, now
+          sequenceConfig, JSON.stringify(sequence), '', '', now, now, generatedSequenceId
         ).run();
 
         return jsonResponse({
           gameId,
-          sequence, // 50个糖果值
-          sequenceConfig: config.id,
+          sequence,
+          sequenceConfig,
           sign,
         });
       }
@@ -112,15 +128,36 @@ export default {
         if (!game) return jsonResponse({ error: 'Game not found' }, 404);
         if (game.status !== 'playing') return jsonResponse({ error: 'Game finished' }, 400);
 
-        const config = getConfigById(game.sequence_config as string);
-        if (!config) return jsonResponse({ error: 'Invalid config' }, 500);
+        const existingSeq = JSON.parse(game.sequence as string) as (string | number)[];
+        const genSeqId = game.generated_sequence_id as string;
 
-        // 从当前已生成的序列之后继续
-        const existingSeq = JSON.parse(game.sequence as string) as number[];
-        const startStep = existingSeq.length + 1;
-        const newBatch = await generateSequence(game.seed as number, startStep, BATCH_SIZE, config);
+        let newBatch: (string | number)[];
 
-        // 追加到序列
+        if (genSeqId) {
+          // 预生成序列模式：从完整序列中继续切片
+          const genSeq = await env.DB.prepare(
+            'SELECT sequence_data FROM generated_sequences WHERE id = ?'
+          ).bind(genSeqId).first() as Record<string, unknown> | null;
+
+          if (!genSeq) return jsonResponse({ error: 'Generated sequence not found' }, 500);
+
+          const fullSeq = JSON.parse(genSeq.sequence_data as string) as string[];
+          const startIndex = existingSeq.length;
+          newBatch = fullSeq.slice(startIndex, startIndex + BATCH_SIZE);
+
+          if (newBatch.length === 0) {
+            return jsonResponse({ error: 'Sequence exhausted', sequence: [], startIndex });
+          }
+        } else {
+          // 旧版模式：动态生成
+          const config = getConfigById(game.sequence_config as string);
+          if (!config) return jsonResponse({ error: 'Invalid config' }, 500);
+
+          const startStep = existingSeq.length + 1;
+          newBatch = await generateSequence(game.seed as number, startStep, BATCH_SIZE, config);
+        }
+
+        // 追加到序列记录
         const fullSequence = [...existingSeq, ...newBatch];
         await env.DB.prepare(
           'UPDATE games SET sequence = ? WHERE game_id = ?'
@@ -306,6 +343,411 @@ export default {
         await env.DB.prepare('DELETE FROM games WHERE game_id = ?').bind(gameId).run();
         await env.DB.prepare('DELETE FROM scores WHERE game_id = ?').bind(gameId).run();
 
+        return jsonResponse({ success: true });
+      }
+
+      // =============================================================
+      // ===== Admin: Stage 管理 =====
+      // =============================================================
+
+      // 创建 Stage
+      if (url.pathname === '/api/admin/stages' && request.method === 'POST') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const { name, length, probabilities } = await request.json() as {
+          name: string; length: number; probabilities: Record<string, number>;
+        };
+        if (!name || !length || !probabilities) return jsonResponse({ error: 'Missing fields' }, 400);
+
+        // 验证概率总和 = 100
+        const total = Object.values(probabilities).reduce((sum, v) => sum + v, 0);
+        if (Math.abs(total - 100) > 0.01) {
+          return jsonResponse({ error: `Probabilities sum must be 100, got ${total}` }, 400);
+        }
+
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        await env.DB.prepare(
+          'INSERT INTO stages (id, name, length, probabilities, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(id, name, length, JSON.stringify(probabilities), now, now).run();
+
+        return jsonResponse({ id, name, length, probabilities, created_at: now });
+      }
+
+      // 列出所有 Stages
+      if (url.pathname === '/api/admin/stages' && request.method === 'GET') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const results = await env.DB.prepare(
+          'SELECT * FROM stages ORDER BY created_at DESC'
+        ).all();
+
+        return jsonResponse({
+          stages: results.results.map((s: Record<string, unknown>) => ({
+            ...s,
+            probabilities: JSON.parse(s.probabilities as string),
+          })),
+        });
+      }
+
+      // 更新 Stage
+      if (url.pathname.match(/^\/api\/admin\/stages\/[^/]+$/) && request.method === 'PUT') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const stageId = url.pathname.split('/').pop()!;
+        const { name, length, probabilities } = await request.json() as {
+          name?: string; length?: number; probabilities?: Record<string, number>;
+        };
+
+        if (probabilities) {
+          const total = Object.values(probabilities).reduce((sum, v) => sum + v, 0);
+          if (Math.abs(total - 100) > 0.01) {
+            return jsonResponse({ error: `Probabilities sum must be 100, got ${total}` }, 400);
+          }
+        }
+
+        const existing = await env.DB.prepare('SELECT * FROM stages WHERE id = ?').bind(stageId).first();
+        if (!existing) return jsonResponse({ error: 'Stage not found' }, 404);
+
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          'UPDATE stages SET name = ?, length = ?, probabilities = ?, updated_at = ? WHERE id = ?'
+        ).bind(
+          name || existing.name as string,
+          length || existing.length as number,
+          probabilities ? JSON.stringify(probabilities) : existing.probabilities as string,
+          now, stageId
+        ).run();
+
+        return jsonResponse({ success: true });
+      }
+
+      // 删除 Stage
+      if (url.pathname.match(/^\/api\/admin\/stages\/[^/]+$/) && request.method === 'DELETE') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const stageId = url.pathname.split('/').pop()!;
+
+        // 检查是否被 plan 引用
+        const ref = await env.DB.prepare(
+          'SELECT COUNT(*) as c FROM sequence_plan_stages WHERE stage_id = ?'
+        ).bind(stageId).first() as Record<string, unknown>;
+        if (ref && (ref.c as number) > 0) {
+          return jsonResponse({ error: 'Stage is used by sequence plans, cannot delete' }, 400);
+        }
+
+        await env.DB.prepare('DELETE FROM stages WHERE id = ?').bind(stageId).run();
+        return jsonResponse({ success: true });
+      }
+
+      // =============================================================
+      // ===== Admin: Sequence Plan 管理 =====
+      // =============================================================
+
+      // 创建 Sequence Plan（含 stages 关联）
+      if (url.pathname === '/api/admin/sequence-plans' && request.method === 'POST') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const { name, description, stages } = await request.json() as {
+          name: string; description?: string;
+          stages: { stage_id: string; stage_order: number }[];
+        };
+        if (!name || !stages || stages.length === 0) {
+          return jsonResponse({ error: 'Missing fields: name and stages required' }, 400);
+        }
+
+        const planId = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        await env.DB.prepare(
+          'INSERT INTO sequence_plans (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(planId, name, description || '', now, now).run();
+
+        // 插入 stage 关联
+        for (const s of stages) {
+          const linkId = crypto.randomUUID();
+          await env.DB.prepare(
+            'INSERT INTO sequence_plan_stages (id, sequence_plan_id, stage_id, stage_order, created_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(linkId, planId, s.stage_id, s.stage_order, now).run();
+        }
+
+        return jsonResponse({ id: planId, name, description: description || '', stages });
+      }
+
+      // 列出所有 Sequence Plans（含 stages 详情）
+      if (url.pathname === '/api/admin/sequence-plans' && request.method === 'GET') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const plans = await env.DB.prepare(
+          'SELECT * FROM sequence_plans ORDER BY created_at DESC'
+        ).all();
+
+        const result = [];
+        for (const plan of plans.results) {
+          const stagesResult = await env.DB.prepare(
+            `SELECT sps.stage_order, s.id, s.name, s.length, s.probabilities
+             FROM sequence_plan_stages sps
+             JOIN stages s ON sps.stage_id = s.id
+             WHERE sps.sequence_plan_id = ?
+             ORDER BY sps.stage_order`
+          ).bind(plan.id as string).all();
+
+          result.push({
+            ...plan,
+            stages: stagesResult.results.map((s: Record<string, unknown>) => ({
+              ...s,
+              probabilities: JSON.parse(s.probabilities as string),
+            })),
+            total_length: stagesResult.results.reduce((sum, s: Record<string, unknown>) => sum + (s.length as number), 0),
+          });
+        }
+
+        return jsonResponse({ plans: result });
+      }
+
+      // 查看单个 Sequence Plan 详情
+      if (url.pathname.match(/^\/api\/admin\/sequence-plans\/[^/]+$/) && request.method === 'GET') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const planId = url.pathname.split('/').pop()!;
+        const plan = await env.DB.prepare('SELECT * FROM sequence_plans WHERE id = ?').bind(planId).first();
+        if (!plan) return jsonResponse({ error: 'Plan not found' }, 404);
+
+        const stagesResult = await env.DB.prepare(
+          `SELECT sps.stage_order, s.id, s.name, s.length, s.probabilities
+           FROM sequence_plan_stages sps
+           JOIN stages s ON sps.stage_id = s.id
+           WHERE sps.sequence_plan_id = ?
+           ORDER BY sps.stage_order`
+        ).bind(planId).all();
+
+        return jsonResponse({
+          ...plan,
+          stages: stagesResult.results.map((s: Record<string, unknown>) => ({
+            ...s,
+            probabilities: JSON.parse(s.probabilities as string),
+          })),
+          total_length: stagesResult.results.reduce((sum, s: Record<string, unknown>) => sum + (s.length as number), 0),
+        });
+      }
+
+      // 更新 Sequence Plan（替换 stages 关联）
+      if (url.pathname.match(/^\/api\/admin\/sequence-plans\/[^/]+$/) && request.method === 'PUT') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const planId = url.pathname.split('/').pop()!;
+        const { name, description, stages } = await request.json() as {
+          name?: string; description?: string;
+          stages?: { stage_id: string; stage_order: number }[];
+        };
+
+        const existing = await env.DB.prepare('SELECT * FROM sequence_plans WHERE id = ?').bind(planId).first();
+        if (!existing) return jsonResponse({ error: 'Plan not found' }, 404);
+
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          'UPDATE sequence_plans SET name = ?, description = ?, updated_at = ? WHERE id = ?'
+        ).bind(
+          name || existing.name as string,
+          description !== undefined ? description : existing.description as string,
+          now, planId
+        ).run();
+
+        // 如果传了 stages，替换关联
+        if (stages && stages.length > 0) {
+          await env.DB.prepare(
+            'DELETE FROM sequence_plan_stages WHERE sequence_plan_id = ?'
+          ).bind(planId).run();
+
+          for (const s of stages) {
+            const linkId = crypto.randomUUID();
+            await env.DB.prepare(
+              'INSERT INTO sequence_plan_stages (id, sequence_plan_id, stage_id, stage_order, created_at) VALUES (?, ?, ?, ?, ?)'
+            ).bind(linkId, planId, s.stage_id, s.stage_order, now).run();
+          }
+        }
+
+        return jsonResponse({ success: true });
+      }
+
+      // 删除 Sequence Plan
+      if (url.pathname.match(/^\/api\/admin\/sequence-plans\/[^/]+$/) && request.method === 'DELETE') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const planId = url.pathname.split('/').pop()!;
+
+        // 检查是否有生成的序列
+        const ref = await env.DB.prepare(
+          'SELECT COUNT(*) as c FROM generated_sequences WHERE sequence_plan_id = ?'
+        ).bind(planId).first() as Record<string, unknown>;
+        if (ref && (ref.c as number) > 0) {
+          return jsonResponse({ error: 'Plan has generated sequences, cannot delete' }, 400);
+        }
+
+        await env.DB.prepare('DELETE FROM sequence_plan_stages WHERE sequence_plan_id = ?').bind(planId).run();
+        await env.DB.prepare('DELETE FROM sequence_plans WHERE id = ?').bind(planId).run();
+        return jsonResponse({ success: true });
+      }
+
+      // =============================================================
+      // ===== Admin: Generated Sequence 管理 =====
+      // =============================================================
+
+      // 生成序列（根据 plan 配置）
+      if (url.pathname === '/api/admin/generate-sequence' && request.method === 'POST') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const { sequence_plan_id, count } = await request.json() as {
+          sequence_plan_id: string; count?: number;
+        };
+        if (!sequence_plan_id) return jsonResponse({ error: 'Missing sequence_plan_id' }, 400);
+
+        // 查 plan 的 stages
+        const stagesResult = await env.DB.prepare(
+          `SELECT sps.stage_order, sps.stage_id, s.name, s.length, s.probabilities
+           FROM sequence_plan_stages sps
+           JOIN stages s ON sps.stage_id = s.id
+           WHERE sps.sequence_plan_id = ?
+           ORDER BY sps.stage_order`
+        ).bind(sequence_plan_id).all();
+
+        if (stagesResult.results.length === 0) {
+          return jsonResponse({ error: 'Plan has no stages configured' }, 400);
+        }
+
+        const planStages: PlanStageRow[] = stagesResult.results.map((s: Record<string, unknown>) => ({
+          stage_id: s.stage_id as string,
+          stage_order: s.stage_order as number,
+          name: s.name as string,
+          length: s.length as number,
+          probabilities: s.probabilities as string,
+        }));
+
+        const generateCount = count || 1;
+        const generated = [];
+
+        for (let i = 0; i < generateCount; i++) {
+          const sequence = await generateSequenceFromPlan(planStages);
+          const seqId = crypto.randomUUID();
+          const now = new Date().toISOString();
+
+          await env.DB.prepare(
+            `INSERT INTO generated_sequences (id, sequence_plan_id, sequence_data, sequence_length, status, created_at, updated_at)
+             VALUES (?, ?, ?, ?, 'enabled', ?, ?)`
+          ).bind(seqId, sequence_plan_id, JSON.stringify(sequence), sequence.length, now, now).run();
+
+          generated.push({ id: seqId, sequence_length: sequence.length, sequence_data: sequence });
+        }
+
+        return jsonResponse({ generated, count: generateCount });
+      }
+
+      // 列出生成的序列
+      if (url.pathname === '/api/admin/generated-sequences' && request.method === 'GET') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const planId = url.searchParams.get('plan_id');
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = 20;
+        const offset = (page - 1) * limit;
+
+        let query = 'SELECT gs.*, sp.name as plan_name FROM generated_sequences gs LEFT JOIN sequence_plans sp ON gs.sequence_plan_id = sp.id';
+        const params: unknown[] = [];
+
+        if (planId) {
+          query += ' WHERE gs.sequence_plan_id = ?';
+          params.push(planId);
+        }
+        query += ' ORDER BY gs.created_at DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
+
+        const results = await env.DB.prepare(query).bind(...params).all();
+
+        let countQuery = 'SELECT COUNT(*) as total FROM generated_sequences';
+        const countParams: unknown[] = [];
+        if (planId) {
+          countQuery += ' WHERE sequence_plan_id = ?';
+          countParams.push(planId);
+        }
+        const countResult = await env.DB.prepare(countQuery).bind(...countParams).first() as Record<string, unknown>;
+
+        return jsonResponse({
+          sequences: results.results.map((s: Record<string, unknown>) => ({
+            ...s,
+            sequence_data: JSON.parse(s.sequence_data as string),
+          })),
+          total: countResult?.total || 0,
+          page,
+          totalPages: Math.ceil(((countResult?.total as number) || 0) / limit),
+        });
+      }
+
+      // 查看单条生成序列详情
+      if (url.pathname.match(/^\/api\/admin\/generated-sequences\/[^/]+$/) && request.method === 'GET') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const seqId = url.pathname.split('/').pop()!;
+        const seq = await env.DB.prepare(
+          'SELECT gs.*, sp.name as plan_name FROM generated_sequences gs LEFT JOIN sequence_plans sp ON gs.sequence_plan_id = sp.id WHERE gs.id = ?'
+        ).bind(seqId).first() as Record<string, unknown> | null;
+
+        if (!seq) return jsonResponse({ error: 'Sequence not found' }, 404);
+
+        return jsonResponse({
+          ...seq,
+          sequence_data: JSON.parse(seq.sequence_data as string),
+        });
+      }
+
+      // 更新序列状态（enabled/disabled）
+      if (url.pathname.match(/^\/api\/admin\/generated-sequences\/[^/]+$/) && request.method === 'PUT') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const seqId = url.pathname.split('/').pop()!;
+        const { status } = await request.json() as { status: string };
+
+        if (status !== 'enabled' && status !== 'disabled') {
+          return jsonResponse({ error: 'Status must be enabled or disabled' }, 400);
+        }
+
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          'UPDATE generated_sequences SET status = ?, updated_at = ? WHERE id = ?'
+        ).bind(status, now, seqId).run();
+
+        return jsonResponse({ success: true });
+      }
+
+      // 删除生成的序列
+      if (url.pathname.match(/^\/api\/admin\/generated-sequences\/[^/]+$/) && request.method === 'DELETE') {
+        const authToken = request.headers.get('Authorization')?.replace('Bearer ', '');
+        if (!authToken) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+        const seqId = url.pathname.split('/').pop()!;
+
+        // 检查是否有游戏在使用
+        const ref = await env.DB.prepare(
+          'SELECT COUNT(*) as c FROM games WHERE generated_sequence_id = ?'
+        ).bind(seqId).first() as Record<string, unknown>;
+        if (ref && (ref.c as number) > 0) {
+          return jsonResponse({ error: 'Sequence is used by games, cannot delete' }, 400);
+        }
+
+        await env.DB.prepare('DELETE FROM generated_sequences WHERE id = ?').bind(seqId).run();
         return jsonResponse({ success: true });
       }
 

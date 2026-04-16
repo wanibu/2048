@@ -23,6 +23,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .header h1 { font-size: 20px; }
 .header button { background: #f44336; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
 
+/* Tab 导航 */
+.tabs { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; }
+.tab-btn { padding: 14px 24px; border: none; background: none; font-size: 14px; font-weight: 500; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.tab-btn:hover { color: #333; }
+.tab-btn.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
 /* 统计卡片 */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 24px; }
 .stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
@@ -40,6 +48,12 @@ tr:hover { background: #f8f9ff; }
 .status-finished { color: #4caf50; font-weight: bold; }
 .btn-detail { background: #2196f3; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 .btn-detail:hover { background: #1976d2; }
+.btn-danger { background: #f44336; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 4px; }
+.btn-danger:hover { background: #d32f2f; }
+.btn-success { background: #4caf50; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-success:hover { background: #43a047; }
+.btn-warning { background: #ff9800; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-warning:hover { background: #f57c00; }
 
 /* 分页 */
 .pagination { display: flex; justify-content: center; gap: 8px; padding: 16px; }
@@ -59,8 +73,45 @@ tr:hover { background: #f8f9ff; }
 .detail-row .value { font-weight: 500; font-size: 13px; word-break: break-all; max-width: 60%; text-align: right; }
 .candy-sequence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .candy-item { background: #ffe57f; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+.candy-item.stone { background: #bdbdbd; color: #fff; }
 .flag-ok { color: #4caf50; }
 .flag-warn { color: #f44336; font-weight: bold; }
+
+/* 表单区域 */
+.form-section { background: #fff; padding: 24px; margin: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.form-section h3 { margin-bottom: 16px; font-size: 16px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; font-weight: 500; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.form-group textarea { resize: vertical; min-height: 60px; font-family: monospace; }
+.form-row { display: flex; gap: 12px; align-items: flex-end; }
+.form-row .form-group { flex: 1; }
+
+/* 概率编辑器 */
+.prob-editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.prob-item { display: flex; align-items: center; gap: 4px; }
+.prob-item label { font-size: 12px; min-width: 48px; color: #333; font-weight: bold; }
+.prob-item input { width: 60px; text-align: center; padding: 4px; }
+.prob-total { margin-top: 8px; font-size: 13px; font-weight: bold; }
+.prob-total.ok { color: #4caf50; }
+.prob-total.err { color: #f44336; }
+
+/* Stage 关联 */
+.stage-list-editor { }
+.stage-entry { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.stage-entry select { flex: 1; padding: 6px; }
+.stage-entry .order-num { width: 40px; text-align: center; font-weight: bold; color: #888; }
+.btn-small { padding: 4px 8px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-small:hover { background: #f0f0f0; }
+.btn-add { border-color: #4caf50; color: #4caf50; }
+.btn-remove { border-color: #f44336; color: #f44336; }
+
+/* 状态标签 */
+.status-enabled { color: #4caf50; font-weight: bold; }
+.status-disabled { color: #999; font-weight: bold; }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px; color: #999; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -83,31 +134,177 @@ tr:hover { background: #f8f9ff; }
     <button onclick="doLogout()">退出登录</button>
   </div>
 
-  <!-- 统计概览 -->
-  <div class="stats" id="stats"></div>
+  <!-- Tab 导航 -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('games')">游戏记录</button>
+    <button class="tab-btn" onclick="switchTab('stages')">Stages 配置</button>
+    <button class="tab-btn" onclick="switchTab('plans')">Sequence Plans</button>
+    <button class="tab-btn" onclick="switchTab('sequences')">生成序列</button>
+  </div>
 
-  <!-- 游戏列表 -->
-  <div class="table-wrap">
-    <h2>游戏记录</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>局号</th>
-          <th>userId</th>
-          <th>玩家指纹</th>
-          <th>配置</th>
-          <th>步数</th>
-          <th>分数</th>
-          <th>状态</th>
-          <th>结束原因</th>
-          <th>最后更新</th>
-          <th>开局时间</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody id="gamesBody"></tbody>
-    </table>
-    <div class="pagination" id="pagination"></div>
+  <!-- Tab 1: 游戏记录 -->
+  <div class="tab-panel active" id="tab-games">
+    <div class="stats" id="stats"></div>
+    <div class="table-wrap">
+      <h2 style="display:flex;align-items:center;gap:12px;">游戏记录 <button class="btn-detail" onclick="loadStats();loadGames(currentPage)">刷新</button><span style="font-size:12px;color:#999;font-weight:normal;">每10秒自动刷新</span></h2>
+      <table>
+        <thead>
+          <tr>
+            <th>局号</th>
+            <th>userId</th>
+            <th>玩家指纹</th>
+            <th>配置</th>
+            <th>步数</th>
+            <th>分数</th>
+            <th>状态</th>
+            <th>结束原因</th>
+            <th>最后更新</th>
+            <th>开局时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="gamesBody"></tbody>
+      </table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Stages 配置 -->
+  <div class="tab-panel" id="tab-stages">
+    <!-- 创建 Stage 表单 -->
+    <div class="form-section">
+      <h3 id="stageFormTitle">创建 Stage</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" id="stageName" placeholder="如: A, B, early_easy">
+        </div>
+        <div class="form-group">
+          <label>长度（糖果数）</label>
+          <input type="number" id="stageLength" placeholder="30" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>概率配置（总和必须 = 100%）</label>
+        <div class="prob-editor" id="probEditor"></div>
+        <div class="prob-total" id="probTotal"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn-success" onclick="saveStage()">保存</button>
+        <button class="btn-small" onclick="resetStageForm()" id="stageCancelBtn" style="display:none">取消编辑</button>
+      </div>
+      <input type="hidden" id="editingStageId" value="">
+    </div>
+
+    <!-- Stage 列表 -->
+    <div class="table-wrap" style="padding-top:24px;">
+      <h2>已有 Stages</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>长度</th>
+            <th>概率配置</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="stagesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab 3: Sequence Plans -->
+  <div class="tab-panel" id="tab-plans">
+    <!-- 创建 Plan 表单 -->
+    <div class="form-section">
+      <h3 id="planFormTitle">创建 Sequence Plan</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>名称</label>
+          <input type="text" id="planName" placeholder="如: plan1">
+        </div>
+        <div class="form-group">
+          <label>说明</label>
+          <input type="text" id="planDesc" placeholder="方案说明（可选）">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Stages 顺序（从上到下依次执行）</label>
+        <div id="planStagesEditor"></div>
+        <button class="btn-small btn-add" onclick="addPlanStageRow()" style="margin-top:8px;">+ 添加 Stage</button>
+        <div id="planTotalLength" style="margin-top:8px;font-size:13px;color:#888;"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn-success" onclick="savePlan()">保存</button>
+        <button class="btn-small" onclick="resetPlanForm()" id="planCancelBtn" style="display:none">取消编辑</button>
+      </div>
+      <input type="hidden" id="editingPlanId" value="">
+    </div>
+
+    <!-- Plan 列表 -->
+    <div class="table-wrap" style="padding-top:24px;">
+      <h2>已有 Plans</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>说明</th>
+            <th>Stages</th>
+            <th>总长度</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="plansBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab 4: 生成序列 -->
+  <div class="tab-panel" id="tab-sequences">
+    <!-- 生成表单 -->
+    <div class="form-section">
+      <h3>生成序列</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>选择方案</label>
+          <select id="genPlanSelect"><option value="">-- 选择 Plan --</option></select>
+        </div>
+        <div class="form-group">
+          <label>生成数量</label>
+          <input type="number" id="genCount" value="1" min="1" max="100">
+        </div>
+        <div class="form-group" style="flex:0;">
+          <label>&nbsp;</label>
+          <button class="btn-success" onclick="generateSequences()">生成</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 序列列表 -->
+    <div class="table-wrap" style="padding-top:24px;">
+      <h2>已生成序列</h2>
+      <div style="margin-bottom:12px;">
+        <select id="seqFilterPlan" onchange="loadSequences(1)" style="padding:6px;border:1px solid #ddd;border-radius:4px;">
+          <option value="">全部方案</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>方案</th>
+            <th>序列长度</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="sequencesBody"></tbody>
+      </table>
+      <div class="pagination" id="seqPagination"></div>
+    </div>
   </div>
 </div>
 
@@ -115,30 +312,30 @@ tr:hover { background: #f8f9ff; }
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2>局详情</h2>
+    <h2 id="modalTitle">详情</h2>
     <div id="modalContent"></div>
   </div>
 </div>
 
 <script>
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'https://giant-2048-api.xdreamstar2025.workers.dev'
-  : 'https://giant-2048-api.xdreamstar2025.workers.dev';
+const API_BASE = 'https://giant-2048-api.xdreamstar2025.workers.dev';
+const CANDY_TYPES = ['2','4','8','16','32','64','128','256','512','1024','2048','4096','8192','stone'];
 
 let token = sessionStorage.getItem('admin_token') || '';
 let currentPage = 1;
+let seqCurrentPage = 1;
+let allStages = []; // 缓存 stages 供 plan 编辑器选用
+let allPlans = [];  // 缓存 plans 供序列生成选用
 
-// 如果已有 token，直接进入
-if (token) {
-  showAdmin();
-}
+if (token) showAdmin();
+
+// ==================== 登录/登出 ====================
 
 async function doLogin() {
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
   const errorEl = document.getElementById('loginError');
   errorEl.textContent = '';
-
   try {
     const res = await fetch(`${API_BASE}/api/admin/login`, {
       method: 'POST',
@@ -146,11 +343,9 @@ async function doLogin() {
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
-    console.log('[admin] login response:', data);
     if (data.success) {
       token = data.token;
       sessionStorage.setItem('admin_token', token);
-      console.log('[admin] login success, token:', token.slice(0, 16) + '...');
       showAdmin();
     } else {
       errorEl.textContent = data.error || '登录失败';
@@ -163,43 +358,113 @@ async function doLogin() {
 function doLogout() {
   token = '';
   sessionStorage.removeItem('admin_token');
+  stopAutoRefresh();
   document.getElementById('loginWrap').style.display = 'flex';
   document.getElementById('adminWrap').style.display = 'none';
 }
 
+let autoRefreshTimer = null;
+
 function showAdmin() {
-  console.log('[admin] showAdmin called, token:', token.slice(0, 16) + '...');
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('adminWrap').style.display = 'block';
   loadStats();
   loadGames(1);
+  initProbEditor();
+  startAutoRefresh();
 }
 
-// 页面加载日志
-console.log('[admin] page loaded, API_BASE:', API_BASE);
-console.log('[admin] saved token:', token ? token.slice(0, 16) + '...' : 'none');
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(() => {
+    // 只在游戏记录 tab 激活时自动刷新
+    if (document.getElementById('tab-games').classList.contains('active')) {
+      loadStats();
+      loadGames(currentPage);
+    }
+  }, 10000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+}
+
+// ==================== Tab 切换 ====================
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+
+  if (name === 'stages') loadStages();
+  if (name === 'plans') { loadStages().then(() => loadPlans()); }
+  if (name === 'sequences') { loadPlansForSelect().then(() => loadSequences(1)); }
+}
+
+// ==================== 通用 API ====================
 
 async function apiFetch(path) {
-  console.log(`[admin] GET ${API_BASE}${path}`);
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    console.log(`[admin] response status: ${res.status}`);
     if (res.status === 401) { doLogout(); return null; }
-    const data = await res.json();
-    console.log(`[admin] response data:`, data);
-    return data;
+    return await res.json();
   } catch (e) {
-    console.error(`[admin] fetch error:`, e);
+    console.error('fetch error:', e);
     return null;
   }
 }
 
+async function apiPost(path, body) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) { doLogout(); return null; }
+    return await res.json();
+  } catch (e) {
+    console.error('post error:', e);
+    return null;
+  }
+}
+
+async function apiPut(path, body) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) { doLogout(); return null; }
+    return await res.json();
+  } catch (e) {
+    console.error('put error:', e);
+    return null;
+  }
+}
+
+async function apiDelete(path) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (res.status === 401) { doLogout(); return null; }
+    return await res.json();
+  } catch (e) {
+    console.error('delete error:', e);
+    return null;
+  }
+}
+
+// ==================== 游戏记录 Tab ====================
+
 async function loadStats() {
-  console.log('[admin] loadStats...');
   const data = await apiFetch('/api/admin/stats');
-  console.log('[admin] stats data:', data);
   if (!data) return;
   document.getElementById('stats').innerHTML = `
     <div class="stat-card"><div class="number">${data.totalGames}</div><div class="label">总局数</div></div>
@@ -211,12 +476,9 @@ async function loadStats() {
 }
 
 async function loadGames(page) {
-  console.log('[admin] loadGames page:', page);
   currentPage = page;
   const data = await apiFetch(`/api/admin/games?page=${page}`);
-  console.log('[admin] games data:', data);
   if (!data) return;
-
   const tbody = document.getElementById('gamesBody');
   const statusMap = { playing: '进行中', finished: '已完成' };
   const reasonMap = { gameover: '游戏结束', timeout: '超时', new_game: '开新局', crash: '崩溃', '': '-' };
@@ -233,16 +495,14 @@ async function loadGames(page) {
       <td>${g.last_update_at ? new Date(g.last_update_at).toLocaleString('zh-CN') : '-'}</td>
       <td>${new Date(g.created_at).toLocaleString('zh-CN')}</td>
       <td>
-        <button class="btn-detail" onclick="showDetail('${g.game_id}')">详情</button>
-        <button class="btn-detail" style="background:#f44336;margin-left:4px" onclick="deleteGame('${g.game_id}')">删除</button>
+        <button class="btn-detail" onclick="showGameDetail('${g.game_id}')">详情</button>
+        <button class="btn-danger" onclick="deleteGame('${g.game_id}')">删除</button>
       </td>
     </tr>
   `).join('');
 
-  // 分页
   const pagEl = document.getElementById('pagination');
-  let html = '';
-  html += `<button ${page <= 1 ? 'disabled' : ''} onclick="loadGames(${page - 1})">上一页</button>`;
+  let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="loadGames(${page - 1})">上一页</button>`;
   for (let i = 1; i <= data.totalPages; i++) {
     html += `<button class="${i === page ? 'active' : ''}" onclick="loadGames(${i})">${i}</button>`;
   }
@@ -250,12 +510,10 @@ async function loadGames(page) {
   pagEl.innerHTML = html;
 }
 
-async function showDetail(gameId) {
+async function showGameDetail(gameId) {
   const data = await apiFetch(`/api/admin/game/${gameId}`);
   if (!data) return;
-
-  const ua = '(浏览器指纹无法反推UA，仅显示指纹hash)';
-
+  document.getElementById('modalTitle').textContent = '局详情';
   document.getElementById('modalContent').innerHTML = `
     <div class="detail-row"><span class="label">局号</span><span class="value">${data.game_id}</span></div>
     <div class="detail-row"><span class="label">userId</span><span class="value">${data.user_id || '-'}</span></div>
@@ -263,49 +521,409 @@ async function showDetail(gameId) {
     <div class="detail-row"><span class="label">状态</span><span class="value status-${data.status}">${data.status === 'playing' ? '进行中' : '已完成'}</span></div>
     <div class="detail-row"><span class="label">结束原因</span><span class="value">${data.end_reason || '-'}</span></div>
     <div class="detail-row"><span class="label">序列配置</span><span class="value">${data.sequence_config || '-'}</span></div>
+    <div class="detail-row"><span class="label">预生成序列ID</span><span class="value">${data.generated_sequence_id || '-'}</span></div>
     <div class="detail-row"><span class="label">开局时间</span><span class="value">${new Date(data.created_at).toLocaleString('zh-CN')}</span></div>
     <div class="detail-row"><span class="label">最后更新</span><span class="value">${data.last_update_at ? new Date(data.last_update_at).toLocaleString('zh-CN') : '-'}</span></div>
     <div class="detail-row"><span class="label">结束时间</span><span class="value">${data.ended_at ? new Date(data.ended_at).toLocaleString('zh-CN') : '-'}</span></div>
-    <div class="detail-row"><span class="label">Seed（服务端）</span><span class="value">${data.seed}</span></div>
+    <div class="detail-row"><span class="label">Seed</span><span class="value">${data.seed}</span></div>
     <div class="detail-row"><span class="label">总步数</span><span class="value">${data.step}</span></div>
     <div class="detail-row"><span class="label">最终分数</span><span class="value"><strong>${data.score}</strong></span></div>
     <div class="detail-row"><span class="label">最终签名</span><span class="value">${data.sign.slice(0, 32)}...</span></div>
-    <div class="detail-row"><span class="label">签名验证</span><span class="value ${data.signValid ? 'flag-ok' : 'flag-warn'}">${data.signValid ? '✓ 有效' : '✗ 无效（可能篡改）'}</span></div>
-    <div class="detail-row"><span class="label">作弊标记</span><span class="value ${data.suspiciousFlags.length ? 'flag-warn' : 'flag-ok'}">${data.suspiciousFlags.length ? data.suspiciousFlags.join(', ') : '✓ 无异常'}</span></div>
+    <div class="detail-row"><span class="label">签名验证</span><span class="value ${data.signValid ? 'flag-ok' : 'flag-warn'}">${data.signValid ? '有效' : '无效'}</span></div>
     <div style="margin-top: 16px;">
-      <div class="label" style="margin-bottom: 8px;">糖果序列（${data.sequence.length}个，由 Seed + ${data.sequence_config} 配置生成）：</div>
+      <div class="label" style="margin-bottom: 8px;">糖果序列（${data.sequence.length}个）：</div>
       <div class="candy-sequence">
-        ${data.sequence.map((c, i) => `<span class="candy-item" style="${i < data.step ? 'opacity:0.5' : ''}">#${i+1}: ${c}</span>`).join('')}
+        ${data.sequence.map((c, i) => `<span class="candy-item${c === 'stone' || c === -1 ? ' stone' : ''}" style="${i < data.step ? 'opacity:0.5' : ''}">#${i+1}: ${c}</span>`).join('')}
       </div>
     </div>
   `;
-
   document.getElementById('modalOverlay').classList.add('show');
 }
 
 async function deleteGame(gameId) {
   if (!confirm('确定删除这局记录？')) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/admin/delete-game/${gameId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    const data = await res.json();
-    console.log('[admin] delete:', data);
-    if (data.success) {
-      loadStats();
-      loadGames(currentPage);
-    }
-  } catch (e) {
-    console.error('[admin] delete error:', e);
+  const data = await apiDelete(`/api/admin/delete-game/${gameId}`);
+  if (data && data.success) { loadStats(); loadGames(currentPage); }
+}
+
+// ==================== Stages Tab ====================
+
+function initProbEditor() {
+  const editor = document.getElementById('probEditor');
+  editor.innerHTML = CANDY_TYPES.map(t => `
+    <div class="prob-item">
+      <label>${t === 'stone' ? 'stone' : '#' + t}</label>
+      <input type="number" id="prob_${t}" value="0" min="0" max="100" step="1" onchange="updateProbTotal()">
+      <span>%</span>
+    </div>
+  `).join('');
+  updateProbTotal();
+}
+
+function updateProbTotal() {
+  let total = 0;
+  CANDY_TYPES.forEach(t => {
+    total += parseFloat(document.getElementById('prob_' + t).value) || 0;
+  });
+  const el = document.getElementById('probTotal');
+  el.textContent = `总和: ${total}%`;
+  el.className = 'prob-total ' + (Math.abs(total - 100) < 0.01 ? 'ok' : 'err');
+}
+
+function getProbabilities() {
+  const probs = {};
+  CANDY_TYPES.forEach(t => {
+    const v = parseFloat(document.getElementById('prob_' + t).value) || 0;
+    if (v > 0) probs[t] = v;
+  });
+  return probs;
+}
+
+function setProbabilities(probs) {
+  CANDY_TYPES.forEach(t => {
+    document.getElementById('prob_' + t).value = probs[t] || 0;
+  });
+  updateProbTotal();
+}
+
+function resetStageForm() {
+  document.getElementById('editingStageId').value = '';
+  document.getElementById('stageFormTitle').textContent = '创建 Stage';
+  document.getElementById('stageName').value = '';
+  document.getElementById('stageLength').value = '';
+  document.getElementById('stageCancelBtn').style.display = 'none';
+  CANDY_TYPES.forEach(t => { document.getElementById('prob_' + t).value = 0; });
+  updateProbTotal();
+}
+
+async function loadStages() {
+  const data = await apiFetch('/api/admin/stages');
+  if (!data) return;
+  allStages = data.stages;
+
+  const tbody = document.getElementById('stagesBody');
+  if (allStages.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无 Stage 配置</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allStages.map(s => {
+    const probStr = Object.entries(s.probabilities)
+      .map(([k, v]) => `${k === 'stone' ? 'stone' : '#' + k}: ${v}%`)
+      .join(', ');
+    return `
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.length}</td>
+        <td style="font-size:12px;max-width:400px;">${probStr}</td>
+        <td>${new Date(s.created_at).toLocaleString('zh-CN')}</td>
+        <td>
+          <button class="btn-detail" onclick="editStage('${s.id}')">编辑</button>
+          <button class="btn-danger" onclick="deleteStage('${s.id}')">删除</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function editStage(id) {
+  const s = allStages.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('editingStageId').value = id;
+  document.getElementById('stageFormTitle').textContent = '编辑 Stage: ' + s.name;
+  document.getElementById('stageName').value = s.name;
+  document.getElementById('stageLength').value = s.length;
+  document.getElementById('stageCancelBtn').style.display = '';
+  setProbabilities(s.probabilities);
+  document.getElementById('tab-stages').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveStage() {
+  const name = document.getElementById('stageName').value.trim();
+  const length = parseInt(document.getElementById('stageLength').value);
+  const probabilities = getProbabilities();
+  const editId = document.getElementById('editingStageId').value;
+
+  if (!name) return alert('请输入名称');
+  if (!length || length < 1) return alert('请输入有效的长度');
+
+  const total = Object.values(probabilities).reduce((s, v) => s + v, 0);
+  if (Math.abs(total - 100) > 0.01) return alert(`概率总和必须为 100%，当前: ${total}%`);
+
+  let data;
+  if (editId) {
+    data = await apiPut(`/api/admin/stages/${editId}`, { name, length, probabilities });
+  } else {
+    data = await apiPost('/api/admin/stages', { name, length, probabilities });
+  }
+
+  if (data && (data.id || data.success)) {
+    resetStageForm();
+    loadStages();
+  } else {
+    alert(data?.error || '保存失败');
   }
 }
+
+async function deleteStage(id) {
+  if (!confirm('确定删除此 Stage？')) return;
+  const data = await apiDelete(`/api/admin/stages/${id}`);
+  if (data && data.success) {
+    loadStages();
+  } else {
+    alert(data?.error || '删除失败');
+  }
+}
+
+// ==================== Sequence Plans Tab ====================
+
+function renderStageSelect(selectedId) {
+  return `<select class="plan-stage-select" onchange="updatePlanTotalLength()">
+    <option value="">-- 选择 Stage --</option>
+    ${allStages.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${s.name} (${s.length}个)</option>`).join('')}
+  </select>`;
+}
+
+function addPlanStageRow(selectedId) {
+  const editor = document.getElementById('planStagesEditor');
+  const count = editor.children.length + 1;
+  const div = document.createElement('div');
+  div.className = 'stage-entry';
+  div.innerHTML = `
+    <span class="order-num">${count}</span>
+    ${renderStageSelect(selectedId || '')}
+    <button class="btn-small btn-remove" onclick="removePlanStageRow(this)">移除</button>
+  `;
+  editor.appendChild(div);
+  updatePlanTotalLength();
+}
+
+function removePlanStageRow(btn) {
+  btn.parentElement.remove();
+  // 重新编号
+  document.querySelectorAll('#planStagesEditor .stage-entry').forEach((el, i) => {
+    el.querySelector('.order-num').textContent = i + 1;
+  });
+  updatePlanTotalLength();
+}
+
+function updatePlanTotalLength() {
+  let total = 0;
+  document.querySelectorAll('#planStagesEditor .plan-stage-select').forEach(sel => {
+    const s = allStages.find(x => x.id === sel.value);
+    if (s) total += s.length;
+  });
+  document.getElementById('planTotalLength').textContent = total > 0 ? `总糖果数: ${total}` : '';
+}
+
+function getPlanStages() {
+  const stages = [];
+  document.querySelectorAll('#planStagesEditor .stage-entry').forEach((el, i) => {
+    const sel = el.querySelector('.plan-stage-select');
+    if (sel.value) {
+      stages.push({ stage_id: sel.value, stage_order: i + 1 });
+    }
+  });
+  return stages;
+}
+
+function resetPlanForm() {
+  document.getElementById('editingPlanId').value = '';
+  document.getElementById('planFormTitle').textContent = '创建 Sequence Plan';
+  document.getElementById('planName').value = '';
+  document.getElementById('planDesc').value = '';
+  document.getElementById('planStagesEditor').innerHTML = '';
+  document.getElementById('planTotalLength').textContent = '';
+  document.getElementById('planCancelBtn').style.display = 'none';
+}
+
+async function loadPlans() {
+  const data = await apiFetch('/api/admin/sequence-plans');
+  if (!data) return;
+  allPlans = data.plans;
+
+  const tbody = document.getElementById('plansBody');
+  if (allPlans.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无 Plan 配置</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allPlans.map(p => {
+    const stageNames = (p.stages || []).map(s => `${s.name}(${s.length})`).join(' → ');
+    return `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.description || '-'}</td>
+        <td style="font-size:12px;">${stageNames || '-'}</td>
+        <td>${p.total_length || 0}</td>
+        <td>${new Date(p.created_at).toLocaleString('zh-CN')}</td>
+        <td>
+          <button class="btn-detail" onclick="editPlan('${p.id}')">编辑</button>
+          <button class="btn-danger" onclick="deletePlan('${p.id}')">删除</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function editPlan(id) {
+  const p = allPlans.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('editingPlanId').value = id;
+  document.getElementById('planFormTitle').textContent = '编辑 Plan: ' + p.name;
+  document.getElementById('planName').value = p.name;
+  document.getElementById('planDesc').value = p.description || '';
+  document.getElementById('planCancelBtn').style.display = '';
+  // 填充 stages
+  document.getElementById('planStagesEditor').innerHTML = '';
+  (p.stages || []).forEach(s => addPlanStageRow(s.id));
+}
+
+async function savePlan() {
+  const name = document.getElementById('planName').value.trim();
+  const description = document.getElementById('planDesc').value.trim();
+  const stages = getPlanStages();
+  const editId = document.getElementById('editingPlanId').value;
+
+  if (!name) return alert('请输入名称');
+  if (stages.length === 0) return alert('请至少添加一个 Stage');
+
+  let data;
+  if (editId) {
+    data = await apiPut(`/api/admin/sequence-plans/${editId}`, { name, description, stages });
+  } else {
+    data = await apiPost('/api/admin/sequence-plans', { name, description, stages });
+  }
+
+  if (data && (data.id || data.success)) {
+    resetPlanForm();
+    loadPlans();
+  } else {
+    alert(data?.error || '保存失败');
+  }
+}
+
+async function deletePlan(id) {
+  if (!confirm('确定删除此 Plan？')) return;
+  const data = await apiDelete(`/api/admin/sequence-plans/${id}`);
+  if (data && data.success) {
+    loadPlans();
+  } else {
+    alert(data?.error || '删除失败');
+  }
+}
+
+// ==================== 生成序列 Tab ====================
+
+async function loadPlansForSelect() {
+  const data = await apiFetch('/api/admin/sequence-plans');
+  if (!data) return;
+  allPlans = data.plans;
+
+  const options = '<option value="">-- 选择 Plan --</option>' +
+    allPlans.map(p => `<option value="${p.id}">${p.name} (${p.total_length}个)</option>`).join('');
+
+  document.getElementById('genPlanSelect').innerHTML = options;
+  document.getElementById('seqFilterPlan').innerHTML =
+    '<option value="">全部方案</option>' +
+    allPlans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+async function generateSequences() {
+  const planId = document.getElementById('genPlanSelect').value;
+  const count = parseInt(document.getElementById('genCount').value) || 1;
+  if (!planId) return alert('请选择方案');
+
+  const data = await apiPost('/api/admin/generate-sequence', { sequence_plan_id: planId, count });
+  if (data && data.generated) {
+    alert(`成功生成 ${data.count} 条序列`);
+    loadSequences(1);
+  } else {
+    alert(data?.error || '生成失败');
+  }
+}
+
+async function loadSequences(page) {
+  seqCurrentPage = page;
+  const planId = document.getElementById('seqFilterPlan').value;
+  let path = `/api/admin/generated-sequences?page=${page}`;
+  if (planId) path += `&plan_id=${planId}`;
+
+  const data = await apiFetch(path);
+  if (!data) return;
+
+  const tbody = document.getElementById('sequencesBody');
+  if (!data.sequences || data.sequences.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无生成序列</td></tr>';
+    document.getElementById('seqPagination').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = data.sequences.map(s => `
+    <tr>
+      <td title="${s.id}" style="font-size:11px;">${s.id.slice(0, 8)}...</td>
+      <td>${s.plan_name || '-'}</td>
+      <td>${s.sequence_length}</td>
+      <td><span class="status-${s.status}">${s.status === 'enabled' ? '启用' : '禁用'}</span></td>
+      <td>${new Date(s.created_at).toLocaleString('zh-CN')}</td>
+      <td>
+        <button class="btn-detail" onclick="showSeqDetail('${s.id}')">查看</button>
+        <button class="btn-warning" onclick="toggleSeqStatus('${s.id}','${s.status}')">${s.status === 'enabled' ? '禁用' : '启用'}</button>
+        <button class="btn-danger" onclick="deleteSeq('${s.id}')">删除</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const pagEl = document.getElementById('seqPagination');
+  let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="loadSequences(${page - 1})">上一页</button>`;
+  for (let i = 1; i <= data.totalPages; i++) {
+    html += `<button class="${i === page ? 'active' : ''}" onclick="loadSequences(${i})">${i}</button>`;
+  }
+  html += `<button ${page >= data.totalPages ? 'disabled' : ''} onclick="loadSequences(${page + 1})">下一页</button>`;
+  pagEl.innerHTML = html;
+}
+
+async function showSeqDetail(seqId) {
+  const data = await apiFetch(`/api/admin/generated-sequences/${seqId}`);
+  if (!data) return;
+  document.getElementById('modalTitle').textContent = '序列详情';
+  document.getElementById('modalContent').innerHTML = `
+    <div class="detail-row"><span class="label">ID</span><span class="value">${data.id}</span></div>
+    <div class="detail-row"><span class="label">方案</span><span class="value">${data.plan_name || data.sequence_plan_id}</span></div>
+    <div class="detail-row"><span class="label">长度</span><span class="value">${data.sequence_length}</span></div>
+    <div class="detail-row"><span class="label">状态</span><span class="value status-${data.status}">${data.status === 'enabled' ? '启用' : '禁用'}</span></div>
+    <div class="detail-row"><span class="label">创建时间</span><span class="value">${new Date(data.created_at).toLocaleString('zh-CN')}</span></div>
+    <div style="margin-top: 16px;">
+      <div class="label" style="margin-bottom: 8px;">完整序列（${data.sequence_data.length}个）：</div>
+      <div class="candy-sequence">
+        ${data.sequence_data.map((c, i) => `<span class="candy-item${c === 'stone' ? ' stone' : ''}">#${i+1}: ${c}</span>`).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+async function toggleSeqStatus(id, current) {
+  const newStatus = current === 'enabled' ? 'disabled' : 'enabled';
+  const data = await apiPut(`/api/admin/generated-sequences/${id}`, { status: newStatus });
+  if (data && data.success) loadSequences(seqCurrentPage);
+}
+
+async function deleteSeq(id) {
+  if (!confirm('确定删除此序列？')) return;
+  const data = await apiDelete(`/api/admin/generated-sequences/${id}`);
+  if (data && data.success) {
+    loadSequences(seqCurrentPage);
+  } else {
+    alert(data?.error || '删除失败');
+  }
+}
+
+// ==================== 弹窗 ====================
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('show');
 }
-
-// ESC 关闭弹窗
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 </script>
 </body>
