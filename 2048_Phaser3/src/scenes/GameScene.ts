@@ -135,9 +135,9 @@ export class GameScene extends Phaser.Scene {
     }
     const trayScale = w / 781; // 宽度铺满
     const trayH = 260 * trayScale;
-    const tray = this.add.image(0, h - trayH - 50, 'shared0', 'mobile-tray');
+    const tray = this.add.image(0, h - trayH - 82, 'shared0', 'mobile-tray');
     tray.setOrigin(0, 0); // 左上角对齐
-    tray.setScale(trayScale);
+    tray.setScale(trayScale, trayScale * 1.39);
     tray.setDepth(70);
 
     // 坑（candy-hole）原尺寸120×120，底部居中，在tray上一层
@@ -919,7 +919,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private findLandingRow(col: number): number {
-    const colData = Array.from({length: GRID_ROWS}, (_, r) => this.grid.data[r][col]);
+    const colData = Array.from({ length: GRID_ROWS }, (_, r) => this.grid.data[r][col]);
     console.log(`[findLandingRow] 列${col + 1}数据: [${colData.map(v => v || '.').join(', ')}]`);
 
     // 糖果从下方（行5）往上飞
