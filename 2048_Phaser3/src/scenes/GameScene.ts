@@ -21,6 +21,7 @@ export class GameScene extends Phaser.Scene {
   private scoreDigits: Phaser.GameObjects.Image[] = [];
   private topScoreDigits: Phaser.GameObjects.Image[] = [];
   private isRotating: boolean = false;
+  private isGameOver: boolean = false;
   private lastLandedCol: number | undefined;
   private shootCount: number = 0; // 发射计数，每5个生成石头
 
@@ -29,6 +30,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.isGameOver = false;
     this.ensureBackgroundMusic();
 
     const w = this.cameras.main.width;
@@ -126,8 +128,8 @@ export class GameScene extends Phaser.Scene {
     if (!tex.has('pause-bg')) {
       tex.add('pause-bg', 0, 0, 0, 769, 1028);
     }
-    const pauseBg = this.add.image(w / 2, h / 2, 'shared0', 'pause-bg');
-    const pauseBgScale = (w * 0.85) / 769;
+    const pauseBg = this.add.image(w / 2, h / 2 + 25, 'shared0', 'pause-bg');
+    const pauseBgScale = w / 769;
     pauseBg.setScale(pauseBgScale);
     pauseContainer.add(pauseBg);
 
@@ -136,16 +138,17 @@ export class GameScene extends Phaser.Scene {
     if (!texS1.has('sleep-girl')) {
       texS1.add('sleep-girl', 0, 0, 767, 519, 246);
     }
-    const sleepGirl = this.add.image(w / 2, h / 2 - 180, 'shared1', 'sleep-girl');
-    sleepGirl.setScale(0.7);
+    const sleepGirl = this.add.image(w / 2, h / 2 - 240, 'shared1', 'sleep-girl');
+    // const sleepGirlScale = w / 769;
+    sleepGirl.setScale(1.21);
     pauseContainer.add(sleepGirl);
 
     // 首页按钮
     if (!tex3.has('home-btn')) {
       tex3.add('home-btn', 0, 262, 4, 232, 108);
     }
-    const homeBtn = this.add.image(w / 2, h / 2 - 20, 'shared2', 'home-btn');
-    homeBtn.setScale(0.8);
+    const homeBtn = this.add.image(w / 2, h / 2 - 30, 'shared2', 'home-btn');
+    // homeBtn.setScale(0.8);
     homeBtn.setInteractive({ useHandCursor: true });
     homeBtn.on('pointerdown', () => {
       pauseContainer.setVisible(false);
@@ -157,8 +160,8 @@ export class GameScene extends Phaser.Scene {
     if (!texS1.has('pink-off-btn')) {
       texS1.add('pink-off-btn', 0, 0, 1794, 250, 140);
     }
-    const resumeBtn = this.add.image(w / 2, h / 2 + 80, 'shared1', 'pink-off-btn');
-    resumeBtn.setScale(0.8);
+    const resumeBtn = this.add.image(w / 2, h / 2 + 110, 'shared1', 'pink-off-btn');
+    // resumeBtn.setScale(0.8);
     resumeBtn.setInteractive({ useHandCursor: true });
     resumeBtn.on('pointerdown', () => {
       isPaused = false;
@@ -171,8 +174,8 @@ export class GameScene extends Phaser.Scene {
     if (!texS1.has('play-green-btn')) {
       texS1.add('play-green-btn', 0, 772, 1277, 250, 140);
     }
-    const playGreenBtn = this.add.image(w / 2, h / 2 + 180, 'shared1', 'play-green-btn');
-    playGreenBtn.setScale(0.8);
+    const playGreenBtn = this.add.image(w / 2, h / 2 + 240, 'shared1', 'play-green-btn');
+    // playGreenBtn.setScale(0.8);
     playGreenBtn.setInteractive({ useHandCursor: true });
     playGreenBtn.on('pointerdown', () => {
       isPaused = false;
@@ -300,6 +303,7 @@ export class GameScene extends Phaser.Scene {
 
     // 监听窗口resize：保存状态后刷新页面
     window.addEventListener('resize', this.onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
     // 解析 URL 参数 userId
     const urlParams = new URLSearchParams(window.location.search);
@@ -517,6 +521,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private timeoutGameOver(): void {
+    if (this.isGameOver) return;
     console.log('[超时] 60秒无操作，游戏结束');
     this.hideHurryUp();
     this.recorder.finish('timeout');
@@ -954,6 +959,7 @@ export class GameScene extends Phaser.Scene {
 
   // 检查游戏是否结束：所有列都满且当前糖果无法放置到任何列
   private checkGameOver(): void {
+    if (this.isGameOver) return;
     // 检查是否有任何列可以放置任何糖果
     let canPlace = false;
     for (let col = 0; col < GRID_COLS; col++) {
@@ -984,6 +990,9 @@ export class GameScene extends Phaser.Scene {
 
   // 游戏结束处理
   private gameOver(): void {
+    if (this.isGameOver) return;
+    this.isGameOver = true;
+
     const w = GAME_WIDTH;
     const h = GAME_HEIGHT;
 
@@ -1023,10 +1032,27 @@ export class GameScene extends Phaser.Scene {
       // 清除 resize 状态
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
-      // 移除 resize 监听
-      window.removeEventListener('resize', this.onResize);
-      this.scene.start('GameScene');
+      this.scene.restart();
     });
+  }
+
+  private handleSceneShutdown(): void {
+    window.removeEventListener('resize', this.onResize);
+
+    if (this.resizeTimer) {
+      clearTimeout(this.resizeTimer);
+      this.resizeTimer = null;
+    }
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (this.hurryUpTimer) {
+      clearTimeout(this.hurryUpTimer);
+      this.hurryUpTimer = null;
+    }
+
+    this.hideHurryUp();
   }
 
 }
