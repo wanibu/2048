@@ -58,9 +58,9 @@ export class Sling {
 
     // Column highlight
     const hlX = grid.colToLocalX(this.selectedCol);
-    this.colHighlight = scene.add.image(hlX, grid.getGridCenterLocalY(), 'shared1', 'col_highlight');
+    this.colHighlight = scene.add.image(hlX, grid.getGridCenterLocalY() + 25, 'shared1', 'col_highlight');
     this.colHighlight.setDisplaySize(layout.cellSize, GRID_ROWS * layout.cellSize + layout.cellSize * 1.5);
-    this.colHighlight.setAlpha(0.4);
+    // this.colHighlight.setAlpha(0.4);
     this.colHighlight.setVisible(false);
     this.grid.addToContainer(this.colHighlight);
 

@@ -11,6 +11,9 @@ import { ActionRecorder } from '../systems/ActionRecorder';
 import { HUD } from '../ui/HUD';
 
 export class GameScene extends Phaser.Scene {
+  // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
+  private readonly debugDisableButtonActions = false;
+  private readonly showButtonHitAreaDebug = false;
   // Scene 是 Phaser 的主要工作单元。
   // 一个 Scene 往往对应一个页面状态，例如菜单、战斗、暂停后的主场景等。
   private grid!: Grid;
@@ -47,6 +50,63 @@ export class GameScene extends Phaser.Scene {
     if (image.input) {
       image.input.cursor = useHandCursor ? 'pointer' : 'default';
     }
+  }
+
+  // 把按钮当前的交互区域可视化，便于调试热区与视觉位置是否一致。
+  private addHitAreaDebugRect(
+    container: Phaser.GameObjects.Container | null,
+    image: Phaser.GameObjects.Image,
+    color: number,
+  ): void {
+    if (!this.showButtonHitAreaDebug) return;
+    const debugRect = this.add.rectangle(
+      image.x,
+      image.y,
+      image.displayWidth,
+      image.displayHeight,
+    );
+    debugRect.setOrigin(image.originX, image.originY);
+    debugRect.setStrokeStyle(2, color, 0.95);
+    debugRect.setFillStyle(color, 0.14);
+    debugRect.setDepth(9999);
+    if (container) {
+      container.add(debugRect);
+    }
+  }
+
+  // 对 UI 按钮，更稳的做法是叠一个独立的 Zone 当点击层，
+  // 避免图片 frame / trim / origin 带来的命中偏差。
+  private createButtonZone(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    color: number,
+  ): Phaser.GameObjects.Zone {
+    const zone = this.add.zone(x, y, width, height);
+    zone.setOrigin(0.5, 0.5);
+    zone.setInteractive({ useHandCursor: true });
+
+    if (this.showButtonHitAreaDebug) {
+      const debugRect = this.add.rectangle(x, y, width, height);
+      debugRect.setOrigin(0.5, 0.5);
+      debugRect.setStrokeStyle(2, color, 0.95);
+      debugRect.setFillStyle(color, 0.14);
+      debugRect.setDepth(9999);
+    }
+    zone.setDepth(9998);
+
+    return zone;
+  }
+
+  private logButtonBounds(label: string, image: Phaser.GameObjects.Image): void {
+    const topLeft = image.getTopLeft();
+    const bottomRight = image.getBottomRight();
+    console.log(
+      `[button-debug] ${label} center=(${Math.round(image.x)},${Math.round(image.y)}) ` +
+      `bounds=(${Math.round(topLeft.x)},${Math.round(topLeft.y)})-(${Math.round(bottomRight.x)},${Math.round(bottomRight.y)}) ` +
+      `size=${Math.round(image.displayWidth)}x${Math.round(image.displayHeight)}`
+    );
   }
 
   create(): void {
@@ -141,7 +201,13 @@ export class GameScene extends Phaser.Scene {
     const pauseBtn = this.add.image(w - 140, 58, 'shared2', 'pause-btn');
     pauseBtn.setDepth(200);
     pauseBtn.setScale(0.70);
-    pauseBtn.setInteractive({ useHandCursor: true });
+    const pauseBtnZone = this.createButtonZone(
+      pauseBtn.x,
+      pauseBtn.y,
+      pauseBtn.displayWidth,
+      pauseBtn.displayHeight,
+      0xff7a45,
+    );
 
     // ===== 暂停面板 =====
     // Container 可以把多个对象当成一个整体管理。
@@ -187,8 +253,11 @@ export class GameScene extends Phaser.Scene {
     const homeBtn = this.add.image(w / 2, h / 2 - 30, 'shared2', 'home-btn');
     // homeBtn.setScale(0.8);
     this.bindHitAreaToDisplaySize(homeBtn);
+    this.addHitAreaDebugRect(pauseContainer, homeBtn, 0xff4d4f);
     homeBtn.on('pointerdown', () => {
+      this.logButtonBounds('home', homeBtn);
       console.log('[pause-debug] home');
+      if (this.debugDisableButtonActions) return;
       this.isPauseOpen = false;
       pauseContainer.setVisible(false);
       this.scene.start('MenuScene');
@@ -202,8 +271,11 @@ export class GameScene extends Phaser.Scene {
     const resumeBtn = this.add.image(w / 2, h / 2 + 110, 'shared1', 'pink-off-btn');
     // resumeBtn.setScale(0.8);
     this.bindHitAreaToDisplaySize(resumeBtn);
+    this.addHitAreaDebugRect(pauseContainer, resumeBtn, 0xeb2f96);
     resumeBtn.on('pointerdown', () => {
+      this.logButtonBounds('restart', resumeBtn);
       console.log('[pause-debug] restart');
+      if (this.debugDisableButtonActions) return;
       this.isPauseOpen = false;
       isPaused = false;
       pauseBtn.setTexture('shared2', 'pause-btn');
@@ -222,8 +294,11 @@ export class GameScene extends Phaser.Scene {
     const playGreenBtn = this.add.image(w / 2, h / 2 + 240, 'shared1', 'play-green-btn');
     // playGreenBtn.setScale(0.8);
     this.bindHitAreaToDisplaySize(playGreenBtn);
+    this.addHitAreaDebugRect(pauseContainer, playGreenBtn, 0x52c41a);
     playGreenBtn.on('pointerdown', () => {
+      this.logButtonBounds('resume', playGreenBtn);
       console.log('[pause-debug] resume');
+      if (this.debugDisableButtonActions) return;
       this.isPauseOpen = false;
       isPaused = false;
       pauseBtn.setTexture('shared2', 'pause-btn');
@@ -246,8 +321,10 @@ export class GameScene extends Phaser.Scene {
       pauseContainer.setVisible(true);
     };
 
-    pauseBtn.on('pointerdown', () => {
+    pauseBtnZone.on('pointerdown', () => {
+      this.logButtonBounds('pause', pauseBtn);
       console.log('[暂停按钮] 点击了');
+      if (this.debugDisableButtonActions) return;
       if (isPaused) {
         closePause();
       } else {
@@ -282,9 +359,17 @@ export class GameScene extends Phaser.Scene {
     const soundBtn = this.add.image(w - 55, 55, 'shared2', 'sound-on');
     soundBtn.setDepth(100);
     soundBtn.setScale(0.70)
-    soundBtn.setInteractive({ useHandCursor: true });
+    const soundBtnZone = this.createButtonZone(
+      soundBtn.x,
+      soundBtn.y,
+      soundBtn.displayWidth,
+      soundBtn.displayHeight,
+      0x69c0ff,
+    );
     let soundOn = true;
-    soundBtn.on('pointerdown', () => {
+    soundBtnZone.on('pointerdown', () => {
+      this.logButtonBounds('sound', soundBtn);
+      if (this.debugDisableButtonActions) return;
       soundOn = !soundOn;
       soundBtn.setTexture('shared2', soundOn ? 'sound-on' : 'sound-mute');
       this.sound.mute = !soundOn;
@@ -693,17 +778,39 @@ export class GameScene extends Phaser.Scene {
     // 左旋转按钮 — 原尺寸，左边
     const leftBtn = this.add.image(132 / 2 + 40, btnY, 'shared2', 'rotate_btn');
     leftBtn.setScale(0.8)
-    leftBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(80);
+    leftBtn.setOrigin(0.5).setDepth(80);
+    const leftBtnZone = this.createButtonZone(
+      leftBtn.x,
+      leftBtn.y,
+      leftBtn.displayWidth,
+      leftBtn.displayHeight,
+      0xfaad14,
+    );
 
-    leftBtn.on('pointerdown', () => this.doRotate('ccw'));
+    leftBtnZone.on('pointerdown', () => {
+      this.logButtonBounds('rotate-left', leftBtn);
+      if (this.debugDisableButtonActions) return;
+      this.doRotate('ccw');
+    });
 
     // 右旋转按钮 — 原尺寸，右边，水平翻转
     const rightBtn = this.add.image(w - 132 / 2 - 45, btnY, 'shared2', 'rotate_btn');
     rightBtn.setFlipX(true);
     rightBtn.setScale(0.8)
-    rightBtn.setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(80);
+    rightBtn.setOrigin(0.5).setDepth(80);
+    const rightBtnZone = this.createButtonZone(
+      rightBtn.x,
+      rightBtn.y,
+      rightBtn.displayWidth,
+      rightBtn.displayHeight,
+      0x13c2c2,
+    );
 
-    rightBtn.on('pointerdown', () => this.doRotate('cw'));
+    rightBtnZone.on('pointerdown', () => {
+      this.logButtonBounds('rotate-right', rightBtn);
+      if (this.debugDisableButtonActions) return;
+      this.doRotate('cw');
+    });
 
     // 键盘 A=逆时针 D=顺时针
     if (this.input.keyboard) {
