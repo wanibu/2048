@@ -11,6 +11,8 @@ import { ActionRecorder } from '../systems/ActionRecorder';
 import { HUD } from '../ui/HUD';
 
 export class GameScene extends Phaser.Scene {
+  // Scene 是 Phaser 的主要工作单元。
+  // 一个 Scene 往往对应一个页面状态，例如菜单、战斗、暂停后的主场景等。
   private grid!: Grid;
   private sling!: Sling;
   private mergeSystem!: MergeSystem;
@@ -22,6 +24,7 @@ export class GameScene extends Phaser.Scene {
   private topScoreDigits: Phaser.GameObjects.Image[] = [];
   private isRotating: boolean = false;
   private isGameOver: boolean = false;
+  private isPauseOpen: boolean = false;
   private lastLandedCol: number | undefined;
   private shootCount: number = 0; // 发射计数，每5个生成石头
 
@@ -29,10 +32,30 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  // 默认 setInteractive() 有时会因为缩放/裁切和视觉区域不完全一致。
+  // 这里显式按“当前显示尺寸”绑定热区，确保点击范围和看到的按钮一致。
+  private bindHitAreaToDisplaySize(image: Phaser.GameObjects.Image, useHandCursor = true): void {
+    image.setInteractive(
+      new Phaser.Geom.Rectangle(
+        0,
+        0,
+        image.displayWidth,
+        image.displayHeight,
+      ),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    if (image.input) {
+      image.input.cursor = useHandCursor ? 'pointer' : 'default';
+    }
+  }
+
   create(): void {
     this.isGameOver = false;
+    this.isPauseOpen = false;
     this.ensureBackgroundMusic();
 
+    // camera.main.width/height 是当前 Scene 的可见尺寸。
+    // 这里先取当前画面大小，再计算整个 UI 的布局。
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
@@ -45,6 +68,8 @@ export class GameScene extends Phaser.Scene {
     bg.setDepth(-1000);
 
     // 底座背景 mobile-tray（原尺寸781×260，居中贴底）
+    // textures.get() 取得已经 preload 的整张图。
+    // tex.add(...) 则是在这张图里“切”出一个 frame，后面可以像独立素材一样引用。
     const tex = this.textures.get('shared0');
     if (!tex.has('mobile-tray')) {
       tex.add('mobile-tray', 0, 893, 752, 781, 260);
@@ -66,6 +91,7 @@ export class GameScene extends Phaser.Scene {
     hole.setDepth(71);
 
     // 巨人头像睁眼闭眼动画（depth -2，棋盘后面，背景前面）
+    // 在 Phaser 里，depth 决定渲染前后顺序：值越大，越在上层。
     const blinkFrames = [
       { x: 1622, y: 1025, w: 420, h: 611 }, // blink-1 睁眼
       { x: 4, y: 2023, w: 420, h: 611 },    // blink-2
@@ -118,10 +144,21 @@ export class GameScene extends Phaser.Scene {
     pauseBtn.setInteractive({ useHandCursor: true });
 
     // ===== 暂停面板 =====
+    // Container 可以把多个对象当成一个整体管理。
+    // 这里暂停遮罩、背景、人物、按钮都放进同一个 pauseContainer 里，
+    // 这样显示/隐藏时只改一个容器就够了。
     const pauseContainer = this.add.container(0, 0).setDepth(150).setVisible(false);
 
     // 白色遮罩
     const pauseOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0xffffff, 0.6);
+    // 暂停打开后，让全屏遮罩吞掉其余点击，避免点到下层棋盘/按钮。
+    pauseOverlay.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, w, h),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    pauseOverlay.on('pointerdown', () => {
+      console.log('[pause-debug] overlay');
+    });
     pauseContainer.add(pauseOverlay);
 
     // 暂停背景面板（pause-bg）
@@ -149,8 +186,10 @@ export class GameScene extends Phaser.Scene {
     }
     const homeBtn = this.add.image(w / 2, h / 2 - 30, 'shared2', 'home-btn');
     // homeBtn.setScale(0.8);
-    homeBtn.setInteractive({ useHandCursor: true });
+    this.bindHitAreaToDisplaySize(homeBtn);
     homeBtn.on('pointerdown', () => {
+      console.log('[pause-debug] home');
+      this.isPauseOpen = false;
       pauseContainer.setVisible(false);
       this.scene.start('MenuScene');
     });
@@ -162,11 +201,17 @@ export class GameScene extends Phaser.Scene {
     }
     const resumeBtn = this.add.image(w / 2, h / 2 + 110, 'shared1', 'pink-off-btn');
     // resumeBtn.setScale(0.8);
-    resumeBtn.setInteractive({ useHandCursor: true });
+    this.bindHitAreaToDisplaySize(resumeBtn);
     resumeBtn.on('pointerdown', () => {
+      console.log('[pause-debug] restart');
+      this.isPauseOpen = false;
       isPaused = false;
       pauseBtn.setTexture('shared2', 'pause-btn');
       pauseContainer.setVisible(false);
+      sessionStorage.removeItem('giant2048_state');
+      sessionStorage.removeItem('giant2048_playing');
+      void this.recorder.finish('restart');
+      this.scene.restart();
     });
     pauseContainer.add(resumeBtn);
 
@@ -176,8 +221,10 @@ export class GameScene extends Phaser.Scene {
     }
     const playGreenBtn = this.add.image(w / 2, h / 2 + 240, 'shared1', 'play-green-btn');
     // playGreenBtn.setScale(0.8);
-    playGreenBtn.setInteractive({ useHandCursor: true });
+    this.bindHitAreaToDisplaySize(playGreenBtn);
     playGreenBtn.on('pointerdown', () => {
+      console.log('[pause-debug] resume');
+      this.isPauseOpen = false;
       isPaused = false;
       pauseBtn.setTexture('shared2', 'pause-btn');
       pauseContainer.setVisible(false);
@@ -185,14 +232,40 @@ export class GameScene extends Phaser.Scene {
     pauseContainer.add(playGreenBtn);
 
     let isPaused = false;
+    const closePause = (): void => {
+      this.isPauseOpen = false;
+      isPaused = false;
+      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseContainer.setVisible(false);
+    };
+
+    const openPause = (): void => {
+      this.isPauseOpen = true;
+      isPaused = true;
+      pauseBtn.setTexture('shared2', 'pause-btn-active');
+      pauseContainer.setVisible(true);
+    };
+
     pauseBtn.on('pointerdown', () => {
       console.log('[暂停按钮] 点击了');
-      isPaused = !isPaused;
-      pauseBtn.setTexture('shared2', isPaused ? 'pause-btn-active' : 'pause-btn');
-      pauseContainer.setVisible(isPaused);
+      if (isPaused) {
+        closePause();
+      } else {
+        openPause();
+      }
     });
 
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown-ESC', () => {
+        if (!this.isPauseOpen) return;
+        console.log('[pause-debug] esc-close');
+        closePause();
+      });
+    }
+
     // DEBUG: 全屏点击监控
+    // input.hitTestPointer(pointer) 会返回当前指针命中的所有交互对象，
+    // 很适合排查“看起来点到 A，实际上触发 B”的输入问题。
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       const hitObjects = this.input.hitTestPointer(pointer);
       const names = hitObjects.map((obj: Phaser.GameObjects.GameObject) => obj.constructor.name + (obj instanceof Phaser.GameObjects.Image ? ` (${(obj as Phaser.GameObjects.Image).frame?.name || ''})` : ''));
@@ -643,6 +716,7 @@ export class GameScene extends Phaser.Scene {
   // 执行旋转：整个棋盘容器（背景+糖果+石头）一起旋转动画
   private doRotate(direction: 'cw' | 'ccw'): void {
     // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
+    if (this.isPauseOpen) return;
     if (this.isRotating) return;
     this.isRotating = true;
 
@@ -668,6 +742,7 @@ export class GameScene extends Phaser.Scene {
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
   private handleShoot(shape: Shape, col: number): void {
     // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
+    if (this.isPauseOpen) return;
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
     this.printGrid('发射前');
 
