@@ -54,6 +54,93 @@ plan3 = ...
 - `generated_sequence` 的目标不是一次性库存，而是可复用测试样本
 - 最终通过玩家数据评估哪个 `sequence_plan` 或 `generated_sequence` 更好玩
 
+## 接口模式
+
+系统采用“整局结果上报模式”，不再使用逐步签名链校验。
+
+### 低频交互原则
+
+系统采用低频交互模式：
+
+- 开局时与后端交互一次，获取本局信息和完整序列
+- 结束时与后端交互一次，提交整局结果
+- 游戏过程中不进行逐步上报，不频繁访问数据库
+
+因此，主流程只保留两次核心交互：
+
+- `start-game`
+- `submit-game`
+
+以下旧模式接口不再属于主流程：
+
+- `extend-sequence`
+- `action`
+- `update-score`
+- 基于 `sign` 的逐步签名链校验
+
+### 序列唯一来源原则
+
+本局所有可消费内容都只能来自 `start-game` 返回的 `sequence`，不能从其他任何来源生成。
+
+包括但不限于：
+
+- 弹弓当前糖果
+- 底部坑位中的下一个糖果预览
+- `"stone"` 触发的障碍物生成
+
+因此，前端只负责解释和消费这条序列，不允许从以下来源补充内容：
+
+- 本地随机生成
+- `extend-sequence`
+- 旧的硬编码概率表
+- 其他接口单独返回的“下一个糖果”
+- 任何未记录在本局 `sequence` 中的临时内容
+
+说明：
+- 数字字符串表示一个可发射糖果
+- `"stone"` 表示一次生成障碍物的指令，不是可发射道具
+- 前端在消费到 `"stone"` 时，应立即触发石头生成，再继续向后读取，直到拿到下一个可发射糖果
+
+### 1. `start-game`
+
+开局时返回当前局信息与本局要使用的序列。
+
+建议响应字段：
+
+| 字段 | 说明 |
+|------|------|
+| `gameId` | 当前游戏局 ID |
+| `sequencePlanId` | 本局所属玩法方案 |
+| `generatedSequenceId` | 本局实际使用的预生成序列 |
+| `sequence` | 本局可用的完整序列数据，或首批序列数据 |
+
+### 2. `submit-game`
+
+游戏结束后，前端一次性提交整局结果。
+
+建议请求字段：
+
+| 字段 | 说明 |
+|------|------|
+| `gameId` | 当前游戏局 ID |
+| `finalScore` | 最终得分 |
+| `actionsCount` | 本局操作总数 |
+| `endReason` | 结束原因，如 `gameover` / `timeout` / `restart` |
+
+可选扩展字段：
+
+| 字段 | 说明 |
+|------|------|
+| `durationMs` | 本局时长 |
+| `highestValue` | 本局合成的最高值 |
+| `rotateCount` | 旋转次数 |
+| `shootCount` | 发射次数 |
+
+说明：
+- 前端负责整局本地游玩逻辑
+- 后端负责记录本局归属的 `sequence_plan` 与 `generated_sequence`
+- 后端负责保存整局结果，用于后续玩法评估与排行榜统计
+
 ## 数据库表设计
 
 ### 1. `stages`
@@ -114,10 +201,45 @@ plan3 = ...
 | `created_at` | DATETIME | 创建时间 |
 | `updated_at` | DATETIME | 更新时间 |
 
+### 5. `games`
+
+存储玩家的每一局游戏，并关联到本局所使用的玩法方案和预生成序列。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `game_id` | UUID / TEXT PK | 游戏局唯一标识 |
+| `fingerprint` | TEXT | 玩家设备指纹 |
+| `user_id` | TEXT | 玩家 ID，可为空字符串 |
+| `sequence_plan_id` | UUID / TEXT FK | 本局所属玩法方案 |
+| `generated_sequence_id` | UUID / TEXT FK | 本局实际使用的预生成序列 |
+| `score` | INTEGER | 最终得分 |
+| `actions_count` | INTEGER | 本局操作数 |
+| `status` | TEXT | 状态，如 `playing` / `finished` |
+| `end_reason` | TEXT | 结束原因 |
+| `created_at` | DATETIME | 开局时间 |
+| `ended_at` | DATETIME | 结束时间 |
+| `last_update_at` | DATETIME | 最后更新时间 |
+
+### 6. `scores`
+
+存储排行榜结果，可由 `games` 表中的已结束对局汇总生成，也可单独冗余存储。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | INTEGER PK / AUTOINCREMENT | 排行记录主键 |
+| `game_id` | UUID / TEXT FK | 对应游戏局 |
+| `fingerprint` | TEXT | 玩家设备指纹 |
+| `score` | INTEGER | 最终得分 |
+| `actions_count` | INTEGER | 本局操作数 |
+| `created_at` | DATETIME | 记录创建时间 |
+
 ## 关系总结
 
 - 一个 `sequence_plan` 可以包含多个 `stage`
 - 一个 `stage` 可以被多个 `sequence_plan` 复用
 - 一个 `sequence_plan` 可以生成多条 `generated_sequence`
 - 一条 `generated_sequence` 可以被多个玩家重复体验
+- 一个 `game` 关联一条 `sequence_plan` 和一条 `generated_sequence`
+- 一个 `generated_sequence` 可以对应多条 `game` 记录
+- `scores` 用于记录或汇总已结束对局结果
 - 每局开局时，从某个 `sequence_plan` 下取一条状态为 `enabled` 的 `generated_sequence`
