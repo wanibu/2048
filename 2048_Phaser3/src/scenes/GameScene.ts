@@ -135,7 +135,7 @@ export class GameScene extends Phaser.Scene {
     }
     const trayScale = w / 781; // 宽度铺满
     const trayH = 260 * trayScale;
-    const tray = this.add.image(0, h - trayH, 'shared0', 'mobile-tray');
+    const tray = this.add.image(0, h - trayH - 50, 'shared0', 'mobile-tray');
     tray.setOrigin(0, 0); // 左上角对齐
     tray.setScale(trayScale);
     tray.setDepth(70);
@@ -145,7 +145,7 @@ export class GameScene extends Phaser.Scene {
     if (!tex2.has('candy-hole')) {
       tex2.add('candy-hole', 0, 260, 263, 120, 120);
     }
-    const hole = this.add.image(w / 2, h - trayH / 2 + 55, 'shared2', 'candy-hole');
+    const hole = this.add.image(w / 2, h - trayH / 2 + 5, 'shared2', 'candy-hole');
     hole.setScale(0.7)
     hole.setDepth(71);
 
@@ -784,7 +784,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 左旋转按钮 — 原尺寸，左边
-    const leftBtn = this.add.image(132 / 2 + 40, btnY, 'shared2', 'rotate_btn');
+    const leftBtn = this.add.image(132 / 2 + 40, btnY - 50, 'shared2', 'rotate_btn');
     leftBtn.setScale(0.8)
     leftBtn.setOrigin(0.5).setDepth(80);
     const leftBtnZone = this.createButtonZone(
@@ -802,7 +802,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // 右旋转按钮 — 原尺寸，右边，水平翻转
-    const rightBtn = this.add.image(w - 132 / 2 - 45, btnY, 'shared2', 'rotate_btn');
+    const rightBtn = this.add.image(w - 132 / 2 - 45, btnY - 50, 'shared2', 'rotate_btn');
     rightBtn.setFlipX(true);
     rightBtn.setScale(0.8)
     rightBtn.setOrigin(0.5).setDepth(80);

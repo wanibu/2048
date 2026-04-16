@@ -1,5 +1,71 @@
 # 预生成序列测试系统
 
+## 当前代码实现说明
+
+下面的大部分章节描述的是目标设计，但仓库当前代码已经落地了一版“过渡实现”。  
+如果你要核对实际数据流，请优先看这两个文件：
+
+- 协议图：[current-game-protocol-flow.puml](/Users/yibu/dev_workspace/github.com/2048/docs/current-game-protocol-flow.puml)
+- 当前实现代码：
+  - [workers/src/index.ts](/Users/yibu/dev_workspace/github.com/2048/2048_Phaser3/workers/src/index.ts:1)
+  - [src/systems/ActionRecorder.ts](/Users/yibu/dev_workspace/github.com/2048/2048_Phaser3/src/systems/ActionRecorder.ts:1)
+
+### 当前代码实际数据流
+
+当前代码不是纯“低频两次交互”模式，而是下面这套：
+
+1. `start-game`
+   - 返回 `gameId`
+   - 返回完整 `sequence`
+   - 返回 `sequencePlanId`
+   - 返回 `generatedSequenceId`
+   - 返回初始 `sign`
+2. 游戏过程中
+   - 前端只从 `start-game.sequence` 消费内容
+   - 数字字符串表示糖果
+   - `"stone"` 表示前端立即生成一个石头障碍
+   - 当前糖果和下一个糖果预览都从这条序列本地推进
+3. 每次操作仍然调用 `/api/action`
+   - `shoot`
+   - `rotate`
+   - `direct_merge`
+   - 后端继续推进 `sign` 签名链
+4. 分数仍然可通过 `/api/update-score` 实时写回
+5. 结束时调用 `/api/end-game`
+   - 提交 `gameId`
+   - 提交 `finalSign`
+   - 提交 `finalScore`
+   - 提交 `endReason`
+6. `/api/submit-game`
+   - 当前只是 `/api/end-game` 的兼容别名
+   - 请求体与 `/api/end-game` 一致
+
+### 当前代码中的唯一来源原则
+
+当前代码已经遵守这一点：
+
+- 弹弓当前糖果，只来自 `start-game.sequence`
+- 下一个糖果坑位，只来自 `start-game.sequence`
+- 石头生成事件，只来自 `start-game.sequence` 里的 `"stone"`
+
+当前代码不会再从这些来源补内容：
+
+- 本地随机糖果池
+- `extend-sequence`
+- 独立石头计数器
+- 旧硬编码概率表
+
+### 当前接口现状
+
+| 接口 | 当前状态 | 说明 |
+|------|------|------|
+| `/api/start-game` | 主流程 | 开局，返回完整序列和初始签名 |
+| `/api/action` | 主流程 | 每步操作，推进签名链 |
+| `/api/update-score` | 主流程 | 实时更新分数 |
+| `/api/end-game` | 主流程 | 用 `finalSign` 结束对局 |
+| `/api/submit-game` | 兼容接口 | 当前是 `/api/end-game` 的别名 |
+| `/api/extend-sequence` | 已废弃 | 当前 sequence 一次性下发，不再使用 |
+
 ## 概念
 
 | 术语 | 说明 |

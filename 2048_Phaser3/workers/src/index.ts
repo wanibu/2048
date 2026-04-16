@@ -31,6 +31,20 @@ async function sha256(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function chainSign(prevSign: string, action: {
+  type: 'shoot' | 'rotate' | 'direct_merge';
+  col?: number;
+  value?: number;
+  direction?: 'cw' | 'ccw';
+  resultValue?: number;
+}, step: number): Promise<string> {
+  return sha256(prevSign + JSON.stringify({ step, ...action }));
+}
+
+async function initSign(gameId: string): Promise<string> {
+  return sha256(`giant2048_game_${gameId}`);
+}
+
 function generateGameId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
@@ -134,6 +148,7 @@ export default {
         const gameId = generateGameId();
         const seed = Math.floor(Math.random() * 2147483647);
         const now = new Date().toISOString();
+        const sign = await initSign(gameId);
         const { sequence, sequencePlanId, generatedSequenceId } = await getPlayableSequence(env);
 
         await env.DB.prepare(
@@ -148,7 +163,7 @@ export default {
           seed,
           0,
           0,
-          '',
+          sign,
           'playing',
           sequencePlanId,
           generatedSequenceId,
@@ -163,6 +178,7 @@ export default {
           sequence,
           sequencePlanId,
           generatedSequenceId,
+          sign,
         });
       }
 
@@ -171,30 +187,78 @@ export default {
         return jsonResponse({ error: 'Deprecated API: sequence is now returned only by /api/start-game' }, 410);
       }
 
-      // ===== Deprecated: 每步操作 =====
+      // ===== 每步操作：推进签名链 =====
       if (url.pathname === '/api/action' && request.method === 'POST') {
-        return jsonResponse({ error: 'Deprecated API: use /api/submit-game at the end of the run' }, 410);
+        const { gameId, action } = await request.json() as {
+          gameId: string;
+          action: {
+            type: 'shoot' | 'rotate' | 'direct_merge';
+            col?: number;
+            value?: number;
+            direction?: 'cw' | 'ccw';
+            resultValue?: number;
+          };
+        };
+        if (!gameId || !action) return jsonResponse({ error: 'Missing fields' }, 400);
+
+        const game = await env.DB.prepare(
+          'SELECT * FROM games WHERE game_id = ?'
+        ).bind(gameId).first() as Record<string, unknown> | null;
+
+        if (!game) return jsonResponse({ error: 'Game not found' }, 404);
+        if (game.status !== 'playing') return jsonResponse({ error: 'Game finished' }, 400);
+
+        if (action.type === 'shoot' || action.type === 'direct_merge') {
+          if (action.col === undefined || action.col < 0 || action.col >= 5) {
+            return jsonResponse({ error: 'Invalid column' }, 400);
+          }
+        }
+        if (action.type === 'rotate') {
+          if (action.direction !== 'cw' && action.direction !== 'ccw') {
+            return jsonResponse({ error: 'Invalid direction' }, 400);
+          }
+        }
+
+        const newStep = (game.step as number) + 1;
+        const newSign = await chainSign(game.sign as string, action, newStep);
+        const now = new Date().toISOString();
+
+        await env.DB.prepare(
+          'UPDATE games SET step = ?, sign = ?, last_update_at = ? WHERE game_id = ?'
+        ).bind(newStep, newSign, now, gameId).run();
+
+        return jsonResponse({ step: newStep, sign: newSign });
       }
 
-      // ===== Deprecated: 更新分数 =====
+      // ===== 更新分数：兼容旧前端链路 =====
       if (url.pathname === '/api/update-score' && request.method === 'POST') {
-        return jsonResponse({ error: 'Deprecated API: use /api/submit-game at the end of the run' }, 410);
+        const { gameId, score } = await request.json() as { gameId: string; score: number };
+        if (!gameId || !Number.isFinite(score)) {
+          return jsonResponse({ error: 'Missing or invalid fields' }, 400);
+        }
+
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+          "UPDATE games SET score = ?, last_update_at = ? WHERE game_id = ? AND status = 'playing'"
+        ).bind(score, now, gameId).run();
+
+        return jsonResponse({ success: true });
       }
 
-      // ===== 游戏结束：整局一次性提交 =====
+      // ===== submit-game：兼容 end-game 的别名 =====
       if (url.pathname === '/api/submit-game' && request.method === 'POST') {
         const {
           gameId,
+          finalSign,
           finalScore,
-          actionsCount,
           endReason,
         } = await request.json() as {
           gameId: string;
+          finalSign: string;
           finalScore: number;
-          actionsCount: number;
           endReason?: string;
         };
-        if (!gameId || !Number.isFinite(finalScore) || !Number.isFinite(actionsCount)) {
+        if (!gameId || !finalSign || !Number.isFinite(finalScore)) {
           return jsonResponse({ error: 'Missing or invalid fields' }, 400);
         }
 
@@ -204,6 +268,7 @@ export default {
 
         if (!game) return jsonResponse({ error: 'Game not found' }, 404);
         if (game.status !== 'playing') return jsonResponse({ error: 'Game already finished' }, 400);
+        if (finalSign !== game.sign) return jsonResponse({ error: 'Invalid signature' }, 403);
 
         const now = new Date().toISOString();
         const reason = endReason || 'gameover';
@@ -212,11 +277,11 @@ export default {
           `UPDATE games
            SET score = ?, step = ?, status = 'finished', end_reason = ?, ended_at = ?, last_update_at = ?
            WHERE game_id = ?`
-        ).bind(finalScore, actionsCount, reason, now, now, gameId).run();
+        ).bind(finalScore, game.step as number, reason, now, now, gameId).run();
 
         await env.DB.prepare(
           'INSERT INTO scores (game_id, fingerprint, score, actions_count, sign, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(gameId, game.fingerprint as string, finalScore, actionsCount, '', now).run();
+        ).bind(gameId, game.fingerprint as string, finalScore, game.step as number, finalSign, now).run();
 
         const rankResult = await env.DB.prepare(
           'SELECT COUNT(*) as rank FROM scores WHERE score > ?'
@@ -229,9 +294,53 @@ export default {
         });
       }
 
-      // ===== Deprecated: 旧结束接口 =====
+      // ===== 游戏结束：提交最终分数，并校验最终签名 =====
       if (url.pathname === '/api/end-game' && request.method === 'POST') {
-        return jsonResponse({ error: 'Deprecated API: use /api/submit-game' }, 410);
+        const {
+          gameId,
+          finalSign,
+          finalScore,
+          endReason,
+        } = await request.json() as {
+          gameId: string;
+          finalSign: string;
+          finalScore: number;
+          endReason?: string;
+        };
+        if (!gameId || !finalSign || !Number.isFinite(finalScore)) {
+          return jsonResponse({ error: 'Missing or invalid fields' }, 400);
+        }
+
+        const game = await env.DB.prepare(
+          'SELECT * FROM games WHERE game_id = ?'
+        ).bind(gameId).first() as Record<string, unknown> | null;
+
+        if (!game) return jsonResponse({ error: 'Game not found' }, 404);
+        if (game.status !== 'playing') return jsonResponse({ error: 'Game already finished' }, 400);
+        if (finalSign !== game.sign) return jsonResponse({ error: 'Invalid signature' }, 403);
+
+        const now = new Date().toISOString();
+        const reason = endReason || 'gameover';
+
+        await env.DB.prepare(
+          `UPDATE games
+           SET score = ?, step = ?, status = 'finished', end_reason = ?, ended_at = ?, last_update_at = ?
+           WHERE game_id = ?`
+        ).bind(finalScore, game.step as number, reason, now, now, gameId).run();
+
+        await env.DB.prepare(
+          'INSERT INTO scores (game_id, fingerprint, score, actions_count, sign, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(gameId, game.fingerprint as string, finalScore, game.step as number, finalSign, now).run();
+
+        const rankResult = await env.DB.prepare(
+          'SELECT COUNT(*) as rank FROM scores WHERE score > ?'
+        ).bind(finalScore).first() as Record<string, unknown> | null;
+
+        return jsonResponse({
+          success: true,
+          score: finalScore,
+          rank: rankResult ? (rankResult.rank as number) + 1 : 1,
+        });
       }
 
       // ===== 排行榜 =====

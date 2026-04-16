@@ -8,7 +8,7 @@ import { Grid } from './Grid';
 import { Shape } from './Shape';
 
 export class Sling {
-  private static readonly CANDY_OFFSET_Y = -40;
+  private static readonly CANDY_OFFSET_Y = -90;
   private static readonly CANDY_SIZE = 130;
 
   private scene: Phaser.Scene;
@@ -67,7 +67,7 @@ export class Sling {
     // Sling sprite
     const slingW = 258;
     this.slingH = 163;
-    this.slingSprite = scene.add.image(grid.colToX(this.selectedCol), this.slingY, 'shared1', 'sling_0');
+    this.slingSprite = scene.add.image(grid.colToX(this.selectedCol), this.slingY - 50, 'shared1', 'sling_0');
     this.slingSprite.setDisplaySize(slingW, this.slingH);
     this.slingSprite.setDepth(50);
 
@@ -131,7 +131,7 @@ export class Sling {
     const trayScale = w / 781;
     const trayH = 260 * trayScale;
     const previewX = w / 2;
-    const previewY = h - trayH / 2 + 55; // 和坑的Y坐标一致
+    const previewY = h - trayH / 2 + 5; // 和坑的Y坐标一致
     this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, 90);
     this.nextPreview.setDepth(100);
   }

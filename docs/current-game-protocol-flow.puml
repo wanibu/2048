@@ -1,0 +1,65 @@
+@startuml
+title Giant 2048 Current Protocol Flow
+
+actor Player
+participant "Frontend\nGameScene + Sling" as FE
+participant "ActionRecorder" as Recorder
+participant "Workers API" as API
+database "D1 DB" as DB
+
+== Start Game ==
+Player -> FE: Enter game
+FE -> Recorder: init(userId)
+Recorder -> API: POST /api/start-game\n{ fingerprint, userId }
+API -> DB: close old playing games for fingerprint
+API -> DB: select random enabled generated_sequence\nor generate one from sequence_plan
+API -> DB: insert games row\n(status=playing, sign=initSign, sequence_plan_id,\ngenerated_sequence_id)
+API --> Recorder: { gameId, sequence, sequencePlanId,\ngeneratedSequenceId, sign }
+
+Recorder -> Recorder: consume sequence tokens locally
+note right of Recorder
+  sequence is the only content source
+  numeric string => candy
+  "stone" => spawn obstacle instruction
+end note
+
+Recorder --> FE: prepareInitialCandies()\n=> currentCandy + nextCandy
+FE -> FE: if token == "stone"\nspawnStone()
+FE -> FE: Sling.initCandies(currentCandy, nextCandy)
+
+== During Gameplay ==
+Player -> FE: shoot / rotate / direct merge
+FE -> Recorder: recordShoot / recordRotate /\nrecordDirectMerge
+Recorder -> API: POST /api/action\n{ gameId, action }
+API -> DB: update games.step, games.sign,\ngames.last_update_at
+API --> Recorder: { step, sign }
+Recorder -> Recorder: currentSign = sign
+
+FE -> Recorder: reportScore(score)
+Recorder -> API: POST /api/update-score\n{ gameId, score }
+API -> DB: update games.score,\ngames.last_update_at
+API --> Recorder: { success: true }
+
+FE -> Recorder: advanceAfterShot()
+Recorder -> Recorder: keep consuming local sequence
+Recorder --> FE: { currentCandy, nextCandy }
+FE -> FE: if token == "stone"\nspawnStone()
+FE -> FE: update sling current/preview
+
+== End Game ==
+FE -> Recorder: finish(finalScore, endReason)
+Recorder -> API: POST /api/end-game\n{ gameId, finalSign, finalScore, endReason }
+API -> DB: verify finalSign == games.sign
+API -> DB: update games\n(score, status=finished, end_reason,\nended_at, last_update_at)
+API -> DB: insert scores row
+API --> Recorder: { success, score, rank }
+Recorder --> FE: { rank }
+
+== Compatibility Alias ==
+note over API
+  /api/submit-game is currently a compatibility alias
+  of /api/end-game and accepts the same payload:
+  { gameId, finalSign, finalScore, endReason }
+end note
+
+@enduml
