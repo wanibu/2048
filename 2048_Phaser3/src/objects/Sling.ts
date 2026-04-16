@@ -93,7 +93,7 @@ export class Sling {
     // 糖果球初始位置：相对弹弓中心固定上移
     this.shapeBaseY = this.slingY + Sling.CANDY_OFFSET_Y;
     this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, Sling.CANDY_SIZE);
-    this.currentShape.setDepth(60);
+    this.currentShape.setDepth(140);
     this.shootAvailable = true;
     this.setSlingState(0);
 
