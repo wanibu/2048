@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS stages (
 -- 2. sequence_plans: 玩法方案
 CREATE TABLE IF NOT EXISTS sequence_plans (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   description TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -49,4 +49,8 @@ CREATE INDEX IF NOT EXISTS idx_gen_seq_plan ON generated_sequences(sequence_plan
 CREATE INDEX IF NOT EXISTS idx_gen_seq_status ON generated_sequences(status);
 
 -- games 表新增字段：关联预生成序列
+ALTER TABLE games ADD COLUMN sequence_plan_id TEXT DEFAULT '';
 ALTER TABLE games ADD COLUMN generated_sequence_id TEXT DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS idx_games_sequence_plan_id ON games(sequence_plan_id);
+CREATE INDEX IF NOT EXISTS idx_games_generated_sequence_id ON games(generated_sequence_id);

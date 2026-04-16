@@ -1,21 +1,13 @@
 // Giant 2048 — Cloudflare Workers 后端
-// 职责：序列配置管理、局管理、链式签名验证、排行榜、Admin
+// 职责：序列配置管理、局管理、排行榜、Admin
 
-import { generateSequence, randomConfig, getConfigById, SEQUENCE_CONFIGS, generateSequenceFromPlan, PlanStageRow } from './sequence-config';
-
-interface GameAction {
-  type: 'shoot' | 'rotate' | 'direct_merge';
-  col?: number;
-  value?: number;
-  direction?: 'cw' | 'ccw';
-  resultValue?: number;
-}
+import { generateSequenceFromPlan, PlanStageRow } from './sequence-config';
 
 interface Env {
   DB: D1Database;
 }
 
-const BATCH_SIZE = 50; // 每批生成50个糖果
+type SequenceToken = `${number}` | 'stone';
 
 // CORS
 const corsHeaders = {
@@ -39,18 +31,85 @@ async function sha256(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function chainSign(prevSign: string, action: GameAction, step: number): Promise<string> {
-  return sha256(prevSign + JSON.stringify({ step, ...action }));
-}
-
-async function initSign(gameId: string): Promise<string> {
-  return sha256(`giant2048_game_${gameId}`);
-}
-
 function generateGameId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
   return `g_${timestamp}_${random}`;
+}
+
+async function createGeneratedSequenceFromRandomPlan(env: Env): Promise<{
+  generatedSequenceId: string;
+  sequencePlanId: string;
+  sequence: SequenceToken[];
+} | null> {
+  const plan = await env.DB.prepare(
+    'SELECT id FROM sequence_plans ORDER BY RANDOM() LIMIT 1'
+  ).first() as Record<string, unknown> | null;
+
+  if (!plan) return null;
+
+  const stagesResult = await env.DB.prepare(
+    `SELECT s.id as stage_id, s.name, s.length, s.probabilities, sps.stage_order
+     FROM sequence_plan_stages sps
+     JOIN stages s ON s.id = sps.stage_id
+     WHERE sps.sequence_plan_id = ?
+     ORDER BY sps.stage_order ASC`
+  ).bind(plan.id as string).all<PlanStageRow>();
+
+  const stages = stagesResult.results || [];
+  if (stages.length === 0) return null;
+
+  const generatedSequenceId = crypto.randomUUID();
+  const sequence = await generateSequenceFromPlan(stages) as SequenceToken[];
+  const now = new Date().toISOString();
+
+  await env.DB.prepare(
+    `INSERT INTO generated_sequences
+     (id, sequence_plan_id, sequence_data, sequence_length, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'enabled', ?, ?)`
+  ).bind(
+    generatedSequenceId,
+    plan.id as string,
+    JSON.stringify(sequence),
+    sequence.length,
+    now,
+    now,
+  ).run();
+
+  return {
+    generatedSequenceId,
+    sequencePlanId: plan.id as string,
+    sequence,
+  };
+}
+
+async function getPlayableSequence(env: Env): Promise<{
+  generatedSequenceId: string;
+  sequencePlanId: string;
+  sequence: SequenceToken[];
+}> {
+  const generated = await env.DB.prepare(
+    `SELECT id, sequence_plan_id, sequence_data
+     FROM generated_sequences
+     WHERE status = 'enabled'
+     ORDER BY RANDOM()
+     LIMIT 1`
+  ).first() as Record<string, unknown> | null;
+
+  if (generated) {
+    const rawSequence = JSON.parse(generated.sequence_data as string) as Array<string | number>;
+    return {
+      generatedSequenceId: generated.id as string,
+      sequencePlanId: generated.sequence_plan_id as string,
+      sequence: rawSequence.map((token) => String(token) as SequenceToken),
+    };
+  }
+
+  const created = await createGeneratedSequenceFromRandomPlan(env);
+  if (!created) {
+    throw new Error('No enabled generated sequence and no sequence plan available');
+  }
+  return created;
 }
 
 export default {
@@ -74,150 +133,70 @@ export default {
 
         const gameId = generateGameId();
         const seed = Math.floor(Math.random() * 2147483647);
-        const sign = await initSign(gameId);
         const now = new Date().toISOString();
-
-        // 优先从预生成序列中随机取一条 enabled 的
-        const genSeq = await env.DB.prepare(
-          "SELECT * FROM generated_sequences WHERE status = 'enabled' ORDER BY RANDOM() LIMIT 1"
-        ).first() as Record<string, unknown> | null;
-
-        let sequence: (string | number)[];
-        let sequenceConfig: string;
-        let generatedSequenceId = '';
-
-        if (genSeq) {
-          // 使用预生成序列
-          const fullSeq = JSON.parse(genSeq.sequence_data as string) as string[];
-          sequence = fullSeq.slice(0, BATCH_SIZE);
-          sequenceConfig = `plan:${genSeq.sequence_plan_id}`;
-          generatedSequenceId = genSeq.id as string;
-        } else {
-          // 没有预生成序列时，降级用旧的硬编码配置
-          const config = randomConfig(seed);
-          sequence = await generateSequence(seed, 1, BATCH_SIZE, config);
-          sequenceConfig = config.id;
-        }
+        const { sequence, sequencePlanId, generatedSequenceId } = await getPlayableSequence(env);
 
         await env.DB.prepare(
-          `INSERT INTO games (game_id, fingerprint, user_id, seed, step, score, sign, status,
-           sequence_config, sequence, end_reason, ended_at, last_update_at, created_at, generated_sequence_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO games
+           (game_id, fingerprint, user_id, seed, step, score, sign, status,
+            sequence_plan_id, generated_sequence_id, end_reason, ended_at, last_update_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
-          gameId, fingerprint, userId || '', seed, 0, 0, sign, 'playing',
-          sequenceConfig, JSON.stringify(sequence), '', '', now, now, generatedSequenceId
+          gameId,
+          fingerprint,
+          userId || '',
+          seed,
+          0,
+          0,
+          '',
+          'playing',
+          sequencePlanId,
+          generatedSequenceId,
+          '',
+          '',
+          now,
+          now,
         ).run();
 
         return jsonResponse({
           gameId,
           sequence,
-          sequenceConfig,
-          sign,
+          sequencePlanId,
+          generatedSequenceId,
         });
       }
 
-      // ===== 请求更多糖果（50个用完后） =====
+      // ===== Deprecated: 请求更多糖果 =====
       if (url.pathname === '/api/extend-sequence' && request.method === 'POST') {
-        const { gameId } = await request.json() as { gameId: string };
-        if (!gameId) return jsonResponse({ error: 'Missing gameId' }, 400);
-
-        const game = await env.DB.prepare(
-          'SELECT * FROM games WHERE game_id = ?'
-        ).bind(gameId).first() as Record<string, unknown> | null;
-
-        if (!game) return jsonResponse({ error: 'Game not found' }, 404);
-        if (game.status !== 'playing') return jsonResponse({ error: 'Game finished' }, 400);
-
-        const existingSeq = JSON.parse(game.sequence as string) as (string | number)[];
-        const genSeqId = game.generated_sequence_id as string;
-
-        let newBatch: (string | number)[];
-
-        if (genSeqId) {
-          // 预生成序列模式：从完整序列中继续切片
-          const genSeq = await env.DB.prepare(
-            'SELECT sequence_data FROM generated_sequences WHERE id = ?'
-          ).bind(genSeqId).first() as Record<string, unknown> | null;
-
-          if (!genSeq) return jsonResponse({ error: 'Generated sequence not found' }, 500);
-
-          const fullSeq = JSON.parse(genSeq.sequence_data as string) as string[];
-          const startIndex = existingSeq.length;
-          newBatch = fullSeq.slice(startIndex, startIndex + BATCH_SIZE);
-
-          if (newBatch.length === 0) {
-            return jsonResponse({ error: 'Sequence exhausted', sequence: [], startIndex });
-          }
-        } else {
-          // 旧版模式：动态生成
-          const config = getConfigById(game.sequence_config as string);
-          if (!config) return jsonResponse({ error: 'Invalid config' }, 500);
-
-          const startStep = existingSeq.length + 1;
-          newBatch = await generateSequence(game.seed as number, startStep, BATCH_SIZE, config);
-        }
-
-        // 追加到序列记录
-        const fullSequence = [...existingSeq, ...newBatch];
-        await env.DB.prepare(
-          'UPDATE games SET sequence = ? WHERE game_id = ?'
-        ).bind(JSON.stringify(fullSequence), gameId).run();
-
-        return jsonResponse({ sequence: newBatch, startIndex: existingSeq.length });
+        return jsonResponse({ error: 'Deprecated API: sequence is now returned only by /api/start-game' }, 410);
       }
 
-      // ===== 每步操作 =====
+      // ===== Deprecated: 每步操作 =====
       if (url.pathname === '/api/action' && request.method === 'POST') {
-        const { gameId, action } = await request.json() as { gameId: string; action: GameAction };
-        if (!gameId || !action) return jsonResponse({ error: 'Missing fields' }, 400);
-
-        const game = await env.DB.prepare(
-          'SELECT * FROM games WHERE game_id = ?'
-        ).bind(gameId).first() as Record<string, unknown> | null;
-
-        if (!game) return jsonResponse({ error: 'Game not found' }, 404);
-        if (game.status !== 'playing') return jsonResponse({ error: 'Game finished' }, 400);
-
-        // 验证 action 合法性
-        if (action.type === 'shoot' || action.type === 'direct_merge') {
-          if (action.col === undefined || action.col < 0 || action.col >= 5)
-            return jsonResponse({ error: 'Invalid column' }, 400);
-        }
-        if (action.type === 'rotate') {
-          if (action.direction !== 'cw' && action.direction !== 'ccw')
-            return jsonResponse({ error: 'Invalid direction' }, 400);
-        }
-
-        const newStep = (game.step as number) + 1;
-        const newSign = await chainSign(game.sign as string, action, newStep);
-        const now = new Date().toISOString();
-
-        await env.DB.prepare(
-          'UPDATE games SET step = ?, sign = ?, last_update_at = ? WHERE game_id = ?'
-        ).bind(newStep, newSign, now, gameId).run();
-
-        return jsonResponse({ step: newStep, sign: newSign });
+        return jsonResponse({ error: 'Deprecated API: use /api/submit-game at the end of the run' }, 410);
       }
 
-      // ===== 更新分数 =====
+      // ===== Deprecated: 更新分数 =====
       if (url.pathname === '/api/update-score' && request.method === 'POST') {
-        const { gameId, score } = await request.json() as { gameId: string; score: number };
-        if (!gameId) return jsonResponse({ error: 'Missing gameId' }, 400);
-
-        const now = new Date().toISOString();
-        await env.DB.prepare(
-          "UPDATE games SET score = ?, last_update_at = ? WHERE game_id = ? AND status = 'playing'"
-        ).bind(score, now, gameId).run();
-
-        return jsonResponse({ success: true });
+        return jsonResponse({ error: 'Deprecated API: use /api/submit-game at the end of the run' }, 410);
       }
 
-      // ===== 游戏结束 =====
-      if (url.pathname === '/api/end-game' && request.method === 'POST') {
-        const { gameId, finalSign, endReason } = await request.json() as {
-          gameId: string; finalSign: string; endReason?: string;
+      // ===== 游戏结束：整局一次性提交 =====
+      if (url.pathname === '/api/submit-game' && request.method === 'POST') {
+        const {
+          gameId,
+          finalScore,
+          actionsCount,
+          endReason,
+        } = await request.json() as {
+          gameId: string;
+          finalScore: number;
+          actionsCount: number;
+          endReason?: string;
         };
-        if (!gameId || !finalSign) return jsonResponse({ error: 'Missing fields' }, 400);
+        if (!gameId || !Number.isFinite(finalScore) || !Number.isFinite(actionsCount)) {
+          return jsonResponse({ error: 'Missing or invalid fields' }, 400);
+        }
 
         const game = await env.DB.prepare(
           'SELECT * FROM games WHERE game_id = ?'
@@ -226,30 +205,33 @@ export default {
         if (!game) return jsonResponse({ error: 'Game not found' }, 404);
         if (game.status !== 'playing') return jsonResponse({ error: 'Game already finished' }, 400);
 
-        if (finalSign !== game.sign) {
-          return jsonResponse({ error: 'Invalid signature' }, 403);
-        }
-
         const now = new Date().toISOString();
         const reason = endReason || 'gameover';
 
         await env.DB.prepare(
-          "UPDATE games SET status = 'finished', end_reason = ?, ended_at = ? WHERE game_id = ?"
-        ).bind(reason, now, gameId).run();
+          `UPDATE games
+           SET score = ?, step = ?, status = 'finished', end_reason = ?, ended_at = ?, last_update_at = ?
+           WHERE game_id = ?`
+        ).bind(finalScore, actionsCount, reason, now, now, gameId).run();
 
         await env.DB.prepare(
           'INSERT INTO scores (game_id, fingerprint, score, actions_count, sign, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(gameId, game.fingerprint as string, game.score as number, game.step as number, finalSign, now).run();
+        ).bind(gameId, game.fingerprint as string, finalScore, actionsCount, '', now).run();
 
         const rankResult = await env.DB.prepare(
           'SELECT COUNT(*) as rank FROM scores WHERE score > ?'
-        ).bind(game.score as number).first() as Record<string, unknown> | null;
+        ).bind(finalScore).first() as Record<string, unknown> | null;
 
         return jsonResponse({
           success: true,
-          score: game.score,
+          score: finalScore,
           rank: rankResult ? (rankResult.rank as number) + 1 : 1,
         });
+      }
+
+      // ===== Deprecated: 旧结束接口 =====
+      if (url.pathname === '/api/end-game' && request.method === 'POST') {
+        return jsonResponse({ error: 'Deprecated API: use /api/submit-game' }, 410);
       }
 
       // ===== 排行榜 =====
@@ -281,7 +263,7 @@ export default {
 
         const games = await env.DB.prepare(
           `SELECT game_id, fingerprint, user_id, seed, step, score, sign, status,
-           sequence_config, end_reason, ended_at, last_update_at, created_at
+           sequence_plan_id, generated_sequence_id, end_reason, ended_at, last_update_at, created_at
            FROM games ORDER BY created_at DESC LIMIT ? OFFSET ?`
         ).bind(limit, offset).all();
 
@@ -307,9 +289,6 @@ export default {
 
         return jsonResponse({
           ...game,
-          sequence: JSON.parse((game.sequence as string) || '[]'),
-          signValid: true,
-          suspiciousFlags: [],
         });
       }
 
@@ -330,7 +309,8 @@ export default {
           finishedGames: finishedGames?.c || 0,
           topScore: topScore?.m || 0,
           uniquePlayers: uniquePlayers?.c || 0,
-          configs: SEQUENCE_CONFIGS.map(c => ({ id: c.id, name: c.name })),
+          sequencePlans: (await env.DB.prepare('SELECT COUNT(*) as c FROM sequence_plans').first() as Record<string, unknown> | null)?.c || 0,
+          generatedSequences: (await env.DB.prepare('SELECT COUNT(*) as c FROM generated_sequences').first() as Record<string, unknown> | null)?.c || 0,
         });
       }
 

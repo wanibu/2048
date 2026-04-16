@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, STONE_SPAWN_INTERVAL, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -29,7 +29,6 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
   private lastLandedCol: number | undefined;
-  private shootCount: number = 0; // 发射计数，每5个生成石头
 
   constructor() {
     super({ key: 'GameScene' });
@@ -282,7 +281,7 @@ export class GameScene extends Phaser.Scene {
       pauseContainer.setVisible(false);
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
-      void this.recorder.finish('restart');
+      void this.recorder.finish(this.hud.getScore(), 'restart');
       this.scene.restart();
     });
     pauseContainer.add(resumeBtn);
@@ -467,7 +466,7 @@ export class GameScene extends Phaser.Scene {
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('userId') || '';
 
-    // 后端开局：获取 gameId + 50个糖果序列
+    // 后端开局：获取本局完整 sequence。
     this.initBackend(userId);
 
     this.refreshScoreSprites(updateSpriteNumber);
@@ -589,22 +588,30 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 后端开局：获取 gameId 和50个糖果序列
+  // 后端开局：获取本局完整 sequence。
+  // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private async initBackend(userId: string): Promise<void> {
     try {
-      const { currentCandy, nextCandy } = await this.recorder.init(userId);
-      console.log(`[开局] gameId=${this.recorder.getGameId()}, current=${currentCandy}, next=${nextCandy}`);
-      this.sling.initCandies(currentCandy, nextCandy);
+      await this.recorder.init(userId);
+      const initialCandies = this.recorder.prepareInitialCandies(() => this.spawnStone());
+      if (!initialCandies) {
+        throw new Error('Sequence does not contain any playable candy');
+      }
+      console.log(
+        `[开局] gameId=${this.recorder.getGameId()}, current=${initialCandies.currentCandy}, ` +
+        `next=${initialCandies.nextCandy ?? 'none'}`
+      );
+      this.sling.initCandies(initialCandies.currentCandy, initialCandies.nextCandy);
     } catch (e) {
-      console.error('[开局失败] 使用本地随机模式', e);
-      const pool = [2, 4, 8, 16, 32];
-      const c = pool[Math.floor(Math.random() * pool.length)];
-      const n = pool[Math.floor(Math.random() * pool.length)];
-      this.sling.initCandies(c, n);
+      console.error('[开局失败]', e);
+      this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.45, 'START GAME FAILED', {
+        fontSize: `${Math.round(this.cameras.main.width * 0.07)}px`,
+        color: '#ff5555',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(250);
     }
-
-    // // 启动超时检测（暂时注释）
-    // this.startIdleTimer();
   }
 
   // ===== 超时机制：45秒无操作提示，60秒结束 =====
@@ -682,23 +689,24 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver) return;
     console.log('[超时] 60秒无操作，游戏结束');
     this.hideHurryUp();
-    this.recorder.finish('timeout');
-    this.gameOver();
+    this.gameOver('timeout');
   }
 
-  // 从后端序列取下一个糖果，设置到弹弓上
+  // 从 start-game.sequence 中推进本地游标。
+  // "stone" 不进入弹弓，而是立即触发一次石头生成。
   private respawnWithSequence(): void {
-    // 消费序列中的下一个值作为弹弓上的糖果
-    const nextValue = this.recorder.consumeNext();
-    this.sling.setNextCandy(nextValue);
+    const nextCandies = this.recorder.advanceAfterShot(() => this.spawnStone());
+    if (!nextCandies) {
+      console.warn('[GameScene] sequence exhausted after shot');
+      this.time.delayedCall(150, () => this.gameOver());
+      return;
+    }
+
+    this.sling.setNextCandy(nextCandies.currentCandy);
     this.sling.respawn();
 
-    // 更新预览：peek 下一个
-    const peekValue = this.recorder.peekNext();
-    // respawn 后 300ms 弹弓会调用 spawnNextShape → updateNextPreview
-    // 这里提前设好 nextValue
     this.time.delayedCall(350, () => {
-      this.sling.setNextCandy(peekValue);
+      this.sling.setNextCandy(nextCandies.nextCandy);
     });
   }
 
@@ -956,17 +964,11 @@ export class GameScene extends Phaser.Scene {
     this.sound.play('slingshot2', { volume: 0.3 });
     this.lastLandedCol = col;
 
-    // 发射计数，每 STONE_SPAWN_INTERVAL 个生成一个石头
-    this.shootCount++;
-    if (this.shootCount % STONE_SPAWN_INTERVAL === 0) {
-      this.spawnStone();
-    }
-
     this.printGrid('落地后');
     this.time.delayedCall(150, () => this.checkMerges());
   }
 
-  // 在棋盘随机空格生成一个石头
+  // sequence 中遇到 "stone" 时，在棋盘随机空格生成一个石头。
   private spawnStone(): void {
     // 收集所有空格
     const emptyCells: { row: number; col: number }[] = [];
@@ -1006,7 +1008,7 @@ export class GameScene extends Phaser.Scene {
 
     if (groups.length === 0) {
       this.lastLandedCol = undefined;
-      this.sling.respawn();
+      this.respawnWithSequence();
       // 检查是否游戏结束
       this.time.delayedCall(400, () => this.checkGameOver());
       return;
@@ -1020,7 +1022,6 @@ export class GameScene extends Phaser.Scene {
     console.log(`[合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
 
     this.addScore(result.newValue);
-    this.recorder.reportScore(this.hud.getScore());
     this.sound.play('collapse1', { volume: 0.4 });
     this.lastLandedCol = result.col;
 
@@ -1171,7 +1172,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 游戏结束处理
-  private gameOver(): void {
+  private gameOver(endReason: string = 'gameover'): void {
     if (this.isGameOver) return;
     this.isGameOver = true;
 
@@ -1198,9 +1199,8 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(201);
 
-    // 提交分数到后端并结束游戏
-    this.recorder.reportScore(this.hud.getScore());
-    this.recorder.finish();
+    // 整局结束后一次性提交结果
+    void this.recorder.finish(this.hud.getScore(), endReason);
 
     // 重新开始按钮
     const restartBtn = this.add.text(w / 2, h * 0.58, '↻ RESTART', {

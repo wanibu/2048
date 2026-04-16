@@ -1,25 +1,84 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS stages (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  length INTEGER NOT NULL CHECK (length > 0),
+  probabilities TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sequence_plans (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sequence_plan_stages (
+  id TEXT PRIMARY KEY,
+  sequence_plan_id TEXT NOT NULL,
+  stage_id TEXT NOT NULL,
+  stage_order INTEGER NOT NULL CHECK (stage_order > 0),
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id),
+  FOREIGN KEY (stage_id) REFERENCES stages(id),
+  UNIQUE (sequence_plan_id, stage_order)
+);
+
+CREATE TABLE IF NOT EXISTS generated_sequences (
+  id TEXT PRIMARY KEY,
+  sequence_plan_id TEXT NOT NULL,
+  sequence_data TEXT NOT NULL,
+  sequence_length INTEGER NOT NULL CHECK (sequence_length > 0),
+  status TEXT NOT NULL CHECK (status IN ('enabled', 'disabled')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_sequences_status
+  ON generated_sequences(status);
+
+CREATE INDEX IF NOT EXISTS idx_generated_sequences_sequence_plan_id
+  ON generated_sequences(sequence_plan_id);
+
+CREATE TABLE IF NOT EXISTS games (
+  game_id TEXT PRIMARY KEY,
+  fingerprint TEXT NOT NULL,
+  user_id TEXT NOT NULL DEFAULT '',
+  seed INTEGER NOT NULL,
+  step INTEGER NOT NULL DEFAULT 0,
+  score INTEGER NOT NULL DEFAULT 0,
+  sign TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'playing',
+  sequence_plan_id TEXT,
+  generated_sequence_id TEXT,
+  end_reason TEXT NOT NULL DEFAULT '',
+  ended_at TEXT NOT NULL DEFAULT '',
+  last_update_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id),
+  FOREIGN KEY (generated_sequence_id) REFERENCES generated_sequences(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_games_fingerprint ON games(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
+CREATE INDEX IF NOT EXISTS idx_games_sequence_plan_id ON games(sequence_plan_id);
+CREATE INDEX IF NOT EXISTS idx_games_generated_sequence_id ON games(generated_sequence_id);
+
 CREATE TABLE IF NOT EXISTS scores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   game_id TEXT NOT NULL,
   fingerprint TEXT NOT NULL,
   score INTEGER NOT NULL,
-  actions_count INTEGER NOT NULL,
-  sign TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  actions_count INTEGER NOT NULL DEFAULT 0,
+  sign TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (game_id) REFERENCES games(game_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores(score DESC);
-
-CREATE TABLE IF NOT EXISTS games (
-  game_id TEXT PRIMARY KEY,
-  fingerprint TEXT NOT NULL,
-  seed INTEGER NOT NULL,
-  step INTEGER NOT NULL DEFAULT 0,
-  score INTEGER NOT NULL DEFAULT 0,
-  sign TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'playing',
-  created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_games_fingerprint ON games(fingerprint);
-CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
+CREATE INDEX IF NOT EXISTS idx_scores_game_id ON scores(game_id);

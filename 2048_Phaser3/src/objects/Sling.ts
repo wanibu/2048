@@ -27,7 +27,7 @@ export class Sling {
   private slingY: number;
   private slingH: number = 0;
   private shapeBaseY: number = 0; // 糖果球的初始Y位置
-  private nextValue: number = 0;  // 下一个糖果的值
+  private nextValue: number | null = null;  // 下一个糖果的值
   private nextPreview: Shape | null = null; // 下一个糖果预览显示
 
   constructor(scene: Phaser.Scene, grid: Grid, layout: LayoutConfig) {
@@ -76,7 +76,7 @@ export class Sling {
   }
 
   // 由 GameScene 调用，传入后端返回的第1个和第2个糖果值
-  initCandies(currentValue: number, nextValue: number): void {
+  initCandies(currentValue: number, nextValue: number | null): void {
     this.nextValue = nextValue;
     this.spawnWithValue(currentValue);
   }
@@ -102,13 +102,16 @@ export class Sling {
   }
 
   // 设置下一个糖果值（由后端返回后调用）
-  setNextCandy(value: number): void {
+  setNextCandy(value: number | null): void {
     this.nextValue = value;
     this.updateNextPreview();
   }
 
   // respawn：用 nextValue 生成当前糖果（下一个糖果等后端返回后设置）
   private spawnNextShape(): void {
+    if (this.nextValue === null) {
+      return;
+    }
     this.spawnWithValue(this.nextValue);
   }
 
@@ -117,6 +120,10 @@ export class Sling {
     // 清理旧预览
     if (this.nextPreview && this.nextPreview.active) {
       this.nextPreview.destroy();
+    }
+    if (this.nextValue === null) {
+      this.nextPreview = null;
+      return;
     }
     // 放在坑（candy-hole）的位置，原尺寸显示
     const w = this.layout.width;

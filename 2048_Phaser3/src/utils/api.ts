@@ -3,35 +3,26 @@
 const API_BASE = ((window as unknown) as Record<string, unknown>).__API_URL__ as string
   || 'https://giant-2048-api.xdreamstar2025.workers.dev';
 
+export type SequenceToken = `${number}` | 'stone';
+
 interface StartGameResponse {
   gameId: string;
-  sequence: number[]; // 50个糖果值
-  sequenceConfig: string;
-  sign: string;
+  sequence: SequenceToken[];
+  sequencePlanId: string;
+  generatedSequenceId: string;
 }
 
-interface ExtendSequenceResponse {
-  sequence: number[];
-  startIndex: number;
-}
-
-interface ActionResponse {
-  step: number;
-  sign: string;
-}
-
-interface EndGameResponse {
+interface SubmitGameResponse {
   success: boolean;
   score: number;
   rank: number;
 }
 
-interface GameAction {
-  type: 'shoot' | 'rotate' | 'direct_merge';
-  col?: number;
-  value?: number;
-  direction?: 'cw' | 'ccw';
-  resultValue?: number;
+interface SubmitGamePayload {
+  gameId: string;
+  finalScore: number;
+  actionsCount: number;
+  endReason?: string;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -47,27 +38,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// 开局：获取 gameId + 50个糖果序列
+// 开局：获取本局完整序列。当前糖果、下一个糖果和 stone 指令都只来自这里。
 export async function startGame(fingerprint: string, userId?: string): Promise<StartGameResponse> {
   return post<StartGameResponse>('/api/start-game', { fingerprint, userId });
 }
 
-// 请求更多糖果（50个用完后）
-export async function extendSequence(gameId: string): Promise<ExtendSequenceResponse> {
-  return post<ExtendSequenceResponse>('/api/extend-sequence', { gameId });
-}
-
-// 每步操作
-export async function sendAction(gameId: string, action: GameAction): Promise<ActionResponse> {
-  return post<ActionResponse>('/api/action', { gameId, action });
-}
-
-// 更新分数
-export async function updateScore(gameId: string, score: number): Promise<void> {
-  await post('/api/update-score', { gameId, score });
-}
-
-// 游戏结束
-export async function endGame(gameId: string, finalSign: string, endReason?: string): Promise<EndGameResponse> {
-  return post<EndGameResponse>('/api/end-game', { gameId, finalSign, endReason });
+// 整局结束后一次性提交结果。
+export async function submitGame(payload: SubmitGamePayload): Promise<SubmitGameResponse> {
+  return post<SubmitGameResponse>('/api/submit-game', payload);
 }
