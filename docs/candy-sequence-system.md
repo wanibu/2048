@@ -1,4 +1,4 @@
-# 预生成序列分发系统
+# 预生成序列测试系统
 
 ## 概念
 
@@ -7,7 +7,7 @@
 | **内容种类** | 13种糖果（#2, #4, #8, #16, #32, #64, #128, #256, #512, #1024, #2048, #4096, #8192）+ 1种石头（#stone） |
 | **Stage** | 一段生成规则，定义该阶段的长度、可出现的种类及各自概率 |
 | **Sequence Plan** | 多个 Stage 按顺序串联组成的完整玩法方案 |
-| **Generated Sequence** | 根据某个 Sequence Plan 实际生成的一条完整序列，存入数据库并分配给玩家 |
+| **Generated Sequence** | 根据某个 Sequence Plan 实际生成的一条完整序列，存入数据库，作为可复用测试样本供多个玩家体验 |
 
 ## Stages 配置示例
 
@@ -34,7 +34,7 @@ plan3 = ...
 
 可创建任意数量的玩法方案（plan1, plan2, plan3 ... planN）
 
-## 生成与分发
+## 生成与使用
 
 系统根据某个 `sequence_plan` 的规则，按阶段概率生成一条完整序列，存入数据库：
 
@@ -47,6 +47,12 @@ plan3 = ...
 ## 开局流程
 
 玩家开始游戏 → 随机分配一个 `sequence_plan` → 取该方案下的一条 `generated_sequence` → 按序列顺序发放内容
+
+说明：
+- 多个玩家可以玩同一个 `sequence_plan`
+- 多个玩家也可以重复体验同一个 `generated_sequence`
+- `generated_sequence` 的目标不是一次性库存，而是可复用测试样本
+- 最终通过玩家数据评估哪个 `sequence_plan` 或 `generated_sequence` 更好玩
 
 ## 数据库表设计
 
@@ -98,7 +104,7 @@ plan3 = ...
 
 ### 4. `generated_sequences`
 
-存储按某个玩法方案实际生成出的完整序列。
+存储按某个玩法方案实际生成出的完整序列。每条记录可作为可复用测试样本，被多个玩家重复体验。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -106,14 +112,14 @@ plan3 = ...
 | `sequence_plan_id` | UUID / TEXT FK | 该序列来源的玩法方案 |
 | `sequence_data` | JSON / TEXT | 生成出的完整序列内容 |
 | `sequence_length` | INTEGER | 完整序列长度 |
-| `status` | TEXT | 状态，如 `ready` / `assigned` / `used` / `disabled` |
+| `status` | TEXT | 状态，如 `enabled` / `disabled` |
 | `created_at` | DATETIME | 创建时间 |
-| `assigned_at` | DATETIME NULL | 分配时间 |
-| `used_at` | DATETIME NULL | 使用完成时间 |
+| `updated_at` | DATETIME | 更新时间 |
 
 ## 关系总结
 
 - 一个 `sequence_plan` 可以包含多个 `stage`
 - 一个 `stage` 可以被多个 `sequence_plan` 复用
 - 一个 `sequence_plan` 可以生成多条 `generated_sequence`
-- 每局开局时，从某个 `sequence_plan` 下取一条状态为 `ready` 的 `generated_sequence`
+- 一条 `generated_sequence` 可以被多个玩家重复体验
+- 每局开局时，从某个 `sequence_plan` 下取一条状态为 `enabled` 的 `generated_sequence`
