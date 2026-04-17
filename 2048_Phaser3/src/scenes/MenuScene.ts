@@ -11,12 +11,8 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     this.ensureBackgroundMusic();
 
-    // 如果是resize后刷新，直接跳到GameScene恢复游戏
-    if (sessionStorage.getItem('giant2048_playing') === '1') {
-      sessionStorage.removeItem('giant2048_playing');
-      this.scene.start('GameScene');
-      return;
-    }
+    // 刷新页面清理旧状态，不恢复游戏
+    sessionStorage.removeItem('giant2048_playing');
 
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;

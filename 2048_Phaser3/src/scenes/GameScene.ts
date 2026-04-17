@@ -28,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private isRotating: boolean = false;
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
+  private static activeGameId: string = '';
   private lastLandedCol: number | undefined;
 
   constructor() {
@@ -591,8 +592,19 @@ export class GameScene extends Phaser.Scene {
   // 后端开局：获取本局完整 sequence。
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private async initBackend(userId: string): Promise<void> {
+    // 每次调用生成唯一 ID，只有最新的一次才能继续执行
+    const callId = crypto.randomUUID();
+    GameScene.activeGameId = callId;
+
     try {
       await this.recorder.init(userId);
+
+      // 如果在 await 期间有更新的 initBackend 调用覆盖了 activeGameId，放弃本次
+      if (GameScene.activeGameId !== callId) {
+        console.warn(`[initBackend] 丢弃过期调用，gameId=${this.recorder.getGameId()}`);
+        return;
+      }
+
       const initialCandies = this.recorder.prepareInitialCandies(() => this.spawnStone());
       if (!initialCandies) {
         throw new Error('Sequence does not contain any playable candy');
