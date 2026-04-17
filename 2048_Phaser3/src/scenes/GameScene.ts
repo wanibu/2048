@@ -1009,6 +1009,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.sound.play('stonesup', { volume: 0.3 });
+
+    // 石头生成后检查是否死局
+    this.checkGameOver();
   }
 
   // 合并检查：BFS找相邻同值组 → 执行最大组合并 → 链式检查
@@ -1152,33 +1155,31 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 检查游戏是否结束：所有列都满且当前糖果无法放置到任何列
+  // 检查游戏是否结束：当前弹弓糖果无法放入任何列
   private checkGameOver(): void {
     if (this.isGameOver) return;
-    // 检查是否有任何列可以放置任何糖果
+
+    const currentValue = this.sling.getCurrentValue();
+    if (currentValue === null) return; // 弹弓还没装填
+
     let canPlace = false;
     for (let col = 0; col < GRID_COLS; col++) {
-      // 列有空格 → 可以放
       const landingRow = this.findLandingRow(col);
       if (landingRow !== -1) {
+        // 列有空格，可以放
         canPlace = true;
         break;
       }
-      // 列满但最底行有同值 → 可以直接合并（但我们不知道未来的糖果值）
-      // 所以只要有任何一列的最底行存在值，就检查所有可能的生成值
+      // 列满，检查底行值是否与当前弹弓糖果相同（可直接合并）
       const bottomVal = this.grid.data[GRID_ROWS - 1][col];
-      if (bottomVal > 0) {
-        // 检查当前弹弓糖果是否能打进
-        const spawnPool = SHAPE_VALUES.slice(-SPAWN_NUMBER_MAX);
-        if (spawnPool.includes(bottomVal)) {
-          canPlace = true;
-          break;
-        }
+      if (bottomVal === currentValue) {
+        canPlace = true;
+        break;
       }
     }
 
     if (!canPlace) {
-      console.log('[游戏结束] 无法放置任何糖果');
+      console.log(`[游戏结束] 当前糖果=${currentValue}，无法放入任何列`);
       this.gameOver();
     }
   }

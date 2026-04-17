@@ -30,6 +30,10 @@ export class Sling {
   private nextValue: number | null = null;  // 下一个糖果的值
   private nextPreview: Shape | null = null; // 下一个糖果预览显示
 
+  getCurrentValue(): number | null {
+    return this.currentShape ? this.currentShape.value : null;
+  }
+
   constructor(scene: Phaser.Scene, grid: Grid, layout: LayoutConfig) {
     this.scene = scene;
     this.grid = grid;
