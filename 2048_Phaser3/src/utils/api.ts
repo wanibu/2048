@@ -6,10 +6,14 @@ export type SequenceToken = `${number}` | 'stone';
 
 interface StartGameResponse {
   gameId: string;
-  sequence: SequenceToken[];
+  tokens: SequenceToken[];
   sequencePlanId: string;
   generatedSequenceId: string;
   sign: string;
+}
+
+interface NextTokenResponse {
+  tokens: SequenceToken[];
 }
 
 interface ActionResponse {
@@ -56,9 +60,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// 开局：获取本局完整序列。当前糖果、下一个糖果和 stone 指令都只来自这里。
+// 开局：获取初始 tokens（前几个），后续通过 nextToken 按需拉取。
 export async function startGame(fingerprint: string, userId?: string): Promise<StartGameResponse> {
   return post<StartGameResponse>('/api/start-game', { fingerprint, userId });
+}
+
+// 按需拉取下一批 tokens。
+export async function nextToken(gameId: string): Promise<NextTokenResponse> {
+  return post<NextTokenResponse>('/api/next-token', { gameId });
 }
 
 // 每步操作：保留签名链。
