@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { SHAPE_REGIONS } from '../config';
 
 export class Shape extends Phaser.GameObjects.Container {

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, GIANT_HEAD_FRAMES, SHAPE_REGIONS, SpriteRegion } from '../config';
 
 export class MenuScene extends Phaser.Scene {

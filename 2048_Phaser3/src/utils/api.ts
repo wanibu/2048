@@ -1,7 +1,6 @@
 // 后端 API 客户端
 
-const API_BASE = ((window as unknown) as Record<string, unknown>).__API_URL__ as string
-  || 'https://giant-2048-api.xdreamstar2025.workers.dev';
+const API_BASE = import.meta.env.VITE_API_URL as string;
 
 export type SequenceToken = `${number}` | 'stone';
 

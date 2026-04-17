@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { STONE_REGION } from '../config';
 
 export class Stone extends Phaser.GameObjects.Container {

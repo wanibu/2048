@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, BOARD_SCALE, LayoutConfig } from '../config';
 import { Border } from './Border';
 import { Stone } from './Stone';

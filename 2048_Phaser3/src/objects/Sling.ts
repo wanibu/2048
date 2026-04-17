@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import {
   GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES,
   SLING_REGIONS, COL_HIGHLIGHT_REGION, GRID_ROWS,

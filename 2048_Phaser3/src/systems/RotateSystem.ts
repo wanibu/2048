@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Grid } from '../objects/Grid';
 import { GRID_ROWS, GRID_COLS } from '../config';
 
