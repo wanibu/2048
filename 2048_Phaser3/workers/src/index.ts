@@ -51,6 +51,17 @@ function generateGameId(): string {
   return `g_${timestamp}_${random}`;
 }
 
+function sliceTokens(
+  sequenceData: string,
+  startIndex: number,
+  count: number
+): { tokens: SequenceToken[]; newIndex: number } {
+  const allTokens = JSON.parse(sequenceData) as Array<string | number>;
+  const end = Math.min(startIndex + count, allTokens.length);
+  const tokens = allTokens.slice(startIndex, end).map(t => String(t) as SequenceToken);
+  return { tokens, newIndex: end };
+}
+
 async function createGeneratedSequenceFromRandomPlan(env: Env): Promise<{
   generatedSequenceId: string;
   sequencePlanId: string;
@@ -100,10 +111,9 @@ async function createGeneratedSequenceFromRandomPlan(env: Env): Promise<{
 async function getPlayableSequence(env: Env): Promise<{
   generatedSequenceId: string;
   sequencePlanId: string;
-  sequence: SequenceToken[];
 }> {
   const generated = await env.DB.prepare(
-    `SELECT id, sequence_plan_id, sequence_data
+    `SELECT id, sequence_plan_id
      FROM generated_sequences
      WHERE status = 'enabled'
      ORDER BY RANDOM()
@@ -111,11 +121,9 @@ async function getPlayableSequence(env: Env): Promise<{
   ).first() as Record<string, unknown> | null;
 
   if (generated) {
-    const rawSequence = JSON.parse(generated.sequence_data as string) as Array<string | number>;
     return {
       generatedSequenceId: generated.id as string,
       sequencePlanId: generated.sequence_plan_id as string,
-      sequence: rawSequence.map((token) => String(token) as SequenceToken),
     };
   }
 
@@ -123,7 +131,10 @@ async function getPlayableSequence(env: Env): Promise<{
   if (!created) {
     throw new Error('No enabled generated sequence and no sequence plan available');
   }
-  return created;
+  return {
+    generatedSequenceId: created.generatedSequenceId,
+    sequencePlanId: created.sequencePlanId,
+  };
 }
 
 export default {
@@ -149,13 +160,20 @@ export default {
         const seed = Math.floor(Math.random() * 2147483647);
         const now = new Date().toISOString();
         const sign = await initSign(gameId);
-        const { sequence, sequencePlanId, generatedSequenceId } = await getPlayableSequence(env);
+        const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(env);
+
+        // Fetch sequence_data for slicing
+        const genSeq = await env.DB.prepare(
+          'SELECT sequence_data FROM generated_sequences WHERE id = ?'
+        ).bind(generatedSequenceId).first() as Record<string, unknown>;
+
+        const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, 0, 3);
 
         await env.DB.prepare(
           `INSERT INTO games
            (game_id, fingerprint, user_id, seed, step, score, sign, status,
-            sequence_plan_id, generated_sequence_id, end_reason, ended_at, last_update_at, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            sequence_plan_id, generated_sequence_id, sequence_index, end_reason, ended_at, last_update_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           gameId,
           fingerprint,
@@ -167,6 +185,7 @@ export default {
           'playing',
           sequencePlanId,
           generatedSequenceId,
+          newIndex,
           '',
           '',
           now,
@@ -175,7 +194,7 @@ export default {
 
         return jsonResponse({
           gameId,
-          sequence,
+          tokens,
           sequencePlanId,
           generatedSequenceId,
           sign,
@@ -185,6 +204,34 @@ export default {
       // ===== Deprecated: 请求更多糖果 =====
       if (url.pathname === '/api/extend-sequence' && request.method === 'POST') {
         return jsonResponse({ error: 'Deprecated API: sequence is now returned only by /api/start-game' }, 410);
+      }
+
+      // ===== 取下一批 token =====
+      if (url.pathname === '/api/next-token' && request.method === 'POST') {
+        const { gameId } = await request.json() as { gameId: string };
+        if (!gameId) return jsonResponse({ error: 'Missing gameId' }, 400);
+
+        const game = await env.DB.prepare(
+          'SELECT game_id, status, generated_sequence_id, sequence_index FROM games WHERE game_id = ?'
+        ).bind(gameId).first() as Record<string, unknown> | null;
+
+        if (!game) return jsonResponse({ error: 'Game not found' }, 404);
+        if (game.status !== 'playing') return jsonResponse({ error: 'Game finished' }, 400);
+
+        const genSeq = await env.DB.prepare(
+          'SELECT sequence_data FROM generated_sequences WHERE id = ?'
+        ).bind(game.generated_sequence_id as string).first() as Record<string, unknown>;
+
+        if (!genSeq) return jsonResponse({ error: 'Sequence not found' }, 500);
+
+        const currentIndex = game.sequence_index as number;
+        const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, currentIndex, 3);
+
+        await env.DB.prepare(
+          'UPDATE games SET sequence_index = ?, last_update_at = ? WHERE game_id = ?'
+        ).bind(newIndex, new Date().toISOString(), gameId).run();
+
+        return jsonResponse({ tokens });
       }
 
       // ===== 每步操作：推进签名链 =====

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS games (
   status TEXT NOT NULL DEFAULT 'playing',
   sequence_plan_id TEXT,
   generated_sequence_id TEXT,
+  sequence_index INTEGER NOT NULL DEFAULT 0,
   end_reason TEXT NOT NULL DEFAULT '',
   ended_at TEXT NOT NULL DEFAULT '',
   last_update_at TEXT NOT NULL,
