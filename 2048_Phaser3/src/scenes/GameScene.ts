@@ -29,7 +29,6 @@ export class GameScene extends Phaser.Scene {
   private isResolvingTurn: boolean = false;
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
-  private static activeGameId: string = '';
   private lastLandedCol: number | undefined;
 
   constructor() {
@@ -285,7 +284,7 @@ export class GameScene extends Phaser.Scene {
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
       void this.recorder.finish(this.hud.getScore(), 'restart');
-      this.scene.restart();
+            this.scene.restart();
     });
     pauseContainer.add(resumeBtn);
 
@@ -593,17 +592,18 @@ export class GameScene extends Phaser.Scene {
 
   // 后端开局：获取本局完整 sequence。
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
+  private static initBackendSeq: number = 0;
+
   private async initBackend(userId: string): Promise<void> {
-    // 每次调用生成唯一 ID，只有最新的一次才能继续执行
-    const callId = crypto.randomUUID();
-    GameScene.activeGameId = callId;
+    // 每次调用递增序号，只有最新的一次能继续执行
+    const mySeq = ++GameScene.initBackendSeq;
 
     try {
       await this.recorder.init(userId);
 
-      // 如果在 await 期间有更新的 initBackend 调用覆盖了 activeGameId，放弃本次
-      if (GameScene.activeGameId !== callId) {
-        console.warn(`[initBackend] 丢弃过期调用，gameId=${this.recorder.getGameId()}`);
+      // await 期间如果又有新的 create 调了 initBackend，序号已变，放弃本次
+      if (mySeq !== GameScene.initBackendSeq) {
+        console.warn(`[initBackend] 被更新的调用覆盖，丢弃 seq=${mySeq}, current=${GameScene.initBackendSeq}`);
         return;
       }
 
@@ -632,7 +632,7 @@ export class GameScene extends Phaser.Scene {
         stroke: '#000000',
         strokeThickness: 4,
       }).setOrigin(0.5).setDepth(250);
-    }
+          }
   }
 
   // ===== 超时机制：45秒无操作提示，60秒结束 =====
@@ -989,10 +989,13 @@ export class GameScene extends Phaser.Scene {
             ease: 'Back.easeOut',
           });
         }
+        // 碎掉直接合并位置周围的石头
+        this.destroyStonesAround(bottomRow, col);
+
         this.addScore(newValue);
         this.printGrid('直接合并后');
-        this.time.delayedCall(150, () => this.checkMerges());
-        this.respawnWithSequence();
+        // 由 checkMerges 统一处理后续（合并链 → 石头 → 装填）
+        this.time.delayedCall(400, () => this.checkMerges());
         return;
       }
       // 打不出去，不换糖果，糖果回到弹弓上
@@ -1007,7 +1010,7 @@ export class GameScene extends Phaser.Scene {
 
     const targetPos = this.grid.cellToPixel(landingRow, col);
     const distance = Math.abs(shape.y - targetPos.y);
-    const duration = Math.max(200, distance * 0.5);
+    const duration = Math.max(150, distance * 0.4);
 
     this.tweens.add({
       targets: shape,
@@ -1068,6 +1071,32 @@ export class GameScene extends Phaser.Scene {
 
     this.printGrid('落地后');
     this.time.delayedCall(400, () => this.checkMerges());
+  }
+
+  // 碎掉指定位置周围的石头（直接合并时使用）
+  private destroyStonesAround(row: number, col: number): void {
+    const neighbors = [
+      { row: row - 1, col },
+      { row: row + 1, col },
+      { row, col: col - 1 },
+      { row, col: col + 1 },
+    ];
+    const destroyed: { row: number; col: number }[] = [];
+    for (const n of neighbors) {
+      if (
+        n.row >= 0 && n.row < GRID_ROWS &&
+        n.col >= 0 && n.col < GRID_COLS &&
+        this.grid.isStone(n.row, n.col)
+      ) {
+        this.grid.removeStone(n.row, n.col);
+        destroyed.push(n);
+      }
+    }
+    if (destroyed.length > 0) {
+      console.log(`[直接合并石头碎掉] ${destroyed.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.sound.play('stonedestroy', { volume: 0.3 });
+      this.playStoneDestroyEffects(destroyed);
+    }
   }
 
   // sequence 中遇到 "stone" 时，在棋盘随机空格生成一个石头。
@@ -1354,7 +1383,7 @@ export class GameScene extends Phaser.Scene {
       // 清除 resize 状态
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
-      this.scene.restart();
+            this.scene.restart();
     });
   }
 

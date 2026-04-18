@@ -37,11 +37,16 @@ export class TokenQueue {
    * 返回 null 表示序列真正用完（exhausted），不是网络问题
    */
   advance(): AdvanceResult | null {
+    console.log(`[TokenQueue] advance() 前: queue=[${this.queue.join(',')}]`);
     this.consumeNextCandy();
     const stones = this.countAndRemoveLeadingStones();
     const result = this.peekCandies();
     this.maybeRefill();
-    if (!result) return null;
+    if (!result) {
+      console.log(`[TokenQueue] advance() 结果: null, queue=[${this.queue.join(',')}]`);
+      return null;
+    }
+    console.log(`[TokenQueue] advance() 结果: curr=${result.currentCandy}, next=${result.nextCandy}, stones=${stones}, queue=[${this.queue.join(',')}]`);
     return { ...result, pendingStones: stones };
   }
 
