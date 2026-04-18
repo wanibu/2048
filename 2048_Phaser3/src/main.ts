@@ -4,10 +4,20 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
 
-// 内部画布用视口比例，宽度固定640，高度按比例算
-const aspectRatio = window.innerHeight / window.innerWidth;
+const DESKTOP_BREAKPOINT = 768;
+const IPHONE_14_PRO_MAX_ASPECT_RATIO = 430 / 932;
+const DESKTOP_VIEWPORT_HEIGHT_RATIO = 0.94;
+
+function getTargetAspectRatio(): number {
+  if (window.innerWidth >= DESKTOP_BREAKPOINT) {
+    return IPHONE_14_PRO_MAX_ASPECT_RATIO;
+  }
+
+  return window.innerWidth / window.innerHeight;
+}
+
 const internalW = GAME_WIDTH;
-const internalH = Math.round(GAME_WIDTH * aspectRatio);
+const internalH = Math.round(GAME_WIDTH / getTargetAspectRatio());
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -51,16 +61,33 @@ function updateCanvasSize(game: Phaser.Game): void {
   const canvas = game.canvas;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const isDesktop = vw >= DESKTOP_BREAKPOINT;
 
-  // 和原版C3一致：canvas CSS = 视口大小，margin = 0
-  canvas.style.width = vw + 'px';
-  canvas.style.height = vh + 'px';
-  canvas.style.marginLeft = '0px';
-  canvas.style.marginTop = '0px';
+  let displayW = vw;
+  let displayH = vh;
+
+  if (isDesktop) {
+    displayH = Math.floor(vh * DESKTOP_VIEWPORT_HEIGHT_RATIO);
+    displayW = Math.floor(displayH * getTargetAspectRatio());
+
+    if (displayW > vw) {
+      displayW = vw;
+      displayH = Math.floor(displayW / getTargetAspectRatio());
+    }
+  }
+
+  const marginLeft = Math.max(0, Math.floor((vw - displayW) / 2));
+  const marginTop = Math.max(0, Math.floor((vh - displayH) / 2));
+
+  canvas.style.display = 'block';
+  canvas.style.width = displayW + 'px';
+  canvas.style.height = displayH + 'px';
+  canvas.style.marginLeft = marginLeft + 'px';
+  canvas.style.marginTop = marginTop + 'px';
 
   // 告诉Phaser input系统CSS缩放比例，修正点击坐标映射
-  const scaleX = internalW / vw;
-  const scaleY = internalH / vh;
+  const scaleX = internalW / displayW;
+  const scaleY = internalH / displayH;
   game.input.scaleManager.displayScale.set(scaleX, scaleY);
 }
 

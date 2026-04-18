@@ -26,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private scoreDigits: Phaser.GameObjects.Image[] = [];
   private topScoreDigits: Phaser.GameObjects.Image[] = [];
   private isRotating: boolean = false;
+  private isResolvingTurn: boolean = false;
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
   private static activeGameId: string = '';
@@ -111,6 +112,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.isGameOver = false;
+    this.isResolvingTurn = false;
     this.isPauseOpen = false;
     this.ensureBackgroundMusic();
 
@@ -605,15 +607,22 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      const initialCandies = this.recorder.prepareInitialCandies(() => this.spawnStone());
-      if (!initialCandies) {
+      const initialResult = this.recorder.prepareInitialCandies();
+      if (!initialResult) {
         throw new Error('Sequence does not contain any playable candy');
       }
       console.log(
-        `[开局] gameId=${this.recorder.getGameId()}, current=${initialCandies.currentCandy}, ` +
-        `next=${initialCandies.nextCandy ?? 'none'}`
+        `[开局] gameId=${this.recorder.getGameId()}, current=${initialResult.currentCandy}, ` +
+        `next=${initialResult.nextCandy ?? 'none'}, pendingStones=${initialResult.pendingStones}`
       );
-      this.sling.initCandies(initialCandies.currentCandy, initialCandies.nextCandy);
+      // 开局时如果有 stone，先处理
+      if (initialResult.pendingStones > 0) {
+        this.processPendingStones(initialResult.pendingStones, () => {
+          this.sling.initCandies(initialResult.currentCandy, initialResult.nextCandy);
+        });
+      } else {
+        this.sling.initCandies(initialResult.currentCandy, initialResult.nextCandy);
+      }
     } catch (e) {
       console.error('[开局失败]', e);
       this.add.text(this.cameras.main.width / 2, this.cameras.main.height * 0.45, 'START GAME FAILED', {
@@ -704,22 +713,52 @@ export class GameScene extends Phaser.Scene {
     this.gameOver('timeout');
   }
 
-  // 从 start-game.sequence 中推进本地游标。
-  // "stone" 不进入弹弓，而是立即触发一次石头生成。
+  // 推进 token 队列，处理待定石头，然后装填弹弓
   private respawnWithSequence(): void {
-    const nextCandies = this.recorder.advanceAfterShot(() => this.spawnStone());
-    if (!nextCandies) {
+    const result = this.recorder.advanceAfterShot();
+    if (!result) {
       console.warn('[GameScene] sequence exhausted after shot');
       this.time.delayedCall(150, () => this.gameOver());
       return;
     }
 
-    this.sling.setNextCandy(nextCandies.currentCandy);
-    this.sling.respawn();
+    const doRespawn = () => {
+      this.sling.setNextCandy(result.currentCandy);
+      this.sling.respawn();
+      this.time.delayedCall(350, () => {
+        this.sling.setNextCandy(result.nextCandy);
+        // 装填完成，解锁操作
+        this.isResolvingTurn = false;
+      });
+      // 装填完成后检查 game over
+      this.time.delayedCall(400, () => this.checkGameOver());
+    };
 
-    this.time.delayedCall(350, () => {
-      this.sling.setNextCandy(nextCandies.nextCandy);
-    });
+    if (result.pendingStones > 0) {
+      this.processPendingStones(result.pendingStones, doRespawn);
+    } else {
+      doRespawn();
+    }
+  }
+
+  // 依次处理待定石头，每个间隔 400ms，全部完成后执行回调
+  private processPendingStones(count: number, onComplete: () => void): void {
+    let processed = 0;
+    const processNext = () => {
+      if (processed >= count) {
+        onComplete();
+        return;
+      }
+      this.spawnStone();
+      processed++;
+      if (processed < count) {
+        this.time.delayedCall(400, processNext);
+      } else {
+        this.time.delayedCall(400, onComplete);
+      }
+    };
+    // 第一个石头延迟 400ms 后开始
+    this.time.delayedCall(400, processNext);
   }
 
   // ===== DEBUG: 打印棋盘 =====
@@ -843,7 +882,7 @@ export class GameScene extends Phaser.Scene {
   // 执行旋转：整个棋盘容器（背景+糖果+石头）一起旋转动画
   private doRotate(direction: 'cw' | 'ccw'): void {
     // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
-    if (this.isPauseOpen) return;
+    if (this.isPauseOpen || this.isResolvingTurn) return;
     if (this.isRotating) return;
     this.isRotating = true;
 
@@ -869,7 +908,8 @@ export class GameScene extends Phaser.Scene {
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
   private handleShoot(shape: Shape, col: number): void {
     // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
-    if (this.isPauseOpen) return;
+    if (this.isPauseOpen || this.isResolvingTurn) return;
+    this.isResolvingTurn = true;
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
     this.printGrid('发射前');
 
@@ -909,6 +949,7 @@ export class GameScene extends Phaser.Scene {
       // 打不出去，不换糖果，糖果回到弹弓上
       console.log(`[拒绝] 列${col + 1}满，底行值=${this.grid.data[bottomRow][col]}与发射值=${shape.value}不同，不能发射`);
       this.sling.cancelShoot(shape);
+      this.isResolvingTurn = false;
       return;
     }
 
@@ -917,7 +958,7 @@ export class GameScene extends Phaser.Scene {
 
     const targetPos = this.grid.cellToPixel(landingRow, col);
     const distance = Math.abs(shape.y - targetPos.y);
-    const duration = Math.max(150, distance * 0.4);
+    const duration = Math.max(200, distance * 0.5);
 
     this.tweens.add({
       targets: shape,
@@ -968,7 +1009,7 @@ export class GameScene extends Phaser.Scene {
       targets: border,
       scaleX: 1.15,
       scaleY: 1.15,
-      duration: 80,
+      duration: 250,
       yoyo: true,
       ease: 'Quad.easeOut',
     });
@@ -977,7 +1018,7 @@ export class GameScene extends Phaser.Scene {
     this.lastLandedCol = col;
 
     this.printGrid('落地后');
-    this.time.delayedCall(150, () => this.checkMerges());
+    this.time.delayedCall(400, () => this.checkMerges());
   }
 
   // sequence 中遇到 "stone" 时，在棋盘随机空格生成一个石头。
@@ -1009,9 +1050,6 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.sound.play('stonesup', { volume: 0.3 });
-
-    // 石头生成后检查是否死局
-    this.checkGameOver();
   }
 
   // 合并检查：BFS找相邻同值组 → 执行最大组合并 → 链式检查
@@ -1024,8 +1062,6 @@ export class GameScene extends Phaser.Scene {
     if (groups.length === 0) {
       this.lastLandedCol = undefined;
       this.respawnWithSequence();
-      // 检查是否游戏结束
-      this.time.delayedCall(400, () => this.checkGameOver());
       return;
     }
 

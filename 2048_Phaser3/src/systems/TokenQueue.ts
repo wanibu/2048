@@ -1,5 +1,11 @@
 import { nextToken, SequenceToken } from '../utils/api';
 
+export interface AdvanceResult {
+  currentCandy: number;
+  nextCandy: number | null;
+  pendingStones: number;
+}
+
 export class TokenQueue {
   private queue: SequenceToken[] = [];
   private gameId: string = '';
@@ -13,7 +19,34 @@ export class TokenQueue {
     this.exhausted = false;
   }
 
-  peekCandies(): { currentCandy: number; nextCandy: number | null } | null {
+  /**
+   * 开局：消费队列前面的 stone（计数但不触发），返回前两个糖果 + 待处理石头数
+   */
+  prepareInitial(): AdvanceResult | null {
+    const stones = this.countAndRemoveLeadingStones();
+    const result = this.peekCandies();
+    this.maybeRefill();
+    if (!result) return null;
+    return { ...result, pendingStones: stones };
+  }
+
+  /**
+   * 打出当前糖果后调用：消费一个糖果，收集后续 stone，返回新的 curr/next + 待处理石头数
+   */
+  advance(): AdvanceResult | null {
+    // 弹出第一个糖果（已打出）
+    this.consumeNextCandy();
+
+    // 收集糖果后面连续的 stone
+    const stones = this.countAndRemoveLeadingStones();
+
+    const result = this.peekCandies();
+    this.maybeRefill();
+    if (!result) return null;
+    return { ...result, pendingStones: stones };
+  }
+
+  private peekCandies(): { currentCandy: number; nextCandy: number | null } | null {
     const candies: number[] = [];
     for (const token of this.queue) {
       if (token !== 'stone') {
@@ -31,30 +64,17 @@ export class TokenQueue {
     };
   }
 
-  advance(onStone: () => void): { currentCandy: number; nextCandy: number | null } | null {
-    // Pop the current candy (user just shot it)
-    this.consumeNextCandy(onStone);
-    // Process any stones before the next candy
-    this.processLeadingStones(onStone);
-    const result = this.peekCandies();
-    this.maybeRefill();
-    return result;
-  }
-
-  prepareInitial(onStone: () => void): { currentCandy: number; nextCandy: number | null } | null {
-    this.processLeadingStones(onStone);
-    const result = this.peekCandies();
-    this.maybeRefill();
-    return result;
-  }
-
-  private consumeNextCandy(onStone: () => void): number | null {
+  /**
+   * 消费队列中的下一个糖果（跳过 stone，stone 计入返回值外的计数）
+   */
+  private consumeNextCandy(): number | null {
     while (this.queue.length > 0) {
       const token = this.queue.shift()!;
       if (token === 'stone') {
-        console.log('[TokenQueue] stone encountered, spawning');
-        onStone();
-        continue;
+        // 在 consumeNextCandy 里遇到 stone 说明它夹在两个糖果中间
+        // 放回去让 countAndRemoveLeadingStones 处理
+        this.queue.unshift(token);
+        return null;
       }
       const value = parseInt(token, 10);
       if (Number.isFinite(value)) {
@@ -66,12 +86,17 @@ export class TokenQueue {
     return null;
   }
 
-  private processLeadingStones(onStone: () => void): void {
+  /**
+   * 计数并移除队列前面连续的 stone token，返回数量
+   */
+  private countAndRemoveLeadingStones(): number {
+    let count = 0;
     while (this.queue.length > 0 && this.queue[0] === 'stone') {
       this.queue.shift();
-      console.log('[TokenQueue] leading stone, spawning');
-      onStone();
+      count++;
+      console.log(`[TokenQueue] pending stone #${count}`);
     }
+    return count;
   }
 
   private maybeRefill(): void {

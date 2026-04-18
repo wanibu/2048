@@ -1,6 +1,6 @@
 import { getFingerprint } from '../utils/fingerprint';
 import { startGame, sendAction, updateScore, endGame } from '../utils/api';
-import { TokenQueue } from './TokenQueue';
+import { TokenQueue, AdvanceResult } from './TokenQueue';
 
 export class ActionRecorder {
   private gameId: string = '';
@@ -34,14 +34,14 @@ export class ActionRecorder {
     );
   }
 
-  prepareInitialCandies(onStone: () => void): { currentCandy: number; nextCandy: number | null } | null {
+  prepareInitialCandies(): AdvanceResult | null {
     if (!this.ready) return null;
-    return this.tokenQueue.prepareInitial(onStone);
+    return this.tokenQueue.prepareInitial();
   }
 
-  advanceAfterShot(onStone: () => void): { currentCandy: number; nextCandy: number | null } | null {
+  advanceAfterShot(): AdvanceResult | null {
     if (!this.ready) return null;
-    return this.tokenQueue.advance(onStone);
+    return this.tokenQueue.advance();
   }
 
   async recordShoot(col: number, value: number): Promise<void> {
