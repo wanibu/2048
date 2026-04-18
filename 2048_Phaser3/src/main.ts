@@ -91,4 +91,7 @@ function updateCanvasSize(game: Phaser.Game): void {
   game.input.scaleManager.displayScale.set(scaleX, scaleY);
 }
 
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';
+console.log(`Giant 2048 v${APP_VERSION}`);
+
 new Phaser.Game(config);
