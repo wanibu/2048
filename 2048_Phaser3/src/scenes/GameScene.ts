@@ -717,6 +717,12 @@ export class GameScene extends Phaser.Scene {
   private respawnWithSequence(): void {
     const result = this.recorder.advanceAfterShot();
     if (!result) {
+      // 区分网络问题和序列真正耗尽
+      if (this.recorder.tokenQueue.isWaitingForNetwork()) {
+        console.warn('[GameScene] 网络异常，等待重试...');
+        this.waitForNetwork();
+        return;
+      }
       console.warn('[GameScene] sequence exhausted after shot');
       this.time.delayedCall(150, () => this.gameOver());
       return;
@@ -759,6 +765,49 @@ export class GameScene extends Phaser.Scene {
     };
     // 第一个石头延迟 400ms 后开始
     this.time.delayedCall(400, processNext);
+  }
+
+  // 网络异常时显示提示并重试
+  private networkRetryText: Phaser.GameObjects.Text | null = null;
+
+  private waitForNetwork(): void {
+    const w = this.cameras.main.width;
+
+    if (!this.networkRetryText) {
+      this.networkRetryText = this.add.text(w / 2, this.cameras.main.height * 0.45, 'Connecting...', {
+        fontSize: `${Math.round(w * 0.05)}px`,
+        color: '#ffcc00',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(300);
+    }
+
+    const retry = async () => {
+      console.log('[GameScene] 重试获取 token...');
+      const success = await this.recorder.tokenQueue.retryRefill();
+      if (success) {
+        // 网络恢复，清除提示，继续游戏
+        if (this.networkRetryText) {
+          this.networkRetryText.destroy();
+          this.networkRetryText = null;
+        }
+        this.respawnWithSequence();
+      } else if (this.recorder.tokenQueue.isWaitingForNetwork()) {
+        // 仍然失败，3 秒后再试
+        console.warn('[GameScene] 重试失败，3秒后再次尝试...');
+        this.time.delayedCall(3000, retry);
+      } else {
+        // 序列真正耗尽
+        if (this.networkRetryText) {
+          this.networkRetryText.destroy();
+          this.networkRetryText = null;
+        }
+        this.gameOver();
+      }
+    };
+
+    this.time.delayedCall(2000, retry);
   }
 
   // ===== DEBUG: 打印棋盘 =====

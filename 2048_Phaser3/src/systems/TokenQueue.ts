@@ -11,12 +11,14 @@ export class TokenQueue {
   private gameId: string = '';
   private fetching: boolean = false;
   private exhausted: boolean = false;
+  private refillFailed: boolean = false;
 
   init(gameId: string, initialTokens: SequenceToken[]): void {
     this.gameId = gameId;
     this.queue = [...initialTokens];
     this.fetching = false;
     this.exhausted = false;
+    this.refillFailed = false;
   }
 
   /**
@@ -32,18 +34,32 @@ export class TokenQueue {
 
   /**
    * 打出当前糖果后调用：消费一个糖果，收集后续 stone，返回新的 curr/next + 待处理石头数
+   * 返回 null 表示序列真正用完（exhausted），不是网络问题
    */
   advance(): AdvanceResult | null {
-    // 弹出第一个糖果（已打出）
     this.consumeNextCandy();
-
-    // 收集糖果后面连续的 stone
     const stones = this.countAndRemoveLeadingStones();
-
     const result = this.peekCandies();
     this.maybeRefill();
     if (!result) return null;
     return { ...result, pendingStones: stones };
+  }
+
+  /**
+   * 队列是否因为网络失败而为空（不是序列真正用完）
+   */
+  isWaitingForNetwork(): boolean {
+    return this.refillFailed && !this.exhausted && this.queue.length === 0;
+  }
+
+  /**
+   * 手动触发重试补充
+   */
+  async retryRefill(): Promise<boolean> {
+    if (this.exhausted) return false;
+    this.refillFailed = false;
+    await this.refill();
+    return this.queue.length > 0;
   }
 
   private peekCandies(): { currentCandy: number; nextCandy: number | null } | null {
@@ -64,15 +80,10 @@ export class TokenQueue {
     };
   }
 
-  /**
-   * 消费队列中的下一个糖果（跳过 stone，stone 计入返回值外的计数）
-   */
   private consumeNextCandy(): number | null {
     while (this.queue.length > 0) {
       const token = this.queue.shift()!;
       if (token === 'stone') {
-        // 在 consumeNextCandy 里遇到 stone 说明它夹在两个糖果中间
-        // 放回去让 countAndRemoveLeadingStones 处理
         this.queue.unshift(token);
         return null;
       }
@@ -86,9 +97,6 @@ export class TokenQueue {
     return null;
   }
 
-  /**
-   * 计数并移除队列前面连续的 stone token，返回数量
-   */
   private countAndRemoveLeadingStones(): number {
     let count = 0;
     while (this.queue.length > 0 && this.queue[0] === 'stone') {
@@ -118,10 +126,12 @@ export class TokenQueue {
         console.log('[TokenQueue] sequence exhausted');
       } else {
         this.queue.push(...result.tokens);
+        this.refillFailed = false;
         console.log(`[TokenQueue] refilled ${result.tokens.length} tokens, queue size=${this.queue.length}`);
       }
     } catch (e) {
       console.error('[TokenQueue] refill failed:', e);
+      this.refillFailed = true;
     } finally {
       this.fetching = false;
     }
