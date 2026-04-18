@@ -1155,33 +1155,75 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 检查游戏是否结束：当前弹弓糖果无法放入任何列
+  // 检查游戏是否结束：当前糖果在 4 种旋转状态下都无法放入任何列
   private checkGameOver(): void {
     if (this.isGameOver) return;
 
     const currentValue = this.sling.getCurrentValue();
-    if (currentValue === null) return; // 弹弓还没装填
+    if (currentValue === null) return;
 
-    let canPlace = false;
-    for (let col = 0; col < GRID_COLS; col++) {
-      const landingRow = this.findLandingRow(col);
-      if (landingRow !== -1) {
-        // 列有空格，可以放
-        canPlace = true;
-        break;
-      }
-      // 列满，检查底行值是否与当前弹弓糖果相同（可直接合并）
-      const bottomVal = this.grid.data[GRID_ROWS - 1][col];
-      if (bottomVal === currentValue) {
-        canPlace = true;
-        break;
+    const gridData = this.grid.data;
+
+    for (let rotation = 0; rotation < 4; rotation++) {
+      const rotated = this.rotateGridData(gridData, rotation);
+      if (this.canPlaceInGrid(rotated, currentValue)) {
+        return;
       }
     }
 
-    if (!canPlace) {
-      console.log(`[游戏结束] 当前糖果=${currentValue}，无法放入任何列`);
-      this.gameOver();
+    console.log(`[游戏结束] 当前糖果=${currentValue}，4种旋转都无法放入`);
+    this.gameOver();
+  }
+
+  // 将 5x5 棋盘顺时针旋转 n 次（0=不转, 1=90°, 2=180°, 3=270°）
+  private rotateGridData(data: number[][], times: number): number[][] {
+    let result = data.map(row => [...row]);
+    for (let t = 0; t < times; t++) {
+      const size = result.length;
+      const rotated: number[][] = [];
+      for (let r = 0; r < size; r++) {
+        rotated[r] = [];
+        for (let c = 0; c < size; c++) {
+          rotated[r][c] = result[size - 1 - c][r];
+        }
+      }
+      result = rotated;
     }
+    return result;
+  }
+
+  // 检查当前糖果能否放入某个棋盘状态的任何列
+  private canPlaceInGrid(data: number[][], value: number): boolean {
+    const rows = data.length;
+    const cols = data[0].length;
+
+    for (let col = 0; col < cols; col++) {
+      // 从顶部往下找第一个非空格子
+      let blocked = false;
+      for (let r = 0; r < rows; r++) {
+        if (data[r][col] !== 0) {
+          // 被阻挡，糖果落在上一行
+          if (r > 0) {
+            return true; // r-1 行是空的，可以放
+          }
+          blocked = true;
+          break;
+        }
+      }
+
+      if (!blocked) {
+        // 整列空，可以放
+        return true;
+      }
+
+      // 列从顶部就满了（r=0 就有东西），检查底行能否直接合并
+      const bottomVal = data[rows - 1][col];
+      if (bottomVal === value) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // 游戏结束处理
