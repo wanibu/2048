@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -9,7 +9,7 @@ import { MergeSystem } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
 import { HUD } from '../ui/HUD';
-import { DebugPanel } from '../debug/DebugPanel';
+import { DebugPanel, StoneExplodeParams, MergeEffectParams } from '../debug/DebugPanel';
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
 
@@ -36,6 +36,10 @@ export class GameScene extends Phaser.Scene {
   private debugPanel: DebugPanel | null = null;
   private debugCurrentCandy: number = 2;
   private debugNextCandy: number | null = 4;
+  private stoneExplodeParams: StoneExplodeParams = this.defaultStoneExplodeParams();
+  private stoneExplodeAnimBuildId: number = 0;
+  private mergeEffectParams: MergeEffectParams = this.defaultMergeEffectParams();
+  private mergeEffectAnimBuildId: number = 0;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -659,6 +663,15 @@ export class GameScene extends Phaser.Scene {
       debugSetNextCandy: (value) => this.debugSetNextCandy(value),
       debugClearBoard: () => this.debugClearBoard(),
       debugRandomFill: (emptyPct, stonePct) => this.debugRandomFill(emptyPct, stonePct),
+      debugPlayStoneExplode: () => this.debugPlayStoneExplode(),
+      debugPlayCandyMerge: () => this.debugPlayCandyMerge(),
+      debugGetStoneExplodeParams: () => this.debugGetStoneExplodeParams(),
+      debugSetStoneExplodeParams: (params) => this.debugSetStoneExplodeParams(params),
+      debugResetStoneExplodeParams: () => this.debugResetStoneExplodeParams(),
+      debugPlayMergeEffect: () => this.debugPlayMergeEffect(),
+      debugGetMergeEffectParams: () => this.debugGetMergeEffectParams(),
+      debugSetMergeEffectParams: (params) => this.debugSetMergeEffectParams(params),
+      debugResetMergeEffectParams: () => this.debugResetMergeEffectParams(),
       debugGetBoardSnapshot: () => this.debugGetBoardSnapshot(),
       debugGetScore: () => this.hud.getScore(),
     });
@@ -700,6 +713,178 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.debugPanel?.logDebugEvent('清空棋盘', this.formatGrid());
+  }
+
+  // DEBUG: 在中心格 (3,3) 播放石头爆炸特效（不改棋盘数据）
+  private debugPlayStoneExplode(): void {
+    const row = 2, col = 2;
+    this.playStoneDestroyEffects([{ row, col }]);
+    this.sound.play('stonedestroy', { volume: 0.3 });
+    this.debugPanel?.logDebugEvent(`特效测试：石头爆炸 @ (${row + 1},${col + 1})`);
+  }
+
+  private defaultStoneExplodeParams(): StoneExplodeParams {
+    return {
+      frameSize: STONE_DESTROY_FRAME_SIZE,
+      frameDuration: STONE_DESTROY_FRAME_DURATION_MS,
+      containerOffsetX: STONE_DESTROY_CONTAINER_OFFSET_X,
+      containerOffsetY: STONE_DESTROY_CONTAINER_OFFSET_Y,
+      frames: STONE_DESTROY_FRAMES.map((f) => ({ x: f.x, y: f.y, w: f.w, h: f.h })),
+      frameOffsets: STONE_DESTROY_FRAME_OFFSETS.map((o) => ({ x: o.x, y: o.y })),
+    };
+  }
+
+  private debugGetStoneExplodeParams(): StoneExplodeParams {
+    return {
+      frameSize: this.stoneExplodeParams.frameSize,
+      frameDuration: this.stoneExplodeParams.frameDuration,
+      containerOffsetX: this.stoneExplodeParams.containerOffsetX,
+      containerOffsetY: this.stoneExplodeParams.containerOffsetY,
+      frames: this.stoneExplodeParams.frames.map((f) => ({ ...f })),
+      frameOffsets: this.stoneExplodeParams.frameOffsets.map((o) => ({ ...o })),
+    };
+  }
+
+  private debugSetStoneExplodeParams(params: StoneExplodeParams): void {
+    this.stoneExplodeParams = {
+      frameSize: params.frameSize,
+      frameDuration: params.frameDuration,
+      containerOffsetX: params.containerOffsetX,
+      containerOffsetY: params.containerOffsetY,
+      frames: params.frames.map((f) => ({ ...f })),
+      frameOffsets: params.frameOffsets.map((o) => ({ ...o })),
+    };
+    this.stoneExplodeAnimBuildId++;
+    this.debugPanel?.logDebugEvent('石头爆炸参数已更新');
+  }
+
+  private debugResetStoneExplodeParams(): StoneExplodeParams {
+    this.stoneExplodeParams = this.defaultStoneExplodeParams();
+    this.stoneExplodeAnimBuildId++;
+    return this.debugGetStoneExplodeParams();
+  }
+
+  private defaultMergeEffectParams(): MergeEffectParams {
+    return {
+      frameSize: MERGE_EFFECT_FRAME_SIZE,
+      frameDuration: MERGE_EFFECT_FRAME_DURATION_MS,
+      containerOffsetX: MERGE_EFFECT_CONTAINER_OFFSET_X,
+      containerOffsetY: MERGE_EFFECT_CONTAINER_OFFSET_Y,
+      frames: MERGE_EFFECT_FRAMES.map((f) => ({ x: f.x, y: f.y, w: f.w, h: f.h })),
+      frameOffsets: MERGE_EFFECT_FRAME_OFFSETS.map((o) => ({ x: o.x, y: o.y })),
+    };
+  }
+
+  private debugGetMergeEffectParams(): MergeEffectParams {
+    return {
+      frameSize: this.mergeEffectParams.frameSize,
+      frameDuration: this.mergeEffectParams.frameDuration,
+      containerOffsetX: this.mergeEffectParams.containerOffsetX,
+      containerOffsetY: this.mergeEffectParams.containerOffsetY,
+      frames: this.mergeEffectParams.frames.map((f) => ({ ...f })),
+      frameOffsets: this.mergeEffectParams.frameOffsets.map((o) => ({ ...o })),
+    };
+  }
+
+  private debugSetMergeEffectParams(params: MergeEffectParams): void {
+    this.mergeEffectParams = {
+      frameSize: params.frameSize,
+      frameDuration: params.frameDuration,
+      containerOffsetX: params.containerOffsetX,
+      containerOffsetY: params.containerOffsetY,
+      frames: params.frames.map((f) => ({ ...f })),
+      frameOffsets: params.frameOffsets.map((o) => ({ ...o })),
+    };
+    this.mergeEffectAnimBuildId++;
+    this.debugPanel?.logDebugEvent('合并特效参数已更新');
+  }
+
+  private debugResetMergeEffectParams(): MergeEffectParams {
+    this.mergeEffectParams = this.defaultMergeEffectParams();
+    this.mergeEffectAnimBuildId++;
+    return this.debugGetMergeEffectParams();
+  }
+
+  // DEBUG: 在中心格 (3,3) 播放合并特效（9 帧动画）
+  private debugPlayMergeEffect(): void {
+    const row = 2, col = 2;
+    this.playMergeEffectFrames([{ row, col }]);
+    this.debugPanel?.logDebugEvent(`特效测试：合并特效 @ (${row + 1},${col + 1})`);
+  }
+
+  // 按当前 mergeEffectParams 在指定格播放帧动画（与 playStoneDestroyEffects 结构一致，用 mergeeffect-full 纹理）
+  private playMergeEffectFrames(cells: { row: number; col: number }[]): void {
+    if (cells.length === 0) return;
+    const p = this.mergeEffectParams;
+    const buildId = this.mergeEffectAnimBuildId;
+    const texture = this.textures.get('mergeeffect-full');
+    const frameKeyPrefix = `merge_effect_v${buildId}_`;
+
+    p.frames.forEach((frame, index) => {
+      const frameKey = `${frameKeyPrefix}${index}`;
+      if (!texture.has(frameKey)) {
+        texture.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+      }
+    });
+
+    cells.forEach(({ row, col }) => {
+      const { x, y } = this.grid.localCellToPixel(row, col);
+      const baseX = x + p.containerOffsetX;
+      const baseY = y + p.containerOffsetY;
+      const effect = this.add.sprite(baseX, baseY, 'mergeeffect-full', `${frameKeyPrefix}0`);
+      effect.setDisplaySize(p.frameSize, p.frameSize);
+      effect.setOrigin(0.5, 0.5);
+      this.grid.addToEffectLayer(effect);
+
+      const applyFrame = (idx: number) => {
+        const frame = p.frames[idx];
+        if (!frame) return;
+        const offset = p.frameOffsets[idx] || { x: 0, y: 0 };
+        const scale = frame.w > 0 ? p.frameSize / frame.w : 1;
+        effect.setFrame(`${frameKeyPrefix}${idx}`);
+        effect.setPosition(baseX + offset.x * scale, baseY + offset.y * scale);
+      };
+      applyFrame(0);
+
+      let idx = 0;
+      const ticker = this.time.addEvent({
+        delay: Math.max(16, p.frameDuration),
+        loop: true,
+        callback: () => {
+          idx++;
+          if (idx >= p.frames.length) {
+            ticker.remove(false);
+            if (effect.active) effect.destroy();
+            return;
+          }
+          applyFrame(idx);
+        },
+      });
+    });
+  }
+
+  // DEBUG: 在中心格 (3,3) 播放糖果合并特效（临时放 16，动画后恢复）
+  private debugPlayCandyMerge(): void {
+    const row = 2, col = 2;
+    const prevValue = this.grid.data[row][col];
+    const prevWasStone = this.grid.isStone(row, col);
+    if (this.grid.borders[row][col]) this.grid.removeBorder(row, col);
+    if (this.grid.stones[row][col]) this.grid.removeStone(row, col);
+    const temp = this.grid.placeBorder(row, col, 16);
+    this.sound.play('collapse1', { volume: 0.4 });
+    this.tweens.add({
+      targets: temp,
+      scaleX: 1.3, scaleY: 1.3,
+      duration: 120, yoyo: true,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        if (this.grid.borders[row][col]) this.grid.removeBorder(row, col);
+        if (prevWasStone) this.grid.placeStone(row, col);
+        else if (prevValue > 0) this.grid.placeBorder(row, col, prevValue);
+        this.debugPanel?.refreshFromGame();
+      },
+    });
+    this.debugPanel?.logDebugEvent(`特效测试：糖果合并 @ (${row + 1},${col + 1})`);
   }
 
   // DEBUG: 将当前 grid.data 格式化为多行字符串（S 表示石头）
@@ -965,51 +1150,68 @@ export class GameScene extends Phaser.Scene {
   private playStoneDestroyEffects(cells: { row: number; col: number }[]): void {
     if (cells.length === 0) return;
 
+    const p = this.stoneExplodeParams;
+    const buildId = this.stoneExplodeAnimBuildId;
     const texture = this.textures.get('stonedestroy-full');
-    const animKey = 'stone-destroy-anim';
+    const frameKeyPrefix = `stone_destroy_v${buildId}_`;
 
-    STONE_DESTROY_FRAMES.forEach((frame, index) => {
-      const frameKey = `stone_destroy_${index}`;
+    // 注册该版本下的所有 frame（若不存在）
+    p.frames.forEach((frame, index) => {
+      const frameKey = `${frameKeyPrefix}${index}`;
       if (!texture.has(frameKey)) {
         texture.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
       }
     });
 
-    if (!this.anims.exists(animKey)) {
-      this.anims.create({
-        key: animKey,
-        frames: STONE_DESTROY_FRAMES.map((_, index) => ({
-          key: 'stonedestroy-full',
-          frame: `stone_destroy_${index}`,
-        })),
-        duration: STONE_DESTROY_FRAMES.length * STONE_DESTROY_FRAME_DURATION_MS,
-        repeat: 0,
-      });
-    }
+    const showBbox = this.debugPanel?.isBoundingBoxVisible() ?? false;
 
     cells.forEach(({ row, col }) => {
       const { x, y } = this.grid.localCellToPixel(row, col);
-      const baseX = x + STONE_DESTROY_CONTAINER_OFFSET_X;
-      const baseY = y + STONE_DESTROY_CONTAINER_OFFSET_Y;
-      const effect = this.add.sprite(
-        baseX,
-        baseY,
-        'stonedestroy-full',
-        'stone_destroy_0',
-      );
-      effect.setDisplaySize(STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_FRAME_SIZE);
+      const baseX = x + p.containerOffsetX;
+      const baseY = y + p.containerOffsetY;
+      const effect = this.add.sprite(baseX, baseY, 'stonedestroy-full', `${frameKeyPrefix}0`);
+      effect.setDisplaySize(p.frameSize, p.frameSize);
       effect.setOrigin(0.5, 0.5);
       this.grid.addToEffectLayer(effect);
-      effect.on(Phaser.Animations.Events.ANIMATION_UPDATE, (_anim: Phaser.Animations.Animation, frame: Phaser.Animations.AnimationFrame) => {
-        const frameName = String(frame.textureFrame);
-        const match = frameName.match(/stone_destroy_(\d+)/);
-        const frameIndex = match ? parseInt(match[1], 10) : 0;
-        const offset = STONE_DESTROY_FRAME_OFFSETS[frameIndex] || { x: 0, y: 0 };
-        effect.setPosition(baseX + offset.x, baseY + offset.y);
-      });
-      effect.play(animKey);
-      effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-        effect.destroy();
+
+      // DEBUG: 可视化 sprite 的定位边框
+      let bbox: Phaser.GameObjects.Rectangle | null = null;
+      if (showBbox) {
+        bbox = this.add.rectangle(baseX, baseY, p.frameSize, p.frameSize);
+        bbox.setStrokeStyle(2, 0xff3355, 1);
+        bbox.setFillStyle(0, 0);
+        bbox.setOrigin(0.5, 0.5);
+        this.grid.addToEffectLayer(bbox);
+      }
+
+      // offset 在预览（源图 256 尺寸下测得）→ 换算到显示尺寸：scale = frameSize / frame.w
+      const applyFrame = (idx: number) => {
+        const frame = p.frames[idx];
+        if (!frame) return;
+        const offset = p.frameOffsets[idx] || { x: 0, y: 0 };
+        const scale = frame.w > 0 ? p.frameSize / frame.w : 1;
+        const sx = offset.x * scale;
+        const sy = offset.y * scale;
+        effect.setFrame(`${frameKeyPrefix}${idx}`);
+        effect.setPosition(baseX + sx, baseY + sy);
+        if (bbox) bbox.setPosition(baseX + sx, baseY + sy);
+      };
+      applyFrame(0);
+
+      let idx = 0;
+      const ticker = this.time.addEvent({
+        delay: Math.max(16, p.frameDuration),
+        loop: true,
+        callback: () => {
+          idx++;
+          if (idx >= p.frames.length) {
+            ticker.remove(false);
+            if (effect.active) effect.destroy();
+            if (bbox && bbox.active) bbox.destroy();
+            return;
+          }
+          applyFrame(idx);
+        },
       });
     });
   }

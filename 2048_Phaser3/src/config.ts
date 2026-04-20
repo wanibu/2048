@@ -65,12 +65,16 @@ export interface SpriteRegion {
 export const STONE_DESTROY_FRAME_SIZE = 160;
 export const STONE_DESTROY_CONTAINER_OFFSET_X = 0;
 export const STONE_DESTROY_CONTAINER_OFFSET_Y = 0;
-export const STONE_DESTROY_FRAME_DURATION_MS = 800;
+// 总时长 500ms ÷ 8 帧 ≈ 62.5ms/帧
+export const STONE_DESTROY_FRAME_DURATION_MS = 63;
 export const STONE_DESTROY_FRAME_OFFSETS = [
+  { x: 50, y: 21 },
+  { x: 29, y: 20 },
+  { x: 21, y: 1 },
+  { x: 5, y: 8 },
   { x: 0, y: 0 },
   { x: 0, y: 0 },
-  { x: 0, y: 0 },
-  { x: 0, y: 0 },
+  { x: 0, y: 4 },
   { x: 0, y: 0 },
 ];
 export const STONE_DESTROY_FRAMES: SpriteRegion[] = [
@@ -78,10 +82,36 @@ export const STONE_DESTROY_FRAMES: SpriteRegion[] = [
   { x: 256, y: 768, w: 256, h: 256 },
   { x: 768, y: 768, w: 256, h: 256 },
   { x: 768, y: 512, w: 256, h: 256 },
-  { x: 256, y: 0, w: 256, h: 256 },
-  { x: 512, y: 512, w: 256, h: 256 },
-  { x: 0, y: 0, w: 256, h: 256 },
-  { x: 512, y: 0, w: 256, h: 256 },
+  { x: 261, y: 0, w: 256, h: 256 },
+  { x: 510, y: 510, w: 256, h: 256 },
+  { x: 4, y: 5, w: 256, h: 256 },
+  { x: 517, y: 0, w: 256, h: 256 },
+];
+
+// mergeeffect-sheet0.png 是 512×1024，8 帧，每帧 170×170 围绕 8 个星群中心切
+export const MERGE_EFFECT_FRAME_SIZE = 160;
+export const MERGE_EFFECT_CONTAINER_OFFSET_X = 0;
+export const MERGE_EFFECT_CONTAINER_OFFSET_Y = 0;
+export const MERGE_EFFECT_FRAME_DURATION_MS = 60;
+export const MERGE_EFFECT_FRAME_OFFSETS = [
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+  { x: 0, y: 0 },
+];
+export const MERGE_EFFECT_FRAMES: SpriteRegion[] = [
+  { x: 255, y: 0, w: 170, h: 170 },   // 1 右上
+  { x: 25, y: 225, w: 170, h: 170 },  // 2 左中上
+  { x: 175, y: 240, w: 170, h: 170 }, // 3 中上
+  { x: 0, y: 455, w: 170, h: 170 },   // 4 左中
+  { x: 155, y: 460, w: 170, h: 170 }, // 5 正中
+  { x: 340, y: 435, w: 170, h: 170 }, // 6 右中
+  { x: 0, y: 720, w: 170, h: 170 },   // 7 左下
+  { x: 342, y: 730, w: 170, h: 170 }, // 8 右下
 ];
 
 // value → source region in shape-sheet0.png
