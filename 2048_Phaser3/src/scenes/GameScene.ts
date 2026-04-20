@@ -1078,6 +1078,7 @@ export class GameScene extends Phaser.Scene {
     this.isRotating = true;
 
     console.log(`[旋转] 方向: ${direction === 'cw' ? '顺时针' : '逆时针'}`);
+    this.debugPanel?.logDebugEvent(`旋转 ${direction === 'cw' ? '顺时针' : '逆时针'}（旋转前）`, this.formatGrid());
     this.printGrid('旋转前');
 
     this.sound.play('rotation', { volume: 0.3 });
