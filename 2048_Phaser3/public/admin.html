@@ -326,6 +326,7 @@ let currentPage = 1;
 let seqCurrentPage = 1;
 let allStages = []; // 缓存 stages 供 plan 编辑器选用
 let allPlans = [];  // 缓存 plans 供序列生成选用
+let autoRefreshTimer = null;
 
 if (token) showAdmin();
 
@@ -362,8 +363,6 @@ function doLogout() {
   document.getElementById('loginWrap').style.display = 'flex';
   document.getElementById('adminWrap').style.display = 'none';
 }
-
-let autoRefreshTimer = null;
 
 function showAdmin() {
   document.getElementById('loginWrap').style.display = 'none';
@@ -513,6 +512,13 @@ async function loadGames(page) {
 async function showGameDetail(gameId) {
   const data = await apiFetch(`/api/admin/game/${gameId}`);
   if (!data) return;
+  // 兼容 sequence 字段：可能是数组、JSON字符串、null
+  let seq = data.sequence;
+  if (typeof seq === 'string') {
+    try { seq = JSON.parse(seq); } catch { seq = []; }
+  }
+  if (!Array.isArray(seq)) seq = [];
+  data.sequence = seq;
   document.getElementById('modalTitle').textContent = '局详情';
   document.getElementById('modalContent').innerHTML = `
     <div class="detail-row"><span class="label">局号</span><span class="value">${data.game_id}</span></div>

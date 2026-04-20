@@ -496,15 +496,25 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   tlLog('已复位');
 });
 
-// 初始：复位（数字隐藏）
-resetAll();
-tlLog('准备就绪');
+// 初始：全部显示在最终位置（方便一眼看清整体布局）
+function showFinalState() {
+  ['d2', 'd0', 'd4', 'd8'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.transition = 'none';
+    el.style.transform = 'translate(-50%, -50%) scale(1.0)';
+    el.style.opacity = '1';
+  });
+  setGiantFrame('default');
+  startSparkleLoop();
+  startBlinkLoop(3);
+  startRotationLoop(4);
+}
+showFinalState();
+tlLog('显示所有元素的最终位置状态', 'done');
+tlLog('点「播放完整进场」看从 Y=1240 飞起的动画', 'tick');
 
-// 页面加载后自动播放（Menu 进场效果就是自动触发的）
-window.addEventListener('load', () => {
-  // 等 500ms 让素材/字体加载稳定后再起
-  setTimeout(playAll, 500);
-});
+// 页面加载后不自动播放动画，所有元素已经拉起到最终位置
+// 要看进场动画请点「▶▶ 播放完整进场」按钮
 
 // BorderExplode 11 帧缩略图
 const frameList = document.getElementById('frameList');
