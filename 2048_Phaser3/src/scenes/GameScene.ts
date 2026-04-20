@@ -1262,6 +1262,7 @@ export class GameScene extends Phaser.Scene {
     const cell = emptyCells[Phaser.Math.Between(0, emptyCells.length - 1)];
     const stone = this.grid.placeStone(cell.row, cell.col);
     console.log(`[石头生成] 行${cell.row + 1} 列${cell.col + 1}`);
+    this.debugPanel?.logDebugEvent(`石头生成：(${cell.row + 1},${cell.col + 1})`);
 
     // 石头出现动画
     stone.setScale(0);
