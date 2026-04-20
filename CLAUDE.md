@@ -36,7 +36,22 @@ When writing or modifying Phaser code, always read the relevant skill file first
 
 ## Project Structure
 
-- `2048_Phaser3/` - Main game (Phaser frontend)
-- `workers/` - Cloudflare Workers backend API
-- `docs/` - Design documents
-- `phaser4/` - Phaser 4 SDK reference (not deployed)
+```
+2048/
+├── apps/
+│   ├── game/        — Phaser frontend game (Vite + TypeScript)
+│   ├── admin/       — Admin React panel (Vite + React + Tailwind + shadcn-style)
+│   └── workers/     — Cloudflare Workers backend API (Hono + D1)
+├── reference/
+│   ├── c3-original/ — Original Construct 3 game (read-only reference)
+│   ├── phaser4-sdk/ — Phaser 4 SDK source (read-only reference)
+│   ├── docs/        — Design documents, schemas, PUML flows
+│   └── giant2048_original.zip — Original game zip backup
+├── ANALYSIS.md      — Project analysis
+└── CLAUDE.md
+```
+
+**Deployment targets** (3 independent Cloudflare projects):
+- `apps/workers/` → Cloudflare Workers (`giant-2048-api`)
+- `apps/game/` → Cloudflare Pages (`giant-2048`)
+- `apps/admin/` → Cloudflare Pages (`giant-2048-admin`)

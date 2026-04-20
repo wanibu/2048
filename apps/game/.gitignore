@@ -3,7 +3,5 @@ dist/
 .vite/
 .wrangler/
 .DS_Store
-workers/.wrangler/
-workers/node_modules/
 *.log
 *.map
