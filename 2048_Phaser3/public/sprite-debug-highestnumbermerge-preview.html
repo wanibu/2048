@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — HighestNumberMerge 最高数字合并特效</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+
+.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage {
+  position: relative; width: 400px; height: 400px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+.stone-base {
+  position: absolute; left: 50%; top: 50%;
+  width: 128px; height: 128px;
+  background: url('assets/images/border-sheet0.png') no-repeat -2px -1px;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(255, 229, 127, 0.6);
+  opacity: 0.85; z-index: 1; pointer-events: none;
+}
+.anchor-marker {
+  position: absolute; left: 50%; top: 50%;
+  width: 10px; height: 10px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 260px; }
+.speed-ctl { margin-bottom: 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.speed-ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
+
+.frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.frame-card {
+  padding: 10px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center; cursor: pointer;
+}
+.frame-card:hover { border-color: #ffd54a; }
+.frame-card .cropped {
+  display: inline-block; background-repeat: no-repeat; margin-bottom: 6px;
+  border: 1px dashed rgba(255,255,255,0.1);
+}
+.frame-card .label { font-size: 10px; color: #a5adc1; line-height: 1.5; }
+.frame-card .label strong { color: #ffd54a; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>HighestNumberMerge — 最高数字合并庆祝特效（10 帧）</h1>
+<div class="info">
+C3 对象 <code>HighestNumberMerge</code>，1 个动画 <b>"Animation 1"</b>。<br>
+素材：<code>highestnumbermerge-sheet0.png</code>，金色闪耀爆发<br>
+<b>触发时机</b>：玩家在棋盘上合成**当前游戏新最高数值**（首次合出 64/128/256 等）时播放的庆祝光晕<br>
+速度 <b>15 fps</b>（67ms/帧），不循环。pivot 全部 <code>(0.5, 0.5)</code> 居中<br>
+<b>10 帧尺寸变化节奏</b>：<code>200×200 → 258×258×7帧 → 224×224 → 200×187</code>（小→大→收尾的光晕爆发）
+</div>
+
+<h2>播放区域</h2>
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="stone-base" title="石头底图参考"></div>
+    <div class="anchor-marker" title="动画锚点"></div>
+  </div>
+  <div class="side-panel">
+    <div class="speed-ctl">
+      <label>每帧时长(ms):</label>
+      <input type="number" id="frameDur" value="67" min="10" max="500">
+      <span style="color:#555">(15fps = 67ms)</span>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 播放一次</button>
+      <button id="loopBtn">↻ 循环播放</button>
+      <button class="secondary" id="stopBtn">■ 停止</button>
+    </div>
+    <div id="frameInfo">点击"播放"开始</div>
+    <div style="margin-top:12px;padding:10px;background:rgba(255,213,74,0.08);border-left:3px solid #ffd54a;font-size:12px;line-height:1.6">
+      <strong>观察点</strong>：光晕在糖果合并中心放射、扩散、消散<br>
+      所有 pivot 居中，视觉上光晕在锚点（红点）处绽放
+    </div>
+  </div>
+</div>
+
+<h2>10 帧拆解</h2>
+<div class="frame-list" id="frameList"></div>
+
+<script>
+const FRAMES = [
+  { x: 781, y: 513, w: 200, h: 200, pivotX: 0.500, pivotY: 0.500 },
+  { x: 1,   y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 261, y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 521, y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 1,   y: 261, w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 261, y: 513, w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 521, y: 513, w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 1,   y: 521, w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { x: 781, y: 257, w: 224, h: 224, pivotX: 0.500, pivotY: 0.500 },
+  { x: 781, y: 769, w: 200, h: 187, pivotX: 0.500, pivotY: 0.500 },
+];
+const SHEET = 'assets/images/highestnumbermerge-sheet0.png';
+const ANCHOR_X = 200;
+const ANCHOR_Y = 200;
+
+const stage = document.getElementById('stage');
+const frameInfoEl = document.getElementById('frameInfo');
+let currentSprite = null;
+let animInterval = null;
+
+function showFrame(idx) {
+  if (currentSprite) currentSprite.remove();
+  const f = FRAMES[idx];
+  const el = document.createElement('div');
+  el.className = 'frame-sprite';
+  el.style.width = f.w + 'px';
+  el.style.height = f.h + 'px';
+  el.style.background = `url('${SHEET}') no-repeat`;
+  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
+  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
+  stage.appendChild(el);
+  currentSprite = el;
+  frameInfoEl.innerHTML = `<b>frame ${idx}</b> / ${FRAMES.length - 1} · 源(${f.x},${f.y}) · ${f.w}×${f.h}`;
+}
+
+function play(loop) {
+  stopAnim();
+  let idx = 0;
+  const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 67);
+  showFrame(idx);
+  animInterval = setInterval(() => {
+    idx++;
+    if (idx >= FRAMES.length) {
+      if (loop) idx = 0;
+      else { stopAnim(); frameInfoEl.innerHTML += ' <span style="color:#10b981">✓</span>'; return; }
+    }
+    showFrame(idx);
+  }, dur);
+}
+function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
+
+document.getElementById('playBtn').addEventListener('click', () => play(false));
+document.getElementById('loopBtn').addEventListener('click', () => play(true));
+document.getElementById('stopBtn').addEventListener('click', stopAnim);
+showFrame(0);
+
+const frameList = document.getElementById('frameList');
+FRAMES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'frame-card';
+  const img = document.createElement('div');
+  img.className = 'cropped';
+  img.style.width = f.w + 'px';
+  img.style.height = f.h + 'px';
+  img.style.background = `url('${SHEET}') no-repeat`;
+  img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  card.appendChild(img);
+  const lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.innerHTML = `<strong>帧${i}</strong><br>src (${f.x},${f.y})<br>${f.w}×${f.h}`;
+  card.appendChild(lbl);
+  card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+  frameList.appendChild(card);
+});
+</script>
+</body>
+</html>

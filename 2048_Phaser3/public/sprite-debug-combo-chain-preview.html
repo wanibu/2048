@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — Combo 爽点链条（Girl + Giant + CoinPlay Fly）</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+
+/* 完整模拟舞台：模仿游戏竖屏布局 */
+.stage {
+  position: relative;
+  width: 480px; height: 860px;
+  background: linear-gradient(180deg, #8ec5fc 0%, #e0c3fc 100%);
+  border: 2px solid #444; border-radius: 8px;
+  overflow: hidden; margin-bottom: 20px;
+}
+
+/* 金币 UI 目标区（右上角） */
+.coin-ui {
+  position: absolute; right: 16px; top: 16px;
+  width: 60px; height: 60px;
+  background: url('assets/images/shared-0-sheet3.png') no-repeat -1px -129px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+  z-index: 10;
+}
+.coin-count {
+  position: absolute; right: 16px; top: 80px;
+  font-size: 16px; font-weight: bold;
+  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.3); padding: 2px 10px; border-radius: 10px;
+}
+
+/* 红发巨人位置（上方） */
+.giant-wrap {
+  position: absolute;
+  left: 50%; top: 160px;
+  transform: translateX(-50%);
+  z-index: 5;
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.giant-sprite {
+  position: relative;
+  width: 211px; height: 305px; /* 缩放 50% 原始 421×610 */
+  background-repeat: no-repeat;
+  background-size: auto;
+  transform: scale(0.5);
+  transform-origin: top center;
+}
+
+/* 棋盘模拟区 */
+.board-ref {
+  position: absolute;
+  left: 50%; top: 380px;
+  transform: translateX(-50%);
+  width: 380px; height: 300px;
+  background: rgba(139,92,40,0.25);
+  border: 2px dashed rgba(255,229,127,0.6);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,229,127,0.8); font-size: 14px;
+  z-index: 2;
+}
+
+/* 小女孩位置（右下） */
+.girl-wrap {
+  position: absolute;
+  right: 30px; bottom: 10px;
+  z-index: 5;
+}
+.girl-sprite {
+  position: relative;
+  width: 204px; height: 244px;
+  background-repeat: no-repeat;
+  transform: scale(0.6);
+  transform-origin: bottom right;
+}
+
+/* 飞行糖果 */
+.flying-coin {
+  position: absolute; width: 40px; height: 40px;
+  background: url('assets/images/shared-0-sheet3.png') no-repeat -1px -129px;
+  z-index: 8;
+  filter: drop-shadow(0 0 6px rgba(255,213,74,0.8));
+}
+
+/* ComboSprite 横幅 */
+.combo-banner {
+  position: absolute;
+  left: 50%; top: 340px;
+  transform: translate(-50%, -50%) scale(0);
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+}
+.combo-banner-sprite {
+  width: 512px; height: 305px;
+  background: url('assets/images/shared-0-sheet0.png') no-repeat -938px -1625px;
+  transform: scale(0.6);
+  transform-origin: center;
+  filter: drop-shadow(0 4px 12px rgba(255,213,74,0.6));
+}
+/* Wow 横幅变体（4+ 连击用） */
+.combo-banner-sprite.wow {
+  width: 512px; height: 380px;
+  background: url('assets/images/shared-0-sheet0.png') no-repeat -424px -1625px;
+  filter: drop-shadow(0 4px 16px rgba(255,100,50,0.7));
+}
+
+/* 控制面板 */
+.panel {
+  display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; align-items: flex-start;
+}
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.controls button {
+  padding: 10px 18px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: bold;
+}
+.controls button.combo-btn {
+  background: linear-gradient(135deg, #ffd54a, #ff9800);
+  color: #1f2230;
+  font-size: 15px;
+  padding: 12px 22px;
+}
+.controls button.secondary { background: #6c7280; }
+
+/* 时间轴 */
+.timeline {
+  font-size: 11px; color: #a5adc1; padding: 10px;
+  background: #1a1d27; border-radius: 4px; min-width: 300px;
+  line-height: 1.6;
+  font-family: ui-monospace, monospace;
+}
+.timeline .tick { color: #ffd54a; }
+.timeline .done { color: #10b981; }
+
+/* 参数调节 */
+.ctls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>Combo 爽点链条 — 3 连合并触发</h1>
+<div class="info">
+模拟完整视觉流程（<b>并发模型</b>）：<b>玩家连续 3 次合并 → ComboSprite 横幅 + Girl.Surprise + Giant.Scream 三者 T=0 同时启动 → 150ms 后糖果从 Girl 手飞向 Giant 嘴 → 糖果吃完 Giant 闭嘴回 Default + 加分</b><br>
+<b>为什么并发</b>：data.json 的 C3 event sheet 里 3 个事件块并列执行（无 Wait），同一 tick 触发。视觉上 ComboSprite 瞬间 pop 最抢眼，所以感觉"它先"，其实是同时。<br>
+视觉模仿原游戏竖屏布局：顶部 Giant、中间棋盘、<b>右下</b>角 Girl，中央 ComboSprite 横幅。
+</div>
+
+<div class="ctls">
+  <div class="ctl"><label>Girl 起播 (ms):</label><input type="number" id="girlStart" value="0" min="0"></div>
+  <div class="ctl"><label>Girl 每帧 (ms):</label><input type="number" id="girlFrameDur" value="77" min="10"></div>
+  <div class="ctl"><label>Giant 起播 (ms):</label><input type="number" id="giantStart" value="800" min="0"></div>
+  <div class="ctl"><label>Giant Tween Y (px):</label><input type="number" id="giantMoveY" value="-50" min="-200" max="100"></div>
+  <div class="ctl"><label>Giant Tween 时长 (ms):</label><input type="number" id="giantMoveDur" value="300" min="50"></div>
+  <div class="ctl"><label>连击数:</label><input type="number" id="comboCount" value="3" min="1" max="20" title="3=Combo, 4+=WoW"></div>
+  <div class="ctl"><label>ComboSprite 起播 (ms):</label><input type="number" id="comboStart" value="0" min="0"></div>
+  <div class="ctl"><label>Combo 弹出 (ms):</label><input type="number" id="comboPopDur" value="200" min="50"></div>
+  <div class="ctl"><label>Combo 保持 (ms):</label><input type="number" id="comboHoldDur" value="400" min="0"></div>
+  <div class="ctl"><label>Combo 淡出 (ms):</label><input type="number" id="comboFadeDur" value="200" min="50"></div>
+  <div class="ctl"><label>糖果飞行 起播 (ms):</label><input type="number" id="coinStart" value="150" min="0"></div>
+  <div class="ctl"><label>糖果飞行 时长 (ms):</label><input type="number" id="coinFlyDur" value="800" min="100"></div>
+  <div class="ctl"><label>糖果数:</label><input type="number" id="coinCount" value="5" min="1" max="12"></div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="giant-wrap" id="giantWrap">
+    <div class="giant-sprite" id="giantSprite"></div>
+  </div>
+  <div class="board-ref">模拟棋盘</div>
+  <div class="girl-wrap" id="girlWrap">
+    <div class="girl-sprite" id="girlSprite"></div>
+  </div>
+  <div class="combo-banner" id="comboBanner"><div class="combo-banner-sprite"></div></div>
+</div>
+
+<div class="panel">
+  <div class="controls">
+    <button class="combo-btn" id="playCombo">▶▶ 播放完整 Combo 链条</button>
+    <button class="secondary" id="resetBtn">■ 复位</button>
+  </div>
+  <div class="timeline" id="timeline">
+    <div>准备就绪，点击"播放完整 Combo"</div>
+  </div>
+</div>
+
+<script>
+// ============ Girl "Surprise" 10 帧 ============
+const GIRL_FRAMES = [
+  { x: 257, y: 513, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+  { x: 1,   y: 513, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+  { x: 513, y: 513, w: 206, h: 250, pivotX: 0.519, pivotY: 0.996 },
+  { x: 513, y: 1,   w: 212, h: 251, pivotX: 0.538, pivotY: 0.996 },
+  { x: 769, y: 1,   w: 211, h: 251, pivotX: 0.531, pivotY: 0.996 },
+  { x: 513, y: 257, w: 210, h: 250, pivotX: 0.524, pivotY: 0.996 },
+  { x: 769, y: 257, w: 208, h: 250, pivotX: 0.510, pivotY: 0.996 },
+  { x: 769, y: 513, w: 206, h: 249, pivotX: 0.495, pivotY: 0.996 },
+  { x: 257, y: 257, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+  { x: 257, y: 769, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+];
+const GIRL_SHEET = 'assets/images/girl-sheet0.png';
+
+// ============ Giant "Scream" 3 帧 ============
+const GIANT_FRAMES = [
+  { sheet: 'assets/images/shared-0-sheet0.png', x: 1560, y: 1,    w: 424, h: 612 },
+  { sheet: 'assets/images/shared-0-sheet0.png', x: 1195, y: 1011, w: 422, h: 612 },
+  { sheet: 'assets/images/shared-0-sheet0.png', x: 770,  y: 1011, w: 423, h: 612 },
+];
+
+// ============ 时间轴日志 ============
+const tlEl = document.getElementById('timeline');
+let tlStart = 0;
+function tlLog(txt, cls = 'tick') {
+  const t = performance.now() - tlStart;
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = `<span style="color:#8d97ad">[${t.toFixed(0).padStart(4, ' ')}ms]</span> ${txt}`;
+  tlEl.appendChild(line);
+}
+function tlClear() {
+  tlEl.innerHTML = '';
+  tlStart = performance.now();
+}
+
+// ============ Girl 播放 Surprise ============
+function playGirl(startDelay, frameDurMs) {
+  const sprite = document.getElementById('girlSprite');
+  // 初始第 0 帧
+  const setFrame = (idx) => {
+    const f = GIRL_FRAMES[idx];
+    sprite.style.width = f.w + 'px';
+    sprite.style.height = f.h + 'px';
+    sprite.style.background = `url('${GIRL_SHEET}') no-repeat -${f.x}px -${f.y}px`;
+  };
+  setTimeout(() => {
+    tlLog('① Girl Surprise 起播');
+    let i = 0;
+    setFrame(0);
+    const iv = setInterval(() => {
+      i++;
+      if (i >= GIRL_FRAMES.length) {
+        clearInterval(iv);
+        tlLog('① Girl Surprise 结束', 'done');
+        setFrame(9); // 保持最后一帧
+        return;
+      }
+      setFrame(i);
+    }, frameDurMs);
+  }, startDelay);
+}
+
+// ============ Giant Scream + Tween Y ============
+function playGiant(startDelay, frameDurMs, moveY, moveDur) {
+  const wrap = document.getElementById('giantWrap');
+  const sprite = document.getElementById('giantSprite');
+  const setFrame = (idx) => {
+    const f = GIANT_FRAMES[idx];
+    sprite.style.width = f.w + 'px';
+    sprite.style.height = f.h + 'px';
+    sprite.style.background = `url('${f.sheet}') no-repeat -${f.x}px -${f.y}px`;
+  };
+  setTimeout(() => {
+    tlLog('② Giant Scream + 上移');
+    // Tween Y 上移 → 返回
+    wrap.style.transition = `top ${moveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+    const origTop = 160;
+    wrap.style.top = (origTop + moveY) + 'px';
+    setTimeout(() => {
+      wrap.style.top = origTop + 'px';
+    }, moveDur);
+    // 切 Scream 动画（张嘴咆哮），最后 HOLD 在张嘴帧等吃糖
+    let i = 0;
+    setFrame(0);
+    const iv = setInterval(() => {
+      i++;
+      if (i >= GIANT_FRAMES.length) {
+        clearInterval(iv);
+        // 保持在最后一帧（张嘴）等糖果吃完
+        setFrame(GIANT_FRAMES.length - 1);
+        tlLog('② Giant 张嘴等糖（保持最后帧）', 'done');
+        return;
+      }
+      setFrame(i);
+    }, frameDurMs);
+  }, startDelay);
+}
+
+// 糖果全部吃完后调用 → 让 Giant 闭嘴回 Default
+function giantCloseMouth() {
+  const sprite = document.getElementById('giantSprite');
+  sprite.style.width = '421px';
+  sprite.style.height = '610px';
+  sprite.style.background = `url('assets/images/shared-0-sheet0.png') no-repeat -1619px -1025px`;
+  tlLog('② Giant 吃完闭嘴回 Default', 'done');
+}
+
+// ============ ComboSprite / WowSprite 横幅弹出 → 保持 → 淡出 ============
+function playComboBanner(startDelay, popDur, holdDur, fadeDur, comboCount) {
+  setTimeout(() => {
+    const isWow = comboCount >= 4;
+    const bannerName = isWow ? 'WowSprite' : 'ComboSprite';
+    tlLog(`① ${bannerName} 弹出 (${comboCount} 连击)`);
+    const banner = document.getElementById('comboBanner');
+    const sprite = banner.querySelector('.combo-banner-sprite');
+    // 切换贴图
+    if (isWow) {
+      sprite.classList.add('wow');
+    } else {
+      sprite.classList.remove('wow');
+    }
+    // Reset
+    banner.style.transition = 'none';
+    banner.style.transform = 'translate(-50%, -50%) scale(0)';
+    banner.style.opacity = '0';
+    // 强制 reflow 以便 transition 生效
+    void banner.offsetWidth;
+    // 弹出：scale 0 → 1.3（过冲）
+    banner.style.transition = `transform ${popDur * 0.6}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity ${popDur * 0.5}ms ease`;
+    banner.style.transform = 'translate(-50%, -50%) scale(1.3)';
+    banner.style.opacity = '1';
+    // 回弹：1.3 → 1.0
+    setTimeout(() => {
+      banner.style.transition = `transform ${popDur * 0.4}ms ease-out`;
+      banner.style.transform = 'translate(-50%, -50%) scale(1.0)';
+    }, popDur * 0.6);
+    // 保持后淡出
+    setTimeout(() => {
+      banner.style.transition = `opacity ${fadeDur}ms ease, transform ${fadeDur}ms ease`;
+      banner.style.opacity = '0';
+      banner.style.transform = 'translate(-50%, -50%) scale(1.2)';
+      tlLog(`① ${bannerName} 淡出`, 'done');
+    }, popDur + holdDur);
+  }, startDelay);
+}
+
+// ============ 糖果从 Girl 的手飞向 Giant 的嘴 ============
+function playCandyFly(startDelay, duration, count) {
+  setTimeout(() => {
+    tlLog(`③ ${count} 颗糖果从 Girl 手 → Giant 嘴`);
+    const stage = document.getElementById('stage');
+    // 起点：Girl 的手（右下角区域，Girl 缩放 0.6 后右下大约这里）
+    // Girl wrap at right:30, bottom:10, 204×244 × 0.6 = 122×146
+    // Girl 右下基点 = (480-30, 860-10) = (450, 850)
+    // 手的相对位置（估计在 Girl 身体中上部）
+    const girlHandX = 480 - 30 - 80;  // 右下-80 横向
+    const girlHandY = 860 - 10 - 120; // 底部-120 纵向
+    // 终点：Giant 的嘴（Giant wrap at top:160, Giant sprite scaled 0.5, so Giant visible at top 160~160+305）
+    // Giant 嘴大约在 Giant sprite 中上部
+    const giantMouthX = 480 / 2;   // 水平居中
+    const giantMouthY = 160 + 160; // top+嘴部偏移
+    let completed = 0;
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const coin = document.createElement('div');
+        coin.className = 'flying-coin';
+        const sx = girlHandX + (Math.random() - 0.5) * 40;
+        const sy = girlHandY + (Math.random() - 0.5) * 40;
+        stage.appendChild(coin);
+        const t0 = performance.now();
+        function frame(now) {
+          const t = Math.min(1, (now - t0) / duration);
+          // 弧线：从右下到中上（向左上飞）
+          const dx = giantMouthX - sx;
+          const dy = giantMouthY - sy;
+          const x = sx + dx * t;
+          // 弧顶更高，让飞行有抛物感
+          const arcHeight = 120;
+          const y = sy + dy * t - arcHeight * 4 * t * (1 - t);
+          const scale = 1.0 + 0.3 * Math.sin(t * Math.PI); // 中段略大
+          coin.style.left = (x - 20 * scale) + 'px';
+          coin.style.top = (y - 20 * scale) + 'px';
+          coin.style.transform = `scale(${scale})`;
+          // 后 15% 淡出（表示被吃掉）
+          coin.style.opacity = (1 - Math.max(0, (t - 0.85) / 0.15)).toString();
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            coin.remove();
+            completed++;
+            // Giant 嘴部小脉冲（表示接到）
+            const giantWrap = document.getElementById('giantWrap');
+            giantWrap.style.transform = 'translateX(-50%) scale(1.05)';
+            setTimeout(() => { giantWrap.style.transform = 'translateX(-50%) scale(1)'; }, 60);
+            if (completed === count) {
+              tlLog('③ 糖果全部被 Giant 接住吃掉', 'done');
+              giantCloseMouth();
+              tlLog('🎉 Combo 链条全部完成', 'done');
+            }
+          }
+        }
+        requestAnimationFrame(frame);
+      }, i * 60);
+    }
+  }, startDelay);
+}
+
+// ============ 初始化（第 0 帧） ============
+function initFrames() {
+  const girlSprite = document.getElementById('girlSprite');
+  const f = GIRL_FRAMES[0];
+  girlSprite.style.width = f.w + 'px';
+  girlSprite.style.height = f.h + 'px';
+  girlSprite.style.background = `url('${GIRL_SHEET}') no-repeat -${f.x}px -${f.y}px`;
+
+  const giantSprite = document.getElementById('giantSprite');
+  // Giant Default 从 sheet0 (1619, 1025)
+  giantSprite.style.width = '421px';
+  giantSprite.style.height = '610px';
+  giantSprite.style.background = `url('assets/images/shared-0-sheet0.png') no-repeat -1619px -1025px`;
+}
+initFrames();
+
+// ============ 控件 ============
+function getParams() {
+  const n = (id, d) => parseInt(document.getElementById(id).value) || d;
+  return {
+    girlStart: n('girlStart', 0),
+    girlFrameDur: n('girlFrameDur', 77),
+    giantStart: n('giantStart', 0),
+    giantMoveY: n('giantMoveY', -50),
+    giantMoveDur: n('giantMoveDur', 300),
+    comboStart: n('comboStart', 0),
+    comboPopDur: n('comboPopDur', 200),
+    comboHoldDur: n('comboHoldDur', 400),
+    comboFadeDur: n('comboFadeDur', 200),
+    coinStart: n('coinStart', 150),
+    coinFlyDur: n('coinFlyDur', 800),
+    coinCount: Math.max(1, n('coinCount', 5)),
+    comboCount: Math.max(1, n('comboCount', 3)),
+  };
+}
+
+document.getElementById('playCombo').addEventListener('click', () => {
+  tlClear();
+  tlLog('🔥 COMBO x3 触发！');
+  const p = getParams();
+  const giantFrameDur = Math.round(1000 / 20); // Scream 20fps
+  // 并发模型：4 个动作全部在 T≈0 启动，糖果稍延（T=150ms）
+  tlLog(`连击数 = ${p.comboCount} (${p.comboCount >= 4 ? 'WoW' : 'Combo'})`);
+  playComboBanner(p.comboStart, p.comboPopDur, p.comboHoldDur, p.comboFadeDur, p.comboCount);
+  playGirl(p.girlStart, p.girlFrameDur);
+  playGiant(p.giantStart, giantFrameDur, p.giantMoveY, p.giantMoveDur);
+  playCandyFly(p.coinStart, p.coinFlyDur, p.coinCount);
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  tlEl.innerHTML = '<div>已复位</div>';
+  document.querySelectorAll('.flying-coin').forEach(e => e.remove());
+  document.getElementById('giantWrap').style.top = '160px';
+  document.getElementById('giantWrap').style.transform = 'translateX(-50%) scale(1)';
+  const banner = document.getElementById('comboBanner');
+  banner.style.transition = 'none';
+  banner.style.transform = 'translate(-50%, -50%) scale(0)';
+  banner.style.opacity = '0';
+  initFrames();
+});
+</script>
+
+<div class="info" style="margin-top:16px">
+<b>时间轴（并发模型 — 基于 data.json 事件结构反推）</b>：
+<pre style="color:#a5adc1;background:#1a1d27;padding:10px;border-radius:4px;font-size:11px;line-height:1.5;margin-top:8px">
+T = 0ms    ──▶  ① ComboSprite 横幅弹出（scale 0→1.3→1，200ms 弹出 + 400ms 保持 + 200ms 淡出 = 800ms 全周期）
+T = 0ms    ──▶  ② Girl.Surprise 起播（10 帧 × 77ms = 770ms）
+T = 0ms    ──▶  ③ Giant Tween Y 上移 -50px + 切 Scream 动画（3 帧 × 50ms = 150ms）→ 保持张嘴等糖
+T = 150ms  ──▶  ④ 糖果开始逐颗飞行（5 颗，每颗 800ms，每 60ms 错开起飞）
+T ≈ 1150ms ──▶  ⑤ 最后一颗糖果被 Giant 吃掉 → 闭嘴回 Default + 加积分
+</pre>
+路径：右下角 Girl 手 → 抛物线向左上 → Giant 嘴。所有参数都可以在上方输入框调整。<br>
+<b>并发模型</b>：ComboSprite / Girl / Giant 3 个视觉元素在 T=0 同时启动（C3 event sheet 典型写法），糖果飞行略延 150ms（等 Create 完成）。
+</pre>
+</div>
+</body>
+</html>

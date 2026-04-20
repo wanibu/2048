@@ -34,7 +34,7 @@ export class BootScene extends Phaser.Scene {
     // Full texture images (frames are cropped dynamically via regions in config)
     this.load.image('shape-full', 'assets/images/shape-sheet0.png');
     this.load.image('border-full', 'assets/images/border-sheet0.png');
-    this.load.image('shared0', 'assets/images/shared-0-sheet0.png');
+    this.load.image('shared0', 'assets/images/newshared-0-sheet0.png');
     this.load.image('shared1', 'assets/images/shared-0-sheet1.png');
     this.load.image('shared2', 'assets/images/shared-0-sheet2.png');
     this.load.image('shared3', 'assets/images/shared-0-sheet3.png');

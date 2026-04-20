@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — Girl 原版动画（小女孩）</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 22px 0 8px; font-size: 16px; }
+h3 { color: #ffe57f; margin: 16px 0 6px; font-size: 14px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+.back:hover { text-decoration: underline; }
+
+.anim-section {
+  display: flex; gap: 24px; margin-bottom: 28px; flex-wrap: wrap; align-items: flex-start;
+  padding: 16px; background: rgba(255,255,255,0.02); border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.stage {
+  position: relative; width: 280px; height: 320px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+.ground-line {
+  position: absolute; left: 0; right: 0; bottom: 40px;
+  height: 1px; background: rgba(255,229,127,0.5);
+  pointer-events: none;
+}
+.anchor-marker {
+  position: absolute; width: 8px; height: 8px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3; pointer-events: none;
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 240px; }
+.speed-ctl { margin-bottom: 10px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.speed-ctl input[type=number] {
+  width: 70px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.controls button {
+  padding: 6px 12px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+.frame-info { font-size: 11px; color: #a5adc1; padding: 6px 8px; background: #1a1d27; border-radius: 3px; min-height: 36px; }
+
+.thumb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 10px; }
+.thumb-card {
+  padding: 6px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 3px; text-align: center; cursor: pointer;
+}
+.thumb-card:hover { border-color: #ffd54a; }
+.thumb-wrap { overflow: hidden; margin: 0 auto 4px; display: inline-block; border: 1px dashed rgba(255,255,255,0.1); }
+.thumb-img { background-repeat: no-repeat; transform-origin: top left; }
+.thumb-label { font-size: 10px; color: #a5adc1; }
+.thumb-label b { color: #ffd54a; }
+
+.meta {
+  font-size: 11px; color: #8d97ad; margin-top: 8px; line-height: 1.5;
+  padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);
+}
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>Girl — 小女孩全部动画（3 个）</h1>
+<div class="info">
+C3 对象 <code>Girl</code>（游戏里底部那个蓝发精灵角色）的 3 个动画，全部来自 <code>images/girl-sheet0.png</code>。<br>
+<b>所有帧的 pivot 都是 <code>(~0.4~0.5, 0.996)</code></b>：锚点在<b>脚底中间</b>（y=0.996 接近底边），所以 Girl 站立时底部会贴到地面，做动作时头部左右晃动，脚底不动。<br>
+黄色水平线 = 地面参考线；红点 = 动画锚点。
+</div>
+
+<script>
+const SHEET = 'assets/images/girl-sheet0.png';
+
+const ANIMS = {
+  'Default': {
+    fps: 5, loop: false,
+    frames: [
+      { x: 769, y: 769, w: 204, h: 244, pivotX: 0.417, pivotY: 0.996 },
+    ]
+  },
+  'Blink': {
+    fps: 20, loop: true, // 眨眼通常是循环的，这里默认开启循环方便观察
+    frames: [
+      { x: 513, y: 769, w: 204, h: 244, pivotX: 0.417, pivotY: 0.996 },
+      { x: 1,   y: 769, w: 204, h: 244, pivotX: 0.417, pivotY: 0.996 },
+    ]
+  },
+  'Surprise': {
+    fps: 13, loop: false,
+    frames: [
+      { x: 257, y: 513, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+      { x: 1,   y: 513, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+      { x: 513, y: 513, w: 206, h: 250, pivotX: 0.519, pivotY: 0.996 },
+      { x: 513, y: 1,   w: 212, h: 251, pivotX: 0.538, pivotY: 0.996 },
+      { x: 769, y: 1,   w: 211, h: 251, pivotX: 0.531, pivotY: 0.996 },
+      { x: 513, y: 257, w: 210, h: 250, pivotX: 0.524, pivotY: 0.996 },
+      { x: 769, y: 257, w: 208, h: 250, pivotX: 0.510, pivotY: 0.996 },
+      { x: 769, y: 513, w: 206, h: 249, pivotX: 0.495, pivotY: 0.996 },
+      { x: 257, y: 257, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+      { x: 257, y: 769, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+    ]
+  },
+};
+
+// 创建 1 个动画展示块
+function createAnimBlock(name, config) {
+  const section = document.createElement('div');
+  section.className = 'anim-section';
+
+  // Stage
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+  // Anchor at (stage_w/2, stage_h - 40) 脚底对准地面线
+  const STAGE_W = 280, STAGE_H = 320, GROUND_BOTTOM = 40;
+  const anchorX = STAGE_W / 2;
+  const anchorY = STAGE_H - GROUND_BOTTOM;
+
+  const ground = document.createElement('div');
+  ground.className = 'ground-line';
+  stage.appendChild(ground);
+
+  const anchor = document.createElement('div');
+  anchor.className = 'anchor-marker';
+  anchor.style.left = anchorX + 'px';
+  anchor.style.top = anchorY + 'px';
+  stage.appendChild(anchor);
+
+  section.appendChild(stage);
+
+  // Side panel
+  const side = document.createElement('div');
+  side.className = 'side-panel';
+
+  const title = document.createElement('h3');
+  title.textContent = `${name} · ${config.fps}fps · ${config.frames.length}帧 ${config.loop ? '(循环)' : '(一次)'}`;
+  side.appendChild(title);
+
+  const speedCtl = document.createElement('div');
+  speedCtl.className = 'speed-ctl';
+  const frameDurMs = Math.round(1000 / config.fps);
+  speedCtl.innerHTML = `<label>每帧时长(ms):</label>
+    <input type="number" class="frameDur" value="${frameDurMs}" min="10" max="500">
+    <span style="color:#555">(${config.fps}fps)</span>`;
+  side.appendChild(speedCtl);
+  const durInput = speedCtl.querySelector('.frameDur');
+
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  controls.innerHTML = `<button class="playBtn">▶ 播放一次</button>
+    <button class="loopBtn">↻ 循环</button>
+    <button class="stopBtn secondary">■ 停止</button>`;
+  side.appendChild(controls);
+
+  const info = document.createElement('div');
+  info.className = 'frame-info';
+  info.textContent = '点击"播放"开始';
+  side.appendChild(info);
+
+  const thumbs = document.createElement('div');
+  thumbs.className = 'thumb-list';
+  side.appendChild(thumbs);
+
+  section.appendChild(side);
+
+  // Render logic
+  let currentSprite = null;
+  let animInterval = null;
+  function showFrame(idx) {
+    if (currentSprite) currentSprite.remove();
+    const f = config.frames[idx];
+    const el = document.createElement('div');
+    el.className = 'frame-sprite';
+    el.style.width = f.w + 'px';
+    el.style.height = f.h + 'px';
+    el.style.background = `url('${SHEET}') no-repeat`;
+    el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+    el.style.left = (anchorX - f.pivotX * f.w) + 'px';
+    el.style.top = (anchorY - f.pivotY * f.h) + 'px';
+    stage.appendChild(el);
+    currentSprite = el;
+    info.innerHTML = `<b>frame ${idx}</b>/${config.frames.length - 1} · src(${f.x},${f.y}) ${f.w}×${f.h} · pivot(${f.pivotX.toFixed(2)}, ${f.pivotY.toFixed(2)})`;
+  }
+  function play(loop) {
+    stopAnim();
+    let idx = 0;
+    const dur = Math.max(10, parseInt(durInput.value) || frameDurMs);
+    showFrame(idx);
+    animInterval = setInterval(() => {
+      idx++;
+      if (idx >= config.frames.length) {
+        if (loop) idx = 0;
+        else { stopAnim(); info.innerHTML += ' <span style="color:#10b981">✓ 结束</span>'; return; }
+      }
+      showFrame(idx);
+    }, dur);
+  }
+  function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
+
+  controls.querySelector('.playBtn').addEventListener('click', () => play(false));
+  controls.querySelector('.loopBtn').addEventListener('click', () => play(true));
+  controls.querySelector('.stopBtn').addEventListener('click', stopAnim);
+
+  // 缩略图
+  config.frames.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'thumb-card';
+    const scale = 70 / Math.max(f.w, f.h);
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-wrap';
+    wrap.style.width = (f.w * scale) + 'px';
+    wrap.style.height = (f.h * scale) + 'px';
+    const img = document.createElement('div');
+    img.className = 'thumb-img';
+    img.style.width = f.w + 'px';
+    img.style.height = f.h + 'px';
+    img.style.background = `url('${SHEET}') no-repeat`;
+    img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+    img.style.transform = `scale(${scale})`;
+    wrap.appendChild(img);
+    card.appendChild(wrap);
+    const lbl = document.createElement('div');
+    lbl.className = 'thumb-label';
+    lbl.innerHTML = `<b>帧${i}</b><br>${f.w}×${f.h}`;
+    card.appendChild(lbl);
+    card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+    thumbs.appendChild(card);
+  });
+
+  // 显示第 0 帧
+  showFrame(0);
+
+  return section;
+}
+
+// 构建 3 个动画块
+for (const [name, config] of Object.entries(ANIMS)) {
+  document.body.appendChild(createAnimBlock(name, config));
+}
+</script>
+
+<div class="info" style="margin-top:16px">
+<b>总结</b>：<br>
+• <code>Default</code>（1 帧）— 静止，默认姿势<br>
+• <code>Blink</code>（2 帧, 20fps）— 眨眼，两帧切换<br>
+• <code>Surprise</code>（10 帧, 13fps）— 10 帧表情/姿势变化，帧尺寸微变（204~212 宽），看连续播放就能判断是"惊讶/惊喜"、"晃动"还是其他<br>
+<b>特别注意 pivot 都在 0.996（底部）</b>：脚底贴地，动画晃动时脚不动、头部与身体动
+</div>
+</body>
+</html>

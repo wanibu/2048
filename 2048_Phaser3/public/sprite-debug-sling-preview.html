@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — Sling 弹弓 4 帧</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+
+.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage {
+  position: relative; width: 320px; height: 280px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+.ground-line {
+  position: absolute; left: 0; right: 0; bottom: 40px;
+  height: 1px; background: rgba(255,229,127,0.5);
+}
+.anchor-marker {
+  position: absolute; width: 8px; height: 8px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 260px; }
+.speed-ctl { margin-bottom: 10px; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+.speed-ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
+
+.frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.frame-card {
+  padding: 10px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center; cursor: pointer;
+}
+.frame-card:hover { border-color: #ffd54a; }
+.frame-card .cropped {
+  display: inline-block; background-repeat: no-repeat; margin-bottom: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.frame-card .label { font-size: 10px; color: #a5adc1; line-height: 1.5; }
+.frame-card .label strong { color: #ffd54a; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>Sling 弹弓 — 4 帧（状态切换用）</h1>
+<div class="info">
+C3 对象 <code>Sling</code>。原版参数来自 <code>data.json</code>，素材在 <code>images/shared-0-sheet1.png</code>。<br>
+<b>4 帧</b>，尺寸统一 <code>256×160</code>，pivot 固定 <code>(0.5, 1.0)</code>（锚点在底部中央，弹弓底座位置）<br>
+<b>Speed=0</b> 意味着这不是连续动画，而是靠<b>代码手动切换帧</b>来表现不同状态：
+静止 / 拉开 / 半拉 / 发射 等，每帧代表一个"状态"。<br>
+黄色水平线 = 锚点线；红点 = 锚点（底部中心）。
+</div>
+
+<h2>播放（演示用：可依次切换 4 帧；实际游戏里是状态切换）</h2>
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="ground-line"></div>
+    <div class="anchor-marker" id="anchor"></div>
+  </div>
+  <div class="side-panel">
+    <div class="speed-ctl">
+      <label>每帧时长(ms):</label>
+      <input type="number" id="frameDur" value="200" min="30" max="1000">
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 依次播放</button>
+      <button id="loopBtn">↻ 循环</button>
+      <button class="secondary" id="stopBtn">■ 停止</button>
+    </div>
+    <div id="frameInfo">点击"播放"或下方任意缩略图</div>
+    <div style="margin-top:12px;padding:10px;background:rgba(255,213,74,0.08);border-left:3px solid #ffd54a;font-size:12px;line-height:1.6">
+      <strong>观察点</strong>：4 帧弹弓的皮带形状变化——<br>
+      • 静止平直 / 微拉 / 拉满 / 回弹 的不同造型<br>
+      • 推测每帧对应一个 state，代码里根据拖拽进度切换
+    </div>
+  </div>
+</div>
+
+<h2>4 帧逐帧查看</h2>
+<div class="frame-list" id="frameList"></div>
+
+<script>
+const FRAMES = [
+  { x: 1,   y: 1281, w: 256, h: 160, pivotX: 0.500, pivotY: 1.000 },
+  { x: 1,   y: 1025, w: 256, h: 160, pivotX: 0.500, pivotY: 1.000 },
+  { x: 513, y: 1025, w: 256, h: 160, pivotX: 0.500, pivotY: 1.000 },
+  { x: 1,   y: 1537, w: 256, h: 160, pivotX: 0.500, pivotY: 1.000 },
+];
+const SHEET = 'assets/images/shared-0-sheet1.png';
+const STAGE_W = 320, STAGE_H = 280, GROUND_BOTTOM = 40;
+const ANCHOR_X = STAGE_W / 2;
+const ANCHOR_Y = STAGE_H - GROUND_BOTTOM;
+
+const stage = document.getElementById('stage');
+const frameInfoEl = document.getElementById('frameInfo');
+const anchor = document.getElementById('anchor');
+anchor.style.left = ANCHOR_X + 'px';
+anchor.style.top = ANCHOR_Y + 'px';
+let currentSprite = null;
+let animInterval = null;
+
+function showFrame(idx) {
+  if (currentSprite) currentSprite.remove();
+  const f = FRAMES[idx];
+  const el = document.createElement('div');
+  el.className = 'frame-sprite';
+  el.style.width = f.w + 'px';
+  el.style.height = f.h + 'px';
+  el.style.background = `url('${SHEET}') no-repeat`;
+  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
+  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
+  stage.appendChild(el);
+  currentSprite = el;
+  frameInfoEl.innerHTML = `<b>frame ${idx}</b> / ${FRAMES.length - 1} · 源(${f.x},${f.y}) · ${f.w}×${f.h} · pivot(${f.pivotX}, ${f.pivotY})`;
+}
+
+function play(loop) {
+  stopAnim();
+  let idx = 0;
+  const dur = Math.max(30, parseInt(document.getElementById('frameDur').value) || 200);
+  showFrame(idx);
+  animInterval = setInterval(() => {
+    idx++;
+    if (idx >= FRAMES.length) {
+      if (loop) idx = 0;
+      else { stopAnim(); frameInfoEl.innerHTML += ' <span style="color:#10b981">✓</span>'; return; }
+    }
+    showFrame(idx);
+  }, dur);
+}
+function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
+
+document.getElementById('playBtn').addEventListener('click', () => play(false));
+document.getElementById('loopBtn').addEventListener('click', () => play(true));
+document.getElementById('stopBtn').addEventListener('click', stopAnim);
+showFrame(0);
+
+const frameList = document.getElementById('frameList');
+FRAMES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'frame-card';
+  const img = document.createElement('div');
+  img.className = 'cropped';
+  img.style.width = f.w + 'px';
+  img.style.height = f.h + 'px';
+  img.style.background = `url('${SHEET}') no-repeat`;
+  img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  card.appendChild(img);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.innerHTML = `<strong>帧${i}</strong><br>源 (${f.x},${f.y})<br>${f.w}×${f.h}`;
+  card.appendChild(label);
+  card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+  frameList.appendChild(card);
+});
+</script>
+</body>
+</html>

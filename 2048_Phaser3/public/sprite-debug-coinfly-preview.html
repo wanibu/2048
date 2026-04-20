@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — CoinPlay + Fly 金币飞行模拟</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+
+.stage {
+  position: relative; width: 600px; height: 450px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+  border-radius: 6px;
+}
+.board-ref {
+  position: absolute; left: 100px; top: 150px;
+  width: 280px; height: 280px;
+  background: rgba(139,92,40,0.15);
+  border: 1px dashed rgba(255,229,127,0.5);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,229,127,0.6); font-size: 14px;
+  pointer-events: none;
+}
+.coin-ui-target {
+  position: absolute; right: 20px; top: 20px;
+  width: 60px; height: 60px;
+  background: url('assets/images/shared-0-sheet3.png') no-repeat -1px -129px;
+  filter: drop-shadow(0 0 4px rgba(255,213,74,0.6));
+  border: 1px dashed rgba(255,213,74,0.3);
+  background-size: auto;
+  z-index: 2;
+}
+.coin-label {
+  position: absolute; right: 20px; top: 90px;
+  font-size: 11px; color: #ffd54a;
+}
+.flying-coin {
+  position: absolute; width: 50px; height: 50px;
+  background: url('assets/images/shared-0-sheet3.png') no-repeat -1px -129px;
+  z-index: 3;
+}
+
+.side-panel { display: flex; gap: 20px; align-items: flex-start; margin: 20px 0; flex-wrap: wrap; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+.controls button.tertiary { background: #10b981; }
+
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.ctl select {
+  padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+
+.icons-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.icon-card {
+  padding: 12px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center;
+}
+.icon-img {
+  display: inline-block; background-repeat: no-repeat;
+  margin-bottom: 6px; border: 1px dashed rgba(255,255,255,0.1);
+  background-image: url('assets/images/shared-0-sheet3.png');
+}
+.icon-label { font-size: 11px; color: #a5adc1; line-height: 1.4; }
+.icon-label b { color: #ffd54a; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>CoinPlay + Fly — 金币飞行模拟</h1>
+<div class="info">
+<code>CoinPlay</code>（50×50 金币图标，单帧静态）与 <code>Fly</code>（C3 行为）在同一 container。<br>
+<b>金币飞行动画</b>不是帧动画，而是 <code>CoinPlay</code> 静态图标通过 <code>Fly</code> 行为沿路径从棋盘位置运动到右上角金币 UI 的过程。<br>
+本页用 JS 模拟这个飞行：起点在棋盘中心，终点在右上角金币 UI；可选直线/弧线路径。
+</div>
+
+<h2>飞行模拟</h2>
+<div class="stage" id="stage">
+  <div class="board-ref">模拟棋盘区（起点在中心）</div>
+  <div class="coin-ui-target" title="金币 UI 目标位置（Fly 飞行终点）"></div>
+  <div class="coin-label">↑ 金币 UI</div>
+</div>
+
+<div class="side-panel">
+  <div class="ctl">
+    <label>飞行时长(ms):</label>
+    <input type="number" id="duration" value="800" min="200" max="3000">
+  </div>
+  <div class="ctl">
+    <label>路径:</label>
+    <select id="pathType">
+      <option value="linear">直线</option>
+      <option value="arc" selected>弧线（常见）</option>
+      <option value="curve">贝塞尔曲线</option>
+    </select>
+  </div>
+  <div class="ctl">
+    <label>缩放:</label>
+    <select id="scaleType">
+      <option value="none">不缩放</option>
+      <option value="shrink" selected>由大→小</option>
+      <option value="pop">先大→后小</option>
+    </select>
+  </div>
+  <div class="ctl">
+    <label>数量:</label>
+    <input type="number" id="count" value="5" min="1" max="20">
+  </div>
+</div>
+
+<div class="controls">
+  <button id="flyBtn">▶ 飞一次</button>
+  <button id="burstBtn" class="tertiary">✦ 连发（错开 80ms）</button>
+  <button id="clearBtn" class="secondary">■ 清除</button>
+</div>
+
+<h2>sheet3 里的所有 UI 图标（静态单帧，均 50×50）</h2>
+<div class="icons-grid" id="iconsGrid"></div>
+
+<script>
+const SHEET = 'assets/images/shared-0-sheet3.png';
+const ICONS = [
+  { name: 'GameRStar',  x: 65, y: 65,  desc: '结算页星星' },
+  { name: 'CoinPlay',   x: 1,  y: 129, desc: '游戏内金币（飞行用）' },
+  { name: 'GameRCrown', x: 65, y: 129, desc: '结算页皇冠' },
+  { name: 'StarUI',     x: 1,  y: 193, desc: 'HUD 分数星星' },
+  { name: 'CrownUI',    x: 65, y: 193, desc: 'HUD 最高分皇冠' },
+];
+
+// 构建图标列表
+const grid = document.getElementById('iconsGrid');
+ICONS.forEach(icon => {
+  const card = document.createElement('div');
+  card.className = 'icon-card';
+  const img = document.createElement('div');
+  img.className = 'icon-img';
+  img.style.width = '50px';
+  img.style.height = '50px';
+  img.style.backgroundPosition = `-${icon.x}px -${icon.y}px`;
+  card.appendChild(img);
+  const lbl = document.createElement('div');
+  lbl.className = 'icon-label';
+  lbl.innerHTML = `<b>${icon.name}</b><br>src (${icon.x}, ${icon.y})<br>${icon.desc}`;
+  card.appendChild(lbl);
+  grid.appendChild(card);
+});
+
+// 飞行模拟
+const stage = document.getElementById('stage');
+const STAGE_W = 600, STAGE_H = 450;
+// 起点：棋盘中心（board-ref 的中心 = 100+140, 150+140 = 240, 290）
+const START_X = 240, START_Y = 290;
+// 终点：金币 UI 中心（right: 20, top: 20, width: 60 → 中心 = STAGE_W - 20 - 30, 20 + 30 = 550, 50）
+const END_X = 550, END_Y = 50;
+
+function interpolate(t, pathType) {
+  // Return (x, y) at progress t ∈ [0, 1]
+  const dx = END_X - START_X;
+  const dy = END_Y - START_Y;
+  if (pathType === 'linear') {
+    return { x: START_X + dx * t, y: START_Y + dy * t };
+  }
+  if (pathType === 'arc') {
+    // 抛物线式：先上扬再落到终点
+    const x = START_X + dx * t;
+    // 标准拱形：Y = linear - arcHeight * 4 * t * (1-t)
+    const linY = START_Y + dy * t;
+    const arcHeight = 100;
+    const y = linY - arcHeight * 4 * t * (1 - t);
+    return { x, y };
+  }
+  if (pathType === 'curve') {
+    // 三次贝塞尔，两个控制点制造 S 形
+    const cp1x = START_X + 100, cp1y = START_Y - 80;
+    const cp2x = END_X - 100, cp2y = END_Y + 80;
+    const omt = 1 - t;
+    const x = omt*omt*omt*START_X + 3*omt*omt*t*cp1x + 3*omt*t*t*cp2x + t*t*t*END_X;
+    const y = omt*omt*omt*START_Y + 3*omt*omt*t*cp1y + 3*omt*t*t*cp2y + t*t*t*END_Y;
+    return { x, y };
+  }
+  return { x: START_X, y: START_Y };
+}
+
+function scaleAtT(t, scaleType) {
+  if (scaleType === 'none') return 1;
+  if (scaleType === 'shrink') return 1.3 - 0.7 * t; // 1.3 → 0.6
+  if (scaleType === 'pop') {
+    // 0 → 1.4 (at 0.3) → 0.8 (at 1)
+    if (t < 0.3) return 0.5 + (1.4 - 0.5) * (t / 0.3);
+    return 1.4 - (1.4 - 0.8) * ((t - 0.3) / 0.7);
+  }
+  return 1;
+}
+
+function flyCoin(startX, startY, delay, duration, pathType, scaleType) {
+  setTimeout(() => {
+    const coin = document.createElement('div');
+    coin.className = 'flying-coin';
+    stage.appendChild(coin);
+    const t0 = performance.now();
+    function frame(now) {
+      const t = Math.min(1, (now - t0) / duration);
+      const pos = interpolate(t, pathType);
+      // 在起点处加一点随机散开
+      const randOffset = 20;
+      const sx = startX + (pos.x - START_X);
+      const sy = startY + (pos.y - START_Y);
+      const scale = scaleAtT(t, scaleType);
+      coin.style.left = (sx - 25 * scale) + 'px';
+      coin.style.top = (sy - 25 * scale) + 'px';
+      coin.style.transform = `scale(${scale})`;
+      coin.style.opacity = (1 - Math.max(0, (t - 0.8) / 0.2)).toString(); // 最后 20% 淡出
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        coin.remove();
+      }
+    }
+    requestAnimationFrame(frame);
+  }, delay);
+}
+
+function getSettings() {
+  return {
+    duration: parseInt(document.getElementById('duration').value) || 800,
+    pathType: document.getElementById('pathType').value,
+    scaleType: document.getElementById('scaleType').value,
+    count: Math.max(1, Math.min(20, parseInt(document.getElementById('count').value) || 5)),
+  };
+}
+
+document.getElementById('flyBtn').addEventListener('click', () => {
+  const s = getSettings();
+  // 从棋盘中心周围随机起点
+  for (let i = 0; i < s.count; i++) {
+    const sx = START_X + (Math.random() - 0.5) * 60;
+    const sy = START_Y + (Math.random() - 0.5) * 60;
+    flyCoin(sx, sy, i * 30, s.duration, s.pathType, s.scaleType);
+  }
+});
+
+document.getElementById('burstBtn').addEventListener('click', () => {
+  const s = getSettings();
+  for (let i = 0; i < s.count; i++) {
+    const sx = START_X + (Math.random() - 0.5) * 80;
+    const sy = START_Y + (Math.random() - 0.5) * 80;
+    flyCoin(sx, sy, i * 80, s.duration, s.pathType, s.scaleType);
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  stage.querySelectorAll('.flying-coin').forEach(el => el.remove());
+});
+</script>
+
+<div class="info" style="margin-top:24px">
+<b>实现建议</b>（集成到 Phaser 时）：<br>
+• 用 <code>scene.add.image(startX, startY, 'shared3', 'coin-icon-frame')</code> 创建金币<br>
+• 用 <code>scene.tweens.add({ targets, x: endX, y: endY, duration, ease: 'Cubic.easeIn' })</code> 做弧线<br>
+• 结束时 <code>destroy()</code> 并同时 <code>hud.addCoin(1)</code>
+</div>
+</body>
+</html>

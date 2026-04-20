@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — Combo 链条 Phaser 4 版</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; line-height: 1.5; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 18px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255,213,74,0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+
+.layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+#phaser-container {
+  width: 480px; height: 860px;
+  background: #1a1d27;
+  border: 2px solid #444; border-radius: 8px;
+  overflow: hidden;
+}
+
+.side-panel { flex: 1; min-width: 320px; }
+.ctls { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.controls button {
+  padding: 10px 16px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.combo-btn {
+  background: linear-gradient(135deg, #ffd54a, #ff9800);
+  color: #1f2230;
+}
+.controls button.secondary { background: #6c7280; }
+
+.timeline {
+  font-size: 11px; color: #a5adc1; padding: 10px;
+  background: #1a1d27; border-radius: 4px; min-height: 200px;
+  line-height: 1.6; font-family: ui-monospace, monospace;
+}
+.timeline .tick { color: #ffd54a; }
+.timeline .done { color: #10b981; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>Combo 链条 — Phaser 4 实现版</h1>
+<div class="info">
+用 <b>Phaser 4（CDN）</b>重写 <a href="sprite-debug-combo-chain-preview.html" style="color:#4caf50">CSS 版本</a>的相同功能。用于验证 Phaser 实际渲染效果与 CSS 预览是否一致。<br>
+渲染方式：真 Phaser 4 Scene + Sprite + Tween + 手动帧切换（模拟 C3 state frames）<br>
+模型：<b>并发触发</b> — ComboSprite / Girl / Giant / 糖果 在 T=0 几乎同时启动。
+</div>
+
+<div class="ctls">
+  <div class="ctl"><label>Girl 起播 (ms):</label><input type="number" id="girlStart" value="0" min="0"></div>
+  <div class="ctl"><label>Girl 每帧 (ms):</label><input type="number" id="girlFrameDur" value="77" min="10"></div>
+  <div class="ctl"><label>Giant 起播 (ms):</label><input type="number" id="giantStart" value="800" min="0"></div>
+  <div class="ctl"><label>Giant Tween Y (px):</label><input type="number" id="giantMoveY" value="-50" min="-200" max="100"></div>
+  <div class="ctl"><label>Giant Tween 时长 (ms):</label><input type="number" id="giantMoveDur" value="300" min="50"></div>
+  <div class="ctl"><label>连击数:</label><input type="number" id="comboCount" value="3" min="1" max="20" title="3=Combo, 4+=WoW"></div>
+  <div class="ctl"><label>ComboSprite 起播 (ms):</label><input type="number" id="comboStart" value="0" min="0"></div>
+  <div class="ctl"><label>Combo 弹出 (ms):</label><input type="number" id="comboPopDur" value="200" min="50"></div>
+  <div class="ctl"><label>Combo 保持 (ms):</label><input type="number" id="comboHoldDur" value="400" min="0"></div>
+  <div class="ctl"><label>Combo 淡出 (ms):</label><input type="number" id="comboFadeDur" value="200" min="50"></div>
+  <div class="ctl"><label>糖果飞行 起播 (ms):</label><input type="number" id="coinStart" value="150" min="0"></div>
+  <div class="ctl"><label>糖果飞行 时长 (ms):</label><input type="number" id="coinFlyDur" value="800" min="100"></div>
+  <div class="ctl"><label>糖果数:</label><input type="number" id="coinCount" value="5" min="1" max="12"></div>
+</div>
+
+<div class="layout">
+  <div id="phaser-container"></div>
+  <div class="side-panel">
+    <div class="controls">
+      <button class="combo-btn" id="playCombo">▶▶ 播放完整 Combo 链条（Phaser）</button>
+      <button class="secondary" id="resetBtn">■ 复位</button>
+    </div>
+    <h2>时间轴日志</h2>
+    <div class="timeline" id="timeline"><div>等待加载 Phaser...</div></div>
+
+    <h2>Phaser 4 vs CSS 版对比</h2>
+    <div class="info">
+    • 一致：参数默认值、触发时序、动画节奏<br>
+    • 差异：Phaser 用真 Tween/Anims 引擎（含 GPU 加速），CSS 用 transition/setInterval<br>
+    • Phaser 优势：easing 更精细、批量 sprite 性能更好、可导出为游戏资产
+    </div>
+  </div>
+</div>
+
+<!-- Phaser 4 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/phaser@4.0.0/dist/phaser.min.js"></script>
+
+<script>
+// ============ 时间轴日志 ============
+const tlEl = document.getElementById('timeline');
+let tlStart = 0;
+function tlLog(txt, cls = 'tick') {
+  const t = performance.now() - tlStart;
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = `<span style="color:#8d97ad">[${t.toFixed(0).padStart(4, ' ')}ms]</span> ${txt}`;
+  tlEl.appendChild(line);
+}
+function tlClear() { tlEl.innerHTML = ''; tlStart = performance.now(); }
+
+// ============ 动画帧数据 ============
+const GIRL_FRAMES = [
+  { x: 257, y: 513, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+  { x: 1,   y: 513, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+  { x: 513, y: 513, w: 206, h: 250, pivotX: 0.519, pivotY: 0.996 },
+  { x: 513, y: 1,   w: 212, h: 251, pivotX: 0.538, pivotY: 0.996 },
+  { x: 769, y: 1,   w: 211, h: 251, pivotX: 0.531, pivotY: 0.996 },
+  { x: 513, y: 257, w: 210, h: 250, pivotX: 0.524, pivotY: 0.996 },
+  { x: 769, y: 257, w: 208, h: 250, pivotX: 0.510, pivotY: 0.996 },
+  { x: 769, y: 513, w: 206, h: 249, pivotX: 0.495, pivotY: 0.996 },
+  { x: 257, y: 257, w: 204, h: 247, pivotX: 0.471, pivotY: 0.996 },
+  { x: 257, y: 769, w: 205, h: 244, pivotX: 0.439, pivotY: 0.996 },
+];
+const GIRL_DEFAULT = { x: 769, y: 769, w: 204, h: 244, pivotX: 0.417, pivotY: 0.996 };
+
+const GIANT_SCREAM_FRAMES = [
+  { x: 1560, y: 1,    w: 424, h: 612 },
+  { x: 1195, y: 1011, w: 422, h: 612 },
+  { x: 770,  y: 1011, w: 423, h: 612 },
+];
+const GIANT_DEFAULT = { x: 1619, y: 1025, w: 421, h: 610 };
+
+const COMBO_SPRITE = { x: 938, y: 1625, w: 512, h: 305 };
+const WOW_SPRITE =   { x: 424, y: 1625, w: 512, h: 380 };
+
+// CoinPlay 金币帧（飞行用，来自 shared-0-sheet3.png）
+const COIN_PLAY = { x: 1, y: 129, w: 50, h: 50 };
+
+// ============ Phaser 4 场景 ============
+class ComboScene extends Phaser.Scene {
+  constructor() { super({ key: 'Combo' }); }
+  preload() {
+    this.load.image('girl-sheet', 'assets/images/girl-sheet0.png');
+    this.load.image('shared0-sheet', 'assets/images/shared-0-sheet0.png');
+    this.load.image('shared3-sheet', 'assets/images/shared-0-sheet3.png');
+  }
+  create() {
+    // 背景渐变
+    const bg = this.add.graphics();
+    bg.fillGradientStyle(0x8ec5fc, 0x8ec5fc, 0xe0c3fc, 0xe0c3fc, 1);
+    bg.fillRect(0, 0, 480, 860);
+
+    // 注册所有帧（Phaser 4 里 texture.add 来动态切分纹理）
+    const girlTex = this.textures.get('girl-sheet');
+    GIRL_FRAMES.forEach((f, i) => {
+      girlTex.add(`girl_surprise_${i}`, 0, f.x, f.y, f.w, f.h);
+    });
+    girlTex.add('girl_default', 0, GIRL_DEFAULT.x, GIRL_DEFAULT.y, GIRL_DEFAULT.w, GIRL_DEFAULT.h);
+
+    const sharedTex = this.textures.get('shared0-sheet');
+    GIANT_SCREAM_FRAMES.forEach((f, i) => {
+      sharedTex.add(`giant_scream_${i}`, 0, f.x, f.y, f.w, f.h);
+    });
+    sharedTex.add('giant_default', 0, GIANT_DEFAULT.x, GIANT_DEFAULT.y, GIANT_DEFAULT.w, GIANT_DEFAULT.h);
+    sharedTex.add('combo_sprite', 0, COMBO_SPRITE.x, COMBO_SPRITE.y, COMBO_SPRITE.w, COMBO_SPRITE.h);
+    sharedTex.add('wow_sprite',   0, WOW_SPRITE.x,   WOW_SPRITE.y,   WOW_SPRITE.w,   WOW_SPRITE.h);
+
+    // 注册 CoinPlay 金币帧
+    const shared3Tex = this.textures.get('shared3-sheet');
+    shared3Tex.add('coin_play', 0, COIN_PLAY.x, COIN_PLAY.y, COIN_PLAY.w, COIN_PLAY.h);
+
+    // 创建 Giant anim（speed=20fps）
+    this.anims.create({
+      key: 'giant_scream',
+      frames: GIANT_SCREAM_FRAMES.map((_, i) => ({ key: 'shared0-sheet', frame: `giant_scream_${i}` })),
+      frameRate: 20,
+      repeat: 0,
+    });
+
+    // 棋盘参考框
+    const boardG = this.add.graphics();
+    boardG.fillStyle(0x8b5c28, 0.25);
+    boardG.fillRect(50, 380, 380, 300);
+    boardG.lineStyle(2, 0xffe57f, 0.6);
+    boardG.strokeRect(50, 380, 380, 300);
+    const boardText = this.add.text(240, 530, '模拟棋盘', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffe57f80'
+    }).setOrigin(0.5);
+
+    // Giant（上部中央，scale 0.5）
+    this.giant = this.add.image(240, 160, 'shared0-sheet', 'giant_default')
+      .setOrigin(0.5, 0)
+      .setScale(0.5);
+
+    // Girl（右下，scale 0.6，锚点脚底）
+    this.girl = this.add.image(450, 850, 'girl-sheet', 'girl_default')
+      .setOrigin(GIRL_DEFAULT.pivotX, GIRL_DEFAULT.pivotY)
+      .setScale(0.6);
+
+    // ComboSprite（中央，scale 0.6，初始 alpha=0 scale=0）
+    this.comboBanner = this.add.image(240, 340, 'shared0-sheet', 'combo_sprite')
+      .setOrigin(0.5)
+      .setScale(0)
+      .setAlpha(0);
+
+    // 存初始 y 便于复位
+    this.giantOrigY = 160;
+
+    // 向外暴露
+    window.__scene = this;
+    tlEl.innerHTML = '<div>✓ Phaser 4 场景就绪</div>';
+  }
+
+  resetAll() {
+    // 停所有 tween
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    // 复位 Giant
+    this.giant.setTexture('shared0-sheet', 'giant_default');
+    this.giant.setPosition(240, this.giantOrigY);
+    this.giant.setScale(0.5);
+    // 复位 Girl
+    this.girl.setTexture('girl-sheet', 'girl_default');
+    this.girl.setOrigin(GIRL_DEFAULT.pivotX, GIRL_DEFAULT.pivotY);
+    // 复位 ComboSprite
+    this.comboBanner.setScale(0).setAlpha(0);
+    // 清理飞行糖果
+    if (this.flyingCoins) {
+      this.flyingCoins.forEach(c => c.destroy());
+      this.flyingCoins = [];
+    }
+    tlClear();
+    tlLog('已复位');
+  }
+
+  playComboChain(p) {
+    this.resetAll();
+    tlClear();
+    tlLog('🔥 COMBO x3 触发！');
+
+    // ① ComboSprite / WowSprite（取决于连击数）
+    const isWow = p.comboCount >= 4;
+    const bannerFrame = isWow ? 'wow_sprite' : 'combo_sprite';
+    const bannerName = isWow ? 'WowSprite' : 'ComboSprite';
+    this.comboBanner.setTexture('shared0-sheet', bannerFrame);
+    this.time.delayedCall(p.comboStart, () => {
+      tlLog(`① ${bannerName} 弹出 (${p.comboCount} 连击)`);
+      this.comboBanner.setScale(0).setAlpha(1);
+      // 弹出 0→1.3×0.6 (带上 sprite 基础缩放 0.6)
+      this.tweens.add({
+        targets: this.comboBanner,
+        scaleX: 1.3 * 0.6, scaleY: 1.3 * 0.6,
+        duration: p.comboPopDur * 0.6,
+        ease: 'Back.out',
+        onComplete: () => {
+          // 回弹 →1.0×0.6
+          this.tweens.add({
+            targets: this.comboBanner,
+            scaleX: 1.0 * 0.6, scaleY: 1.0 * 0.6,
+            duration: p.comboPopDur * 0.4,
+            ease: 'Quad.out',
+          });
+        },
+      });
+      // 保持后淡出
+      this.time.delayedCall(p.comboPopDur + p.comboHoldDur, () => {
+        tlLog(`① ${bannerName} 淡出`, 'done');
+        this.tweens.add({
+          targets: this.comboBanner,
+          alpha: 0,
+          scaleX: 1.2 * 0.6, scaleY: 1.2 * 0.6,
+          duration: p.comboFadeDur,
+          ease: 'Quad.in',
+        });
+      });
+    });
+
+    // ② Girl.Surprise 手动切帧
+    this.time.delayedCall(p.girlStart, () => {
+      tlLog('② Girl Surprise 起播');
+      let i = 0;
+      this.girl.setTexture('girl-sheet', `girl_surprise_0`);
+      const f0 = GIRL_FRAMES[0];
+      this.girl.setOrigin(f0.pivotX, f0.pivotY);
+      const iv = this.time.addEvent({
+        delay: p.girlFrameDur,
+        repeat: GIRL_FRAMES.length - 1,
+        callback: () => {
+          i++;
+          if (i >= GIRL_FRAMES.length) {
+            tlLog('② Girl 回 Default', 'done');
+            this.girl.setTexture('girl-sheet', 'girl_default');
+            this.girl.setOrigin(GIRL_DEFAULT.pivotX, GIRL_DEFAULT.pivotY);
+            return;
+          }
+          this.girl.setTexture('girl-sheet', `girl_surprise_${i}`);
+          const f = GIRL_FRAMES[i];
+          this.girl.setOrigin(f.pivotX, f.pivotY);
+        }
+      });
+    });
+
+    // ③ Giant Tween Y + Scream（保持末帧等糖）
+    this.time.delayedCall(p.giantStart, () => {
+      tlLog('③ Giant Tween Y + Scream');
+      // Tween Y 上移 → 返回
+      this.tweens.add({
+        targets: this.giant,
+        y: this.giantOrigY + p.giantMoveY,
+        duration: p.giantMoveDur,
+        ease: 'Cubic.out',
+        yoyo: true,
+      });
+      // 切 Scream，手动 3 帧 20fps
+      let i = 0;
+      this.giant.setTexture('shared0-sheet', `giant_scream_0`);
+      this.time.addEvent({
+        delay: 50,
+        repeat: GIANT_SCREAM_FRAMES.length - 1,
+        callback: () => {
+          i++;
+          if (i >= GIANT_SCREAM_FRAMES.length) {
+            // 保持最后一帧等糖果
+            this.giant.setTexture('shared0-sheet', `giant_scream_${GIANT_SCREAM_FRAMES.length - 1}`);
+            tlLog('③ Giant 保持张嘴等糖', 'done');
+            return;
+          }
+          this.giant.setTexture('shared0-sheet', `giant_scream_${i}`);
+        }
+      });
+    });
+
+    // ④ 糖果飞行 Girl 手 → Giant 嘴
+    this.time.delayedCall(p.coinStart, () => {
+      tlLog(`④ ${p.coinCount} 颗糖果开始飞向 Giant 嘴`);
+      // 起点：Girl 手大致 (370, 730)
+      // 终点：Giant 嘴大致 (240, 320)
+      const girlHandX = 370, girlHandY = 730;
+      const giantMouthX = 240, giantMouthY = 320;
+      this.flyingCoins = [];
+      let completed = 0;
+
+      for (let i = 0; i < p.coinCount; i++) {
+        this.time.delayedCall(i * 60, () => {
+          // 起点随机偏移
+          const sx = girlHandX + (Math.random() - 0.5) * 40;
+          const sy = girlHandY + (Math.random() - 0.5) * 40;
+          // 用 CoinPlay 金币贴图（来自 shared-0-sheet3.png）
+          const coinSprite = this.add.image(sx, sy, 'shared3-sheet', 'coin_play');
+          // CoinPlay 原始 50×50，按需缩放
+          coinSprite.setScale(1);
+          coinSprite.setOrigin(0.5, 0.5);
+          this.flyingCoins.push(coinSprite);
+
+          // 抛物线：分解为 x 线性插值 + y 二次曲线
+          const tweenData = { t: 0 };
+          this.tweens.add({
+            targets: tweenData,
+            t: 1,
+            duration: p.coinFlyDur,
+            ease: 'Quad.in',
+            onUpdate: () => {
+              const t = tweenData.t;
+              const dx = giantMouthX - sx;
+              const dy = giantMouthY - sy;
+              const x = sx + dx * t;
+              const arcHeight = 120;
+              const y = sy + dy * t - arcHeight * 4 * t * (1 - t);
+              const scale = 1.0 + 0.3 * Math.sin(t * Math.PI);
+              coinSprite.setPosition(x, y);
+              coinSprite.setScale(scale);
+              coinSprite.setRotation(t * Math.PI * 0.5);
+              coinSprite.setAlpha(t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15);
+            },
+            onComplete: () => {
+              coinSprite.destroy();
+              completed++;
+              // Giant 嘴部小脉冲
+              this.tweens.add({
+                targets: this.giant,
+                scaleX: 0.525, scaleY: 0.525,
+                duration: 60,
+                yoyo: true,
+                ease: 'Quad.out',
+              });
+              if (completed === p.coinCount) {
+                tlLog('④ 糖果全部被吃', 'done');
+                // ⑤ Giant 闭嘴回 Default
+                this.giant.setTexture('shared0-sheet', 'giant_default');
+                tlLog('⑤ Giant 闭嘴回 Default', 'done');
+                tlLog('🎉 Combo 链条全部完成', 'done');
+              }
+            }
+          });
+        });
+      }
+    });
+  }
+}
+
+// ============ 启动 Phaser ============
+const config = {
+  type: Phaser.AUTO,
+  width: 480,
+  height: 860,
+  parent: 'phaser-container',
+  backgroundColor: '#1a1d27',
+  scene: ComboScene,
+  render: { antialias: true },
+};
+const game = new Phaser.Game(config);
+
+// ============ 按钮连接 ============
+function getParams() {
+  const n = (id, d) => parseInt(document.getElementById(id).value) || d;
+  return {
+    girlStart: n('girlStart', 0),
+    girlFrameDur: n('girlFrameDur', 77),
+    giantStart: n('giantStart', 0),
+    giantMoveY: n('giantMoveY', -50),
+    giantMoveDur: n('giantMoveDur', 300),
+    comboStart: n('comboStart', 0),
+    comboPopDur: n('comboPopDur', 200),
+    comboHoldDur: n('comboHoldDur', 400),
+    comboFadeDur: n('comboFadeDur', 200),
+    coinStart: n('coinStart', 150),
+    coinFlyDur: n('coinFlyDur', 800),
+    coinCount: Math.max(1, n('coinCount', 5)),
+    comboCount: Math.max(1, n('comboCount', 3)),
+  };
+}
+
+document.getElementById('playCombo').addEventListener('click', () => {
+  if (window.__scene) window.__scene.playComboChain(getParams());
+  else tlLog('⚠ 场景未就绪');
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (window.__scene) window.__scene.resetAll();
+});
+</script>
+</body>
+</html>

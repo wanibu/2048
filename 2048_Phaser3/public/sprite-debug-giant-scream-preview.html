@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — Giant "Scream" 动画</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+.back:hover { text-decoration: underline; }
+
+.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage {
+  position: relative; width: 500px; height: 700px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+.anchor-marker {
+  position: absolute; left: 50%; top: 50%;
+  width: 10px; height: 10px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 280px; }
+.speed-ctl { margin-bottom: 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.speed-ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
+
+.frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.frame-card {
+  padding: 12px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center;
+}
+.frame-card .cropped-wrap {
+  overflow: hidden; margin: 0 auto 8px; display: inline-block;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.frame-card .cropped {
+  background-repeat: no-repeat;
+  transform-origin: top left;
+}
+.frame-card .label { font-size: 11px; color: #a5adc1; line-height: 1.6; }
+.frame-card .label strong { color: #ffd54a; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>Giant "Scream" — 巨人大叫/咆哮 3 帧动画</h1>
+<div class="info">
+C3 对象 <code>Giant</code>（首页和游戏里顶部那个红发巨人，托着棋盘的角色）的一个动画。<br>
+<b>Scream</b> 动画：3 帧，速度 20 fps（50ms/帧），不循环。<br>
+每帧尺寸约 <code>424×612</code>，pivot 接近 <code>(0.5, 0.5)</code>（居中）。<br>
+<b>来源素材</b>：<code>images/newshared-0-sheet0.png</code>（游戏目前加载的就是新版本）<br><br>
+
+<b>Giant 全部动画</b>：<br>
+- <code>Default</code>（1 帧） — 默认静止（嘴闭，中性）<br>
+- <code>Blink</code>（3 帧，28 fps） — 眨眼<br>
+- <code>Scream</code>（3 帧，20 fps） — <b>本页观察对象</b>；观察 3 张连续帧推断是"张嘴咆哮/叫"还是"吃糖"<br><br>
+
+<b>触发时机</b>：C3 event sheet 里没有用字符串 "Scream" 的调用，推测是通过数值索引切换动画。
+可能的触发场景（需在真游戏里对比）：高连击 / 高分合并 / 游戏结束 / 吃掉大糖果 等。
+</div>
+
+<h2>连续播放（用来判断动作性质）</h2>
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="anchor-marker" title="动画锚点"></div>
+  </div>
+  <div class="side-panel">
+    <div class="speed-ctl">
+      <label>每帧时长(ms):</label>
+      <input type="number" id="frameDur" value="50" min="10" max="500">
+      <span style="color:#555">(20fps = 50ms)</span>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 播放一次</button>
+      <button id="loopBtn">↻ 循环播放</button>
+      <button class="secondary" id="stopBtn">■ 停止</button>
+    </div>
+    <div id="frameInfo">点击"播放"开始</div>
+    <div style="margin-top:16px;padding:10px;background:rgba(255,213,74,0.08);border-left:3px solid #ffd54a;font-size:12px;line-height:1.6">
+      <strong>观察点</strong>：<br>
+      • 3 帧是否呈现"嘴先闭 → 张大 → 再收"的节奏？→ 很可能是"叫/咆哮"<br>
+      • 3 帧是否呈现"空手 → 手中或嘴里有糖果 → 吞下"？→ 是"吃糖"<br>
+      • 3 帧是否呈现其他变化（例如挤眉弄眼、脸变红）？→ 是其他表情
+    </div>
+  </div>
+</div>
+
+<h2>3 帧逐帧拆解</h2>
+<div class="frame-list" id="frameList"></div>
+
+<script>
+const FRAMES = [
+  { x: 1560, y: 1,    w: 424, h: 612, pivotX: 0.505, pivotY: 0.500 },
+  { x: 1195, y: 1011, w: 422, h: 612, pivotX: 0.507, pivotY: 0.500 },
+  { x: 770,  y: 1011, w: 423, h: 612, pivotX: 0.504, pivotY: 0.500 },
+];
+const SHEET = 'assets/images/newshared-0-sheet0.png';
+
+// 舞台 500×700，锚点在中心 (250, 350)
+const ANCHOR_X = 250;
+const ANCHOR_Y = 350;
+
+const stage = document.getElementById('stage');
+const frameInfoEl = document.getElementById('frameInfo');
+let currentSprite = null;
+let animInterval = null;
+
+function showFrame(idx) {
+  if (currentSprite) currentSprite.remove();
+  const f = FRAMES[idx];
+  const el = document.createElement('div');
+  el.className = 'frame-sprite';
+  el.style.width = f.w + 'px';
+  el.style.height = f.h + 'px';
+  el.style.background = `url('${SHEET}') no-repeat`;
+  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
+  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
+  stage.appendChild(el);
+  currentSprite = el;
+  frameInfoEl.innerHTML =
+    `<b>frame ${idx}</b> / ${FRAMES.length - 1}<br>` +
+    `源 (${f.x},${f.y}) · 尺寸 ${f.w}×${f.h}<br>` +
+    `pivot = (${f.pivotX.toFixed(3)}, ${f.pivotY.toFixed(3)})`;
+}
+
+function play(loop) {
+  stopAnim();
+  let idx = 0;
+  const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 50);
+  showFrame(idx);
+  animInterval = setInterval(() => {
+    idx++;
+    if (idx >= FRAMES.length) {
+      if (loop) idx = 0;
+      else { stopAnim(); frameInfoEl.innerHTML += '<br><span style="color:#10b981">✓ 播放结束</span>'; return; }
+    }
+    showFrame(idx);
+  }, dur);
+}
+function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
+
+document.getElementById('playBtn').addEventListener('click', () => play(false));
+document.getElementById('loopBtn').addEventListener('click', () => play(true));
+document.getElementById('stopBtn').addEventListener('click', stopAnim);
+
+showFrame(0);
+
+// 缩略图卡片
+const frameList = document.getElementById('frameList');
+FRAMES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'frame-card';
+  const scale = 0.4;
+  const wrap = document.createElement('div');
+  wrap.className = 'cropped-wrap';
+  wrap.style.width = (f.w * scale) + 'px';
+  wrap.style.height = (f.h * scale) + 'px';
+  const img = document.createElement('div');
+  img.className = 'cropped';
+  img.style.width = f.w + 'px';
+  img.style.height = f.h + 'px';
+  img.style.background = `url('${SHEET}') no-repeat`;
+  img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  img.style.transform = `scale(${scale})`;
+  wrap.appendChild(img);
+  card.appendChild(wrap);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.innerHTML = `<strong>帧${i}</strong><br>src (${f.x}, ${f.y})<br>${f.w}×${f.h}<br>pivot (${f.pivotX.toFixed(2)}, ${f.pivotY.toFixed(2)})`;
+  card.appendChild(label);
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+  frameList.appendChild(card);
+});
+</script>
+</body>
+</html>
