@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sprite Debug — BorderExplodeAnimation 原版 11 帧数字爆裂</title>
+<title>Sprite Debug — "2048" 标题进场动画（4 数字依次蹦+爆裂）</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
@@ -14,56 +14,144 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 .back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
 .back:hover { text-decoration: underline; }
 
-.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
-.stage {
-  position: relative; width: 400px; height: 400px;
-  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+/* "2048" 标题进场舞台 — 严格匹配原游戏画布 640×960 */
+.title-stage {
+  position: relative;
+  width: 640px; height: 960px;
+  background: url('assets/images/playbackground-sheet0.png') no-repeat center top;
+  background-size: cover;
+  border: 2px solid #444; border-radius: 12px;
+  margin: 0 auto 20px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+  overflow: hidden;
 }
-.anchor-marker {
-  position: absolute; left: 50%; top: 50%;
-  width: 10px; height: 10px;
-  background: #ff3355; border-radius: 50%;
+/* Giant 位置严格按 data.json Menu 实例:
+   pos=(339, 139), size=421×610 (自然尺寸), angle=10°,
+   originX=0.5059, originY=0.5016 (≈ 中心)
+   注：头顶会超出画布顶部 ~167px（和原游戏一致） */
+.giant-head {
+  position: absolute;
+  left: 339px; top: 139px;
+  width: 421px; height: 610px;
+  background: url('assets/images/shared-0-sheet0.png') no-repeat -1619px -1025px;
+  /* origin 偏移：水平 -50.59%，垂直 -50.16% */
+  transform: translate(-50.59%, -50.16%) rotate(10deg);
+  transform-origin: center center;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3));
+}
+/* Giant 3 个动画帧（切换时改 class） */
+.giant-head.blink-0 { background: url('assets/images/shared-0-sheet1.png') no-repeat -1px -1px; width: 421px; height: 610px; }
+.giant-head.blink-1 { background: url('assets/images/shared-0-sheet1.png') no-repeat -424px -1px; width: 421px; height: 610px; }
+.giant-head.blink-2 { background: url('assets/images/shared-0-sheet0.png') no-repeat -1px -1027px; width: 421px; height: 610px; }
+.giant-head.default { background: url('assets/images/shared-0-sheet0.png') no-repeat -1619px -1025px; width: 421px; height: 610px; }
+.giant-head.scream-0 { background: url('assets/images/shared-0-sheet0.png') no-repeat -1560px -1px; width: 424px; height: 612px; }
+.giant-head.scream-1 { background: url('assets/images/shared-0-sheet0.png') no-repeat -1195px -1011px; width: 422px; height: 612px; }
+.giant-head.scream-2 { background: url('assets/images/shared-0-sheet0.png') no-repeat -770px -1011px; width: 423px; height: 612px; }
+
+/* Play 按钮（data.json: Menu 实例 @ (320, 490) 缩放到 270×253）*/
+.play-button {
+  position: absolute;
+  left: 320px; top: 490px;
+  width: 256px; height: 240px;
+  background: url('assets/images/shared-0-sheet1.png') no-repeat -515px -769px;
+  /* pivot (0.5, 0.5) 居中，缩放到 270/256 = 1.054 */
+  transform: translate(-50%, -50%) scale(1.054);
+  z-index: 6;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4));
+}
+
+/* GameRBanner（含小女孩+星星横幅），data.json: Menu 实例 @ (320, 793) 650×328 */
+.game-r-banner {
+  position: absolute;
+  left: 320px; top: 793px;
+  width: 512px; height: 254px;
+  /* Frame 0: shared-0-sheet0.png @ (1452, 1793) pivot(0.5, 0.5039) */
+  background: url('assets/images/shared-0-sheet0.png') no-repeat -1452px -1793px;
+  transform: translate(-50%, -50.39%) scale(1.27);  /* 650/512 = 1.27 */
+  z-index: 4;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+}
+
+/* BrandingButton（data.json @ (320, 722) 600×253）*/
+.branding-btn {
+  position: absolute;
+  left: 320px; top: 722px;
+  width: 600px; height: 253px;
   transform: translate(-50%, -50%);
   z-index: 3;
-  pointer-events: none;
-  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  /* 无素材引用，暂不显示背景图 */
 }
-.frame-sprite { position: absolute; z-index: 2; }
 
-.side-panel { flex: 1; min-width: 260px; }
-.speed-ctl { margin-bottom: 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.speed-ctl input[type=number] {
+/* 粒子星星：动态创建，每颗独立生命周期（真 mergeeffect-sheet2.png 16×16） */
+.sparkle {
+  position: absolute;
+  width: 16px; height: 16px;
+  background: url('assets/images/mergeeffect-sheet2.png') no-repeat 0 0;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  filter: drop-shadow(0 0 4px rgba(255,213,74,0.9));
+}
+.digit-slot {
+  position: absolute;
+  width: 128px; height: 128px;
+  overflow: visible;
+}
+/* 4 数字 X 坐标来自 data.json 预埋实例（94/254/408/546）；Y 为到位后的终点 */
+.digit-slot.slot-2 { left: 30px;  top: 520px; }  /* data X=94 中心 → 左上角=30 */
+.digit-slot.slot-0 { left: 190px; top: 440px; }  /* data X=254 → 190 */
+.digit-slot.slot-4 { left: 344px; top: 440px; }  /* data X=408 → 344 */
+.digit-slot.slot-8 { left: 482px; top: 520px; }  /* data X=546 → 482 */
+
+.digit-sprite {
+  position: absolute; left: 50%; top: 50%;
+  width: 128px; height: 128px;
+  background-image: url('assets/images/shape-sheet0.png');
+  background-repeat: no-repeat;
+  /* 初始位置：向下偏移 720px（模拟 Y=1240 起始，最终 Y~520） */
+  transform: translate(-50%, calc(-50% + 720px)) scale(1);
+  opacity: 0;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+.digit-sprite.d-2 { background-position: -1px -769px; }   /* Shape frame 1 = "2" */
+.digit-sprite.d-0 { background-position: -131px -769px; } /* Shape frame 0 = "0" */
+.digit-sprite.d-4 { background-position: -261px -769px; } /* Shape frame 2 = "4" */
+.digit-sprite.d-8 { background-position: -131px -513px; } /* Shape frame 3 = "8" */
+.digit-burst {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* 控件 */
+.ctls { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ctl input[type=number] {
   width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
   border: 1px solid #555; border-radius: 3px; font-family: inherit;
 }
-.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+
+.controls { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
 .controls button {
-  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  padding: 10px 16px; background: #2f7ed8; color: #fff;
   border: none; border-radius: 4px; cursor: pointer;
   font-family: inherit; font-size: 13px; font-weight: bold;
 }
+.controls button.play-btn {
+  background: linear-gradient(135deg, #ffd54a, #ff9800);
+  color: #1f2230;
+}
 .controls button.secondary { background: #6c7280; }
-#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
 
-/* 4 数字并排的模拟区 */
-.digits-stage {
-  display: flex; gap: 10px; background: #1a1d27;
-  border: 2px solid #ffd54a; padding: 40px; border-radius: 8px;
-  justify-content: center; align-items: center; min-height: 320px;
-  margin-bottom: 20px;
+.timeline {
+  font-size: 11px; color: #a5adc1; padding: 10px;
+  background: #1a1d27; border-radius: 4px;
+  min-height: 150px; line-height: 1.6; font-family: ui-monospace, monospace;
 }
-.digit-slot {
-  position: relative; width: 220px; height: 220px;
-  background: rgba(255,255,255,0.03);
-  border: 1px dashed rgba(255,229,127,0.3);
-  display: flex; align-items: center; justify-content: center;
-  overflow: visible;
-}
-.digit-slot .digit {
-  font-size: 120px; font-weight: bold; color: rgba(255,213,74,0.6);
-  font-family: sans-serif;
-}
-.digit-sprite { position: absolute; top: 50%; left: 50%; z-index: 10; }
+.timeline .tick { color: #ffd54a; }
+.timeline .done { color: #10b981; }
 
 .frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .frame-card {
@@ -76,65 +164,54 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 }
 .frame-card .label { font-size: 10px; color: #a5adc1; line-height: 1.5; }
 .frame-card .label strong { color: #ffd54a; }
-.frame-card .label .sheet { color: #4caf50; }
 </style>
 </head>
 <body>
 <a class="back" href="sprite-debug-index.html">← 返回索引</a>
-<h1>BorderExplodeAnimation — 原版 11 帧数字爆裂</h1>
+<h1>"2048" 标题进场动画 — 4 数字依次蹦 + BorderExplodeAnimation 爆裂</h1>
 <div class="info">
-从 Construct 3 原版 <code>data.json</code> 抓取。<br>
-<b>11 帧</b>，变尺寸（200×221 至 258×258），pivot 均接近 <code>(0.5, 0.5)</code>（居中）<br>
-用了 3 张 sheet：<code>borderexplodeanimation-sheet0/1/2.png</code>（像粉色爆炸烟雾）<br>
-<b>Default</b> 动画，速度 <b>20 fps</b>（50ms/帧），不循环<br><br>
-<b>和 "2 0 4 8" 数字的关系</b>：BorderExplodeAnimation 和 <code>ShapeNumber</code> 同属一个 C3 container（container link: ShapeNumber 35）。
-即每个数字糖果（2/4/8/16/...）都有一个配对的爆裂动画实例。
-首页菜单里的 "2" / "0" / "4" / "8" 各有一份 ShapeNumber + BorderExplodeAnimation，
-所以看到的是 <b>同一个 11 帧序列在 4 个位置分别播放</b>（可能时间上错开）。
+原游戏首页标题"2048"进场动画。<br>
+<b>shape-sheet0.png</b> 只引用了 4 帧数字糖果：<b>"2"（frame 1）/ "0"（frame 0）/ "4"（frame 2）/ "8"（frame 3）</b>，其他 10 档糖果（16/32/...8192）在菜单里没引用。<br>
+每个数字<b>依次蹦出</b>（scale 0→1.2→1 弹性）+ 伴随 <b>BorderExplodeAnimation</b>（11 帧粉色爆裂特效）。<br>
+4 个数字依次进场，每两个之间间隔可调。
 </div>
 
-<h2>单帧播放（锚点对准红点）</h2>
-<div class="stage-wrap">
-  <div class="stage" id="stage">
-    <div class="anchor-marker" title="动画锚点"></div>
-  </div>
-  <div class="side-panel">
-    <div class="speed-ctl">
-      <label>每帧时长(ms):</label>
-      <input type="number" id="frameDur" value="50" min="10" max="500">
-      <span style="color:#555">(20fps = 50ms)</span>
-    </div>
-    <div class="controls">
-      <button id="playBtn">▶ 播放一次</button>
-      <button id="loopBtn">↻ 循环播放</button>
-      <button class="secondary" id="stopBtn">■ 停止</button>
-    </div>
-    <div id="frameInfo">点击"播放"开始</div>
-  </div>
+<h2>"2048" 标题进场演示</h2>
+<div class="title-stage" id="titleStage">
+  <div class="giant-head default" id="giantHead"></div>
+  <div class="digit-slot slot-2" data-digit="2"><div class="digit-sprite d-2" id="d2"></div></div>
+  <div class="digit-slot slot-0" data-digit="0"><div class="digit-sprite d-0" id="d0"></div></div>
+  <div class="digit-slot slot-4" data-digit="4"><div class="digit-sprite d-4" id="d4"></div></div>
+  <div class="digit-slot slot-8" data-digit="8"><div class="digit-sprite d-8" id="d8"></div></div>
+  <div class="game-r-banner"></div>
+  <div class="play-button"></div>
+  <div id="sparkleContainer"></div>
 </div>
 
-<h2>4 数字 "2048" 同时爆裂模拟</h2>
-<div style="color:#8d97ad;font-size:12px;margin-bottom:12px">
-模拟首页效果：4 个数字位置各播放一次 11 帧动画（默认全部同时起播；下方按钮可以切换"错开起播"）
-</div>
-<div class="controls" style="margin-bottom: 14px">
-  <button id="simSimul">▶ 4 数字同时爆</button>
-  <button id="simStagger">▶ 4 数字错开 200ms 爆</button>
-  <button class="secondary" id="simStop">■ 停止</button>
-</div>
-<div class="digits-stage" id="digitsStage">
-  <div class="digit-slot" data-digit="2"><span class="digit">2</span></div>
-  <div class="digit-slot" data-digit="0"><span class="digit">0</span></div>
-  <div class="digit-slot" data-digit="4"><span class="digit">4</span></div>
-  <div class="digit-slot" data-digit="8"><span class="digit">8</span></div>
+<div class="ctls">
+  <div class="ctl"><label>首个数字起播 (ms):</label><input type="number" id="firstDelay" value="0" min="0"></div>
+  <div class="ctl"><label>数字间隔 (ms):</label><input type="number" id="stagger" value="250" min="50"></div>
+  <div class="ctl"><label>数字弹出时长 (ms):</label><input type="number" id="popDur" value="400" min="50"></div>
+  <div class="ctl"><label>爆裂延迟 (ms):</label><input type="number" id="burstDelay" value="380" min="0"></div>
+  <div class="ctl"><label>爆裂每帧时长 (ms):</label><input type="number" id="burstFrameDur" value="50" min="10"></div>
+  <div class="ctl"><label>Blink 间隔 (秒):</label><input type="number" id="blinkInterval" value="3" min="0.5" step="0.5"></div>
+  <div class="ctl"><label>旋转间隔 (秒):</label><input type="number" id="rotationInterval" value="4" min="1" step="0.5"></div>
 </div>
 
-<h2>11 帧拆解（单独查看）</h2>
+<div class="controls">
+  <button class="play-btn" id="playBtn">▶▶ 播放完整进场</button>
+  <button class="secondary" id="resetBtn">■ 复位</button>
+</div>
+
+<h2>时间轴日志</h2>
+<div class="timeline" id="timeline"><div>点击"播放"开始</div></div>
+
+<h2>BorderExplodeAnimation 11 帧拆解（每个数字后播放）</h2>
 <div class="frame-list" id="frameList"></div>
 
 <script>
-// 11 帧真实参数
-const FRAMES = [
+// BorderExplodeAnimation 11 帧数据
+const BURST_FRAMES = [
   { sheet: 2, x: 257, y: 1,   w: 221, h: 221, pivotX: 0.502, pivotY: 0.502 },
   { sheet: 0, x: 1,   y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
   { sheet: 1, x: 257, y: 257, w: 221, h: 236, pivotX: 0.502, pivotY: 0.500 },
@@ -147,137 +224,316 @@ const FRAMES = [
   { sheet: 0, x: 261, y: 257, w: 246, h: 245, pivotX: 0.500, pivotY: 0.502 },
   { sheet: 1, x: 1,   y: 257, w: 227, h: 234, pivotX: 0.502, pivotY: 0.500 },
 ];
-const SHEETS = [
+const BURST_SHEETS = [
   'assets/images/borderexplodeanimation-sheet0.png',
   'assets/images/borderexplodeanimation-sheet1.png',
   'assets/images/borderexplodeanimation-sheet2.png',
 ];
-const ANCHOR_X = 200;
-const ANCHOR_Y = 200;
 
-// ====== 单帧播放 ======
-const stage = document.getElementById('stage');
-const frameInfoEl = document.getElementById('frameInfo');
-let currentSprite = null;
-let animInterval = null;
-function showFrame(idx) {
-  if (currentSprite) currentSprite.remove();
-  const f = FRAMES[idx];
-  const el = document.createElement('div');
-  el.className = 'frame-sprite';
-  el.style.width = f.w + 'px';
-  el.style.height = f.h + 'px';
-  el.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
-  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
-  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
-  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
-  stage.appendChild(el);
-  currentSprite = el;
-  frameInfoEl.innerHTML =
-    `<b>frame ${idx}</b> / ${FRAMES.length - 1}<br>` +
-    `sheet${f.sheet}.png · 源 (${f.x},${f.y}) · 尺寸 ${f.w}×${f.h}<br>` +
-    `pivot = (${f.pivotX.toFixed(3)}, ${f.pivotY.toFixed(3)})`;
+// 时间轴日志
+const tlEl = document.getElementById('timeline');
+let tlStart = 0;
+function tlLog(text, cls = 'tick') {
+  const t = performance.now() - tlStart;
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = `<span style="color:#8d97ad">[${t.toFixed(0).padStart(4,' ')}ms]</span> ${text}`;
+  tlEl.appendChild(line);
 }
-function play(loop) {
-  stopAnim();
-  let idx = 0;
-  const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 50);
-  showFrame(idx);
-  animInterval = setInterval(() => {
-    idx++;
-    if (idx >= FRAMES.length) {
-      if (loop) idx = 0;
-      else { stopAnim(); frameInfoEl.innerHTML += '<br><span style="color:#10b981">✓ 播放结束</span>'; return; }
-    }
-    showFrame(idx);
-  }, dur);
-}
-function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
-document.getElementById('playBtn').addEventListener('click', () => play(false));
-document.getElementById('loopBtn').addEventListener('click', () => play(true));
-document.getElementById('stopBtn').addEventListener('click', stopAnim);
-showFrame(0);
+function tlClear() { tlEl.innerHTML = ''; tlStart = performance.now(); }
 
-// ====== 4 数字模拟 ======
-const digitStages = document.querySelectorAll('.digit-slot');
-const digitAnims = new Map(); // slot -> { interval, sprite }
+// 对单个数字做"从底部飞起来 + 回弹"动画 + 爆裂
+function animateDigit(digitEl, slotEl, popDur, burstDelay, burstFrameDur, label) {
+  // 1. 数字从底部飞起来：translateY 720 → 0（超出终点再回弹），opacity 0→1
+  // Phase A（60%）：飞到最终位置上方一点（overshoot）
+  digitEl.style.transition = `transform ${popDur * 0.7}ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity ${popDur * 0.3}ms ease`;
+  digitEl.style.transform = 'translate(-50%, calc(-50% - 20px)) scale(1.1)';
+  digitEl.style.opacity = '1';
+  tlLog(`▶ 数字 "${label}" 从底部飞起`);
 
-function playDigitExplode(slot, startDelay) {
-  // slot size 220×220, anchor center
-  const anchorX = 110;
-  const anchorY = 110;
+  // Phase B（40%）：回落到最终位置
   setTimeout(() => {
-    let idx = 0;
-    const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 50);
-    const render = () => {
-      const old = slot.querySelector('.digit-sprite');
-      if (old) old.remove();
-      const f = FRAMES[idx];
-      const el = document.createElement('div');
-      el.className = 'digit-sprite';
-      el.style.width = f.w + 'px';
-      el.style.height = f.h + 'px';
-      el.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
-      el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
-      el.style.left = (anchorX - f.pivotX * f.w) + 'px';
-      el.style.top = (anchorY - f.pivotY * f.h) + 'px';
-      el.style.transform = 'none';
-      slot.appendChild(el);
-    };
-    render();
-    const interval = setInterval(() => {
-      idx++;
-      if (idx >= FRAMES.length) {
-        clearInterval(interval);
-        digitAnims.delete(slot);
+    digitEl.style.transition = `transform ${popDur * 0.3}ms ease-out`;
+    digitEl.style.transform = 'translate(-50%, -50%) scale(1.0)';
+  }, popDur * 0.7);
+
+  // 2. 到位后触发 BorderExplodeAnimation
+  setTimeout(() => {
+    tlLog(`  ↳ "${label}" 爆裂特效 (11 帧)`);
+    playBurstOnSlot(slotEl, burstFrameDur);
+  }, burstDelay);
+}
+
+function playBurstOnSlot(slot, frameDur) {
+  // 创建 burst div（绝对定位在 slot 中心）
+  const burst = document.createElement('div');
+  burst.className = 'digit-burst';
+  const scale = 0.4; // 把 258px 原始 burst 缩放到合适大小
+  burst.style.transform = `translate(-50%, -50%) scale(${scale})`;
+  slot.appendChild(burst);
+  let i = 0;
+  const setFrame = (idx) => {
+    const f = BURST_FRAMES[idx];
+    burst.style.width = f.w + 'px';
+    burst.style.height = f.h + 'px';
+    burst.style.background = `url('${BURST_SHEETS[f.sheet]}') no-repeat`;
+    burst.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+    // pivot 居中调整：负 offset 让 pivot 点对准 translate(-50%, -50%)
+    burst.style.marginLeft = `${(0.5 - f.pivotX) * f.w}px`;
+    burst.style.marginTop = `${(0.5 - f.pivotY) * f.h}px`;
+  };
+  setFrame(0);
+  const iv = setInterval(() => {
+    i++;
+    if (i >= BURST_FRAMES.length) {
+      clearInterval(iv);
+      // 淡出消失
+      burst.style.transition = 'opacity 150ms ease';
+      burst.style.opacity = '0';
+      setTimeout(() => burst.remove(), 200);
+      return;
+    }
+    setFrame(i);
+  }, frameDur);
+}
+
+function resetAll() {
+  ['d2', 'd0', 'd4', 'd8'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.transition = 'none';
+    // 回到初始 "画布下方" 位置（Y=1240 等效，视觉上看不到）
+    el.style.transform = 'translate(-50%, calc(-50% + 720px)) scale(1)';
+    el.style.opacity = '0';
+  });
+  document.querySelectorAll('.digit-burst').forEach(e => e.remove());
+  tlClear();
+}
+
+// 全局定时器/循环句柄（方便 reset 清理）
+let blinkLoopTimer = null;
+let rotationLoopTimer = null;
+let sparkleSpawnTimer = null;
+
+// ============ 动态粒子：Play 按钮周围 mergeeffect-sheet2.png 星点 ============
+// Play 按钮中心大约在 (320, 700)，半径 ~150px 内随机 spawn 小星点
+function spawnSparkle() {
+  const container = document.getElementById('sparkleContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'sparkle';
+  // 极坐标随机位置：围绕 Play 按钮 (data.json: 320, 490)
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 80 + Math.random() * 100;
+  const px = 320 + Math.cos(angle) * radius;
+  const py = 490 + Math.sin(angle) * radius;
+  const size = 14 + Math.random() * 14; // 14~28px
+  el.style.left = (px - size / 2) + 'px';
+  el.style.top = (py - size / 2) + 'px';
+  el.style.width = size + 'px';
+  el.style.height = size + 'px';
+  el.style.backgroundSize = 'contain';
+  container.appendChild(el);
+
+  // 生命周期：淡入 → 保持 → 淡出 + 轻微上浮 + 旋转
+  const lifeDur = 800 + Math.random() * 600; // 800~1400ms
+  const startRot = Math.random() * 360;
+  el.style.transition = `opacity ${lifeDur * 0.3}ms ease, transform ${lifeDur}ms linear`;
+  el.style.transform = `rotate(${startRot}deg) scale(0.3)`;
+  // 下一帧触发动画
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = `rotate(${startRot + 180}deg) scale(1) translateY(-20px)`;
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = `rotate(${startRot + 360}deg) scale(0.6) translateY(-40px)`;
+    }, lifeDur * 0.6);
+    setTimeout(() => el.remove(), lifeDur);
+  });
+}
+
+function startSparkleLoop() {
+  stopSparkleLoop();
+  // 每 150~300ms 生成一颗
+  const spawn = () => {
+    spawnSparkle();
+    sparkleSpawnTimer = setTimeout(spawn, 150 + Math.random() * 150);
+  };
+  spawn();
+}
+function stopSparkleLoop() {
+  if (sparkleSpawnTimer) {
+    clearTimeout(sparkleSpawnTimer);
+    sparkleSpawnTimer = null;
+  }
+  document.getElementById('sparkleContainer').innerHTML = '';
+}
+
+function setGiantFrame(cls) {
+  const giant = document.getElementById('giantHead');
+  giant.className = `giant-head ${cls}`;
+}
+
+function playGiantBlinkOnce() {
+  // Blink 3 帧（28fps ≈ 35ms/帧）
+  setGiantFrame('blink-0');
+  setTimeout(() => setGiantFrame('blink-1'), 35);
+  setTimeout(() => setGiantFrame('blink-2'), 70);
+  setTimeout(() => setGiantFrame('default'), 105);
+}
+
+function playGiantScream(onComplete) {
+  // Scream 3 帧 20fps（50ms/帧）然后停在末帧等糖果吃完
+  // 这里简化：3 帧播完后回 Default
+  setGiantFrame('scream-0');
+  setTimeout(() => setGiantFrame('scream-1'), 50);
+  setTimeout(() => setGiantFrame('scream-2'), 100);
+  setTimeout(() => {
+    setGiantFrame('default');
+    tlLog('④ Giant Scream 完成，回 Default', 'done');
+    if (onComplete) onComplete();
+  }, 250);
+}
+
+function rotateAllDigits(onComplete) {
+  // 4 数字同步旋转 360°（Tween 800ms）
+  tlLog('🔄 Animation Rotation 触发：4 数字同步 360° 旋转');
+  ['d2', 'd0', 'd4', 'd8'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.transition = 'transform 800ms cubic-bezier(0.4, 0, 0.2, 1)';
+    // 保持当前 translate（可能已飞到最终位置），只在 scale + rotate
+    el.style.transform = 'translate(-50%, -50%) scale(1.0) rotate(360deg)';
+  });
+  setTimeout(() => {
+    ['d2', 'd0', 'd4', 'd8'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.transition = 'none';
+      el.style.transform = 'translate(-50%, -50%) scale(1.0) rotate(0deg)';
+    });
+    if (onComplete) onComplete();
+  }, 800);
+}
+
+function startBlinkLoop(intervalSec) {
+  stopBlinkLoop();
+  tlLog(`⑤ 开始周期性 Blink 循环（每 ${intervalSec} 秒）`, 'done');
+  blinkLoopTimer = setInterval(playGiantBlinkOnce, intervalSec * 1000);
+}
+function stopBlinkLoop() {
+  if (blinkLoopTimer) { clearInterval(blinkLoopTimer); blinkLoopTimer = null; }
+}
+function startRotationLoop(intervalSec) {
+  stopRotationLoop();
+  rotationLoopTimer = setInterval(() => rotateAllDigits(), intervalSec * 1000);
+}
+function stopRotationLoop() {
+  if (rotationLoopTimer) { clearInterval(rotationLoopTimer); rotationLoopTimer = null; }
+}
+
+function playAll() {
+  resetAll();
+  tlClear();
+  tlLog('🎬 Menu 完整进场序列开始');
+
+  const firstDelay = parseInt(document.getElementById('firstDelay').value) || 0;
+  const stagger = parseInt(document.getElementById('stagger').value) || 250;
+  const popDur = parseInt(document.getElementById('popDur').value) || 250;
+  const burstDelay = parseInt(document.getElementById('burstDelay').value) || 80;
+  const burstFrameDur = parseInt(document.getElementById('burstFrameDur').value) || 50;
+  const blinkInterval = parseFloat(document.getElementById('blinkInterval').value) || 3;
+  const rotationInterval = parseFloat(document.getElementById('rotationInterval').value) || 4;
+
+  // ⑥ 星星粒子循环：从一开始就 spawn（原游戏似乎菜单一直有星星）
+  startSparkleLoop();
+  tlLog('⑥ Play 按钮星星粒子循环启动', 'done');
+
+  // ① 先闭眼（Blink 中间帧 = 闭眼状态）
+  tlLog('① Giant 起始闭眼（blink-1 帧）');
+  setGiantFrame('blink-1');
+
+  // ② 短延时后 Giant 睁眼（切回 Default）+ 数字飞入
+  setTimeout(() => {
+    tlLog('② Giant 睁眼 + 4 数字同时飞入');
+    setGiantFrame('default');
+
+    const digits = [
+      { id: 'd2', label: '2' },
+      { id: 'd0', label: '0' },
+      { id: 'd4', label: '4' },
+      { id: 'd8', label: '8' },
+    ];
+    digits.forEach((d, i) => {
+      setTimeout(() => {
+        const el = document.getElementById(d.id);
+        const slot = el.parentElement;
+        animateDigit(el, slot, popDur, burstDelay, burstFrameDur, d.label);
+      }, i * stagger);
+    });
+
+    // ③ 所有数字飞入完成后（最后一个 + 飞起+爆裂总时长）
+    const lastDigitFinish = (digits.length - 1) * stagger + popDur + burstDelay + BURST_FRAMES.length * burstFrameDur;
+    // ④ Scream
+    setTimeout(() => {
+      tlLog('③ 飞入全部结束 → ④ Giant Scream');
+      playGiantScream(() => {
+        // ⑤ Blink 循环开启
+        startBlinkLoop(blinkInterval);
+        // ⑦ 周期性旋转开启
         setTimeout(() => {
-          const s = slot.querySelector('.digit-sprite');
-          if (s) s.remove();
-        }, 300);
-        return;
-      }
-      render();
-    }, dur);
-    digitAnims.set(slot, { interval });
-  }, startDelay);
+          startRotationLoop(rotationInterval);
+          tlLog(`⑦ Animation Rotation 循环开启（每 ${rotationInterval} 秒）`, 'done');
+        }, 500);
+      });
+    }, lastDigitFinish + 100);
+  }, 500 + firstDelay);
 }
 
-function stopDigitAnims() {
-  digitAnims.forEach(({interval}) => clearInterval(interval));
-  digitAnims.clear();
-  document.querySelectorAll('.digit-sprite').forEach(e => e.remove());
-}
-
-document.getElementById('simSimul').addEventListener('click', () => {
-  stopDigitAnims();
-  digitStages.forEach(slot => playDigitExplode(slot, 0));
+document.getElementById('playBtn').addEventListener('click', playAll);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  stopBlinkLoop();
+  stopRotationLoop();
+  setGiantFrame('default');
+  resetAll();
+  tlLog('已复位');
 });
-document.getElementById('simStagger').addEventListener('click', () => {
-  stopDigitAnims();
-  digitStages.forEach((slot, i) => playDigitExplode(slot, i * 200));
-});
-document.getElementById('simStop').addEventListener('click', stopDigitAnims);
 
-// ====== 11 帧缩略图 ======
+// 初始：复位（数字隐藏）
+resetAll();
+tlLog('准备就绪');
+
+// 页面加载后自动播放（Menu 进场效果就是自动触发的）
+window.addEventListener('load', () => {
+  // 等 500ms 让素材/字体加载稳定后再起
+  setTimeout(playAll, 500);
+});
+
+// BorderExplode 11 帧缩略图
 const frameList = document.getElementById('frameList');
-FRAMES.forEach((f, i) => {
+BURST_FRAMES.forEach((f, i) => {
   const card = document.createElement('div');
   card.className = 'frame-card';
   const img = document.createElement('div');
   img.className = 'cropped';
   img.style.width = f.w + 'px';
   img.style.height = f.h + 'px';
-  img.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+  img.style.background = `url('${BURST_SHEETS[f.sheet]}') no-repeat`;
   img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
   card.appendChild(img);
-  const label = document.createElement('div');
-  label.className = 'label';
-  label.innerHTML = `<strong>帧${i}</strong> · <span class="sheet">sheet${f.sheet}</span><br>${f.w}×${f.h}<br>pivot (${f.pivotX.toFixed(2)}, ${f.pivotY.toFixed(2)})`;
-  card.appendChild(label);
-  card.style.cursor = 'pointer';
-  card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+  const lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.innerHTML = `<strong>帧${i}</strong> · sheet${f.sheet}<br>${f.w}×${f.h}`;
+  card.appendChild(lbl);
   frameList.appendChild(card);
 });
 </script>
+
+<div class="info" style="margin-top:24px">
+<b>观察要点（data.json 反推的真实行为）</b>：<br>
+• <b>4 个数字起始位置在画布下方</b>：<code>(94/254/408/546, 1240)</code>，画布高 960，即预埋在屏幕底部以下 280px<br>
+• <b>依次飞起</b>：每两个数字间隔 250ms，每个数字 translateY 720→0（带 overshoot 超出+回弹 40ms）<br>
+• <b>飞到位后</b>跟随 BorderExplodeAnimation 11 帧粉色烟雾扩散<br>
+• <b>数字是真 Shape 贴图</b>：从 <code>shape-sheet0.png</code> 取 4 帧（"0/2/4/8" 对应 frame 0/1/2/3）<br>
+• <b>总时长</b>：首个 0ms + 4 个数字 × 250ms 间隔 + 末次爆裂 ~750ms ≈ 1750ms
+</div>
+
 </body>
 </html>

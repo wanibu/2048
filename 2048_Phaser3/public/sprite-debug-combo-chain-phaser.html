@@ -15,7 +15,7 @@ h2 { color: #ff9800; margin: 18px 0 8px; font-size: 16px; }
 
 .layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
 #phaser-container {
-  width: 480px; height: 860px;
+  width: 640px; height: 960px;
   background: #1a1d27;
   border: 2px solid #444; border-radius: 8px;
   overflow: hidden;
@@ -144,12 +144,12 @@ class ComboScene extends Phaser.Scene {
     this.load.image('girl-sheet', 'assets/images/girl-sheet0.png');
     this.load.image('shared0-sheet', 'assets/images/shared-0-sheet0.png');
     this.load.image('shared3-sheet', 'assets/images/shared-0-sheet3.png');
+    this.load.image('playbg', 'assets/images/playbackground-sheet0.png');
   }
+
   create() {
-    // 背景渐变
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x8ec5fc, 0x8ec5fc, 0xe0c3fc, 0xe0c3fc, 1);
-    bg.fillRect(0, 0, 480, 860);
+    // 真实游戏背景图（严格匹配原画布 640×960）
+    this.add.image(320, 480, 'playbg').setDisplaySize(640, 960);
 
     // 注册所有帧（Phaser 4 里 texture.add 来动态切分纹理）
     const girlTex = this.textures.get('girl-sheet');
@@ -178,34 +178,34 @@ class ComboScene extends Phaser.Scene {
       repeat: 0,
     });
 
-    // 棋盘参考框
+    // 棋盘参考框（中下部）
     const boardG = this.add.graphics();
     boardG.fillStyle(0x8b5c28, 0.25);
-    boardG.fillRect(50, 380, 380, 300);
+    boardG.fillRect(60, 520, 520, 340);
     boardG.lineStyle(2, 0xffe57f, 0.6);
-    boardG.strokeRect(50, 380, 380, 300);
-    const boardText = this.add.text(240, 530, '模拟棋盘', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffe57f80'
+    boardG.strokeRect(60, 520, 520, 340);
+    const boardText = this.add.text(320, 680, '模拟棋盘', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ffe57f80'
     }).setOrigin(0.5);
 
-    // Giant（上部中央，scale 0.5）
-    this.giant = this.add.image(240, 160, 'shared0-sheet', 'giant_default')
+    // Giant（上部中央，scale 0.7）
+    this.giant = this.add.image(320, 60, 'shared0-sheet', 'giant_default')
       .setOrigin(0.5, 0)
-      .setScale(0.5);
+      .setScale(0.7);
 
-    // Girl（右下，scale 0.6，锚点脚底）
-    this.girl = this.add.image(450, 850, 'girl-sheet', 'girl_default')
+    // Girl（右下，scale 0.75，锚点脚底）
+    this.girl = this.add.image(610, 950, 'girl-sheet', 'girl_default')
       .setOrigin(GIRL_DEFAULT.pivotX, GIRL_DEFAULT.pivotY)
-      .setScale(0.6);
+      .setScale(0.75);
 
-    // ComboSprite（中央，scale 0.6，初始 alpha=0 scale=0）
-    this.comboBanner = this.add.image(240, 340, 'shared0-sheet', 'combo_sprite')
+    // ComboSprite（中央偏上，scale 0.6，初始 alpha=0 scale=0）
+    this.comboBanner = this.add.image(320, 480, 'shared0-sheet', 'combo_sprite')
       .setOrigin(0.5)
       .setScale(0)
       .setAlpha(0);
 
     // 存初始 y 便于复位
-    this.giantOrigY = 160;
+    this.giantOrigY = 60;
 
     // 向外暴露
     window.__scene = this;
@@ -218,8 +218,8 @@ class ComboScene extends Phaser.Scene {
     this.time.removeAllEvents();
     // 复位 Giant
     this.giant.setTexture('shared0-sheet', 'giant_default');
-    this.giant.setPosition(240, this.giantOrigY);
-    this.giant.setScale(0.5);
+    this.giant.setPosition(320, this.giantOrigY);
+    this.giant.setScale(0.7);
     // 复位 Girl
     this.girl.setTexture('girl-sheet', 'girl_default');
     this.girl.setOrigin(GIRL_DEFAULT.pivotX, GIRL_DEFAULT.pivotY);
@@ -334,10 +334,11 @@ class ComboScene extends Phaser.Scene {
     // ④ 糖果飞行 Girl 手 → Giant 嘴
     this.time.delayedCall(p.coinStart, () => {
       tlLog(`④ ${p.coinCount} 颗糖果开始飞向 Giant 嘴`);
-      // 起点：Girl 手大致 (370, 730)
-      // 终点：Giant 嘴大致 (240, 320)
-      const girlHandX = 370, girlHandY = 730;
-      const giantMouthX = 240, giantMouthY = 320;
+      // 画布 640×960
+      // 起点：Girl 手大致（右下 Girl 手部）
+      const girlHandX = 520, girlHandY = 830;
+      // 终点：Giant 嘴大致（sprite top=60, scale 0.7, 嘴部偏移约 220）
+      const giantMouthX = 320, giantMouthY = 280;
       this.flyingCoins = [];
       let completed = 0;
 
@@ -379,7 +380,7 @@ class ComboScene extends Phaser.Scene {
               // Giant 嘴部小脉冲
               this.tweens.add({
                 targets: this.giant,
-                scaleX: 0.525, scaleY: 0.525,
+                scaleX: 0.735, scaleY: 0.735,
                 duration: 60,
                 yoyo: true,
                 ease: 'Quad.out',
@@ -402,8 +403,8 @@ class ComboScene extends Phaser.Scene {
 // ============ 启动 Phaser ============
 const config = {
   type: Phaser.AUTO,
-  width: 480,
-  height: 860,
+  width: 640,
+  height: 960,
   parent: 'phaser-container',
   backgroundColor: '#1a1d27',
   scene: ComboScene,

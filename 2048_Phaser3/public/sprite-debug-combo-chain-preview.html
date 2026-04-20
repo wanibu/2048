@@ -13,11 +13,12 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
 .info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
 .back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
 
-/* 完整模拟舞台：模仿游戏竖屏布局 */
+/* 完整模拟舞台：严格匹配原游戏画布 640×960 */
 .stage {
   position: relative;
-  width: 480px; height: 860px;
-  background: linear-gradient(180deg, #8ec5fc 0%, #e0c3fc 100%);
+  width: 640px; height: 960px;
+  background: url('assets/images/playbackground-sheet0.png') no-repeat center top;
+  background-size: cover;
   border: 2px solid #444; border-radius: 8px;
   overflow: hidden; margin-bottom: 20px;
 }
@@ -37,29 +38,29 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
   background: rgba(0,0,0,0.3); padding: 2px 10px; border-radius: 10px;
 }
 
-/* 红发巨人位置（上方） */
+/* 红发巨人位置（上方，画布 640×960） */
 .giant-wrap {
   position: absolute;
-  left: 50%; top: 160px;
+  left: 50%; top: 60px;
   transform: translateX(-50%);
   z-index: 5;
   transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .giant-sprite {
   position: relative;
-  width: 211px; height: 305px; /* 缩放 50% 原始 421×610 */
+  width: 421px; height: 610px;
   background-repeat: no-repeat;
   background-size: auto;
-  transform: scale(0.5);
+  transform: scale(0.7);
   transform-origin: top center;
 }
 
 /* 棋盘模拟区 */
 .board-ref {
   position: absolute;
-  left: 50%; top: 380px;
+  left: 50%; top: 520px;
   transform: translateX(-50%);
-  width: 380px; height: 300px;
+  width: 520px; height: 340px;
   background: rgba(139,92,40,0.25);
   border: 2px dashed rgba(255,229,127,0.6);
   border-radius: 4px;
@@ -78,7 +79,7 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
   position: relative;
   width: 204px; height: 244px;
   background-repeat: no-repeat;
-  transform: scale(0.6);
+  transform: scale(0.75);
   transform-origin: bottom right;
 }
 
@@ -90,10 +91,10 @@ h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
   filter: drop-shadow(0 0 6px rgba(255,213,74,0.8));
 }
 
-/* ComboSprite 横幅 */
+/* ComboSprite 横幅（画布 640×960 中央偏上） */
 .combo-banner {
   position: absolute;
-  left: 50%; top: 340px;
+  left: 50%; top: 480px;
   transform: translate(-50%, -50%) scale(0);
   z-index: 20;
   pointer-events: none;
@@ -275,7 +276,7 @@ function playGiant(startDelay, frameDurMs, moveY, moveDur) {
     tlLog('② Giant Scream + 上移');
     // Tween Y 上移 → 返回
     wrap.style.transition = `top ${moveDur}ms cubic-bezier(0.4, 0, 0.2, 1)`;
-    const origTop = 160;
+    const origTop = 60;
     wrap.style.top = (origTop + moveY) + 'px';
     setTimeout(() => {
       wrap.style.top = origTop + 'px';
@@ -354,12 +355,13 @@ function playCandyFly(startDelay, duration, count) {
     // Girl wrap at right:30, bottom:10, 204×244 × 0.6 = 122×146
     // Girl 右下基点 = (480-30, 860-10) = (450, 850)
     // 手的相对位置（估计在 Girl 身体中上部）
-    const girlHandX = 480 - 30 - 80;  // 右下-80 横向
-    const girlHandY = 860 - 10 - 120; // 底部-120 纵向
-    // 终点：Giant 的嘴（Giant wrap at top:160, Giant sprite scaled 0.5, so Giant visible at top 160~160+305）
-    // Giant 嘴大约在 Giant sprite 中上部
-    const giantMouthX = 480 / 2;   // 水平居中
-    const giantMouthY = 160 + 160; // top+嘴部偏移
+    // 画布 640×960；Girl wrap at right:30, bottom:10, 缩放 0.75 后大约占 153×183
+    const girlHandX = 640 - 30 - 100;  // Girl 手部横向
+    const girlHandY = 960 - 10 - 140;  // Girl 手部纵向
+    // Giant wrap at top:60, scale 0.7, Giant visible at top 60~60+427
+    // Giant 嘴大约在 sprite 中上部（相对 top 约 160）
+    const giantMouthX = 640 / 2;   // 水平居中
+    const giantMouthY = 60 + 220;  // Giant top + 嘴部偏移
     let completed = 0;
     for (let i = 0; i < count; i++) {
       setTimeout(() => {
@@ -458,7 +460,7 @@ document.getElementById('playCombo').addEventListener('click', () => {
 document.getElementById('resetBtn').addEventListener('click', () => {
   tlEl.innerHTML = '<div>已复位</div>';
   document.querySelectorAll('.flying-coin').forEach(e => e.remove());
-  document.getElementById('giantWrap').style.top = '160px';
+  document.getElementById('giantWrap').style.top = '60px';
   document.getElementById('giantWrap').style.transform = 'translateX(-50%) scale(1)';
   const banner = document.getElementById('comboBanner');
   banner.style.transition = 'none';

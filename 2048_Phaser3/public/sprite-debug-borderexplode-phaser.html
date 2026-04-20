@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — "2048" 标题进场 Phaser 4 版</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; line-height: 1.5; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 18px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255,213,74,0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+
+.layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+#phaser-container {
+  width: 640px; height: 960px;
+  background: #1a1d27;
+  border: 2px solid #444; border-radius: 8px;
+  overflow: hidden;
+}
+
+.side-panel { flex: 1; min-width: 320px; }
+.ctls { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.controls button {
+  padding: 10px 16px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.play-btn {
+  background: linear-gradient(135deg, #ffd54a, #ff9800);
+  color: #1f2230;
+}
+.controls button.secondary { background: #6c7280; }
+
+.timeline {
+  font-size: 11px; color: #a5adc1; padding: 10px;
+  background: #1a1d27; border-radius: 4px; min-height: 200px;
+  line-height: 1.6; font-family: ui-monospace, monospace;
+}
+.timeline .tick { color: #ffd54a; }
+.timeline .done { color: #10b981; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>"2048" 标题进场 — Phaser 4 版</h1>
+<div class="info">
+用 Phaser 4 重写 <a href="sprite-debug-borderexplode-preview.html" style="color:#4caf50">CSS 版本</a>的相同功能。<br>
+<b>严格匹配原画布 640×960</b>。4 数字预埋在画布下方 (Y=1240)，触发后从下飞起+回弹，到位后各自播 BorderExplodeAnimation 11 帧粉色烟雾。
+</div>
+
+<div class="ctls">
+  <div class="ctl"><label>首个数字起播 (ms):</label><input type="number" id="firstDelay" value="0" min="0"></div>
+  <div class="ctl"><label>数字间隔 (ms):</label><input type="number" id="stagger" value="250" min="50"></div>
+  <div class="ctl"><label>飞起时长 (ms):</label><input type="number" id="popDur" value="400" min="100"></div>
+  <div class="ctl"><label>爆裂延迟 (ms):</label><input type="number" id="burstDelay" value="380" min="0"></div>
+  <div class="ctl"><label>爆裂每帧 (ms):</label><input type="number" id="burstFrameDur" value="50" min="10"></div>
+</div>
+
+<div class="layout">
+  <div id="phaser-container"></div>
+  <div class="side-panel">
+    <div class="controls">
+      <button class="play-btn" id="playBtn">▶▶ 播放进场动画</button>
+      <button class="secondary" id="resetBtn">■ 复位</button>
+    </div>
+    <h2>时间轴日志</h2>
+    <div class="timeline" id="timeline"><div>等待 Phaser 加载...</div></div>
+
+    <h2>数据来源</h2>
+    <div class="info">
+    从 Menu layout (<code>project[5][1]</code>) 预埋实例挖到：<br>
+    • 4 Shape 实例 Y=<code>1240</code>（画布外 280px）<br>
+    • X = 94/254/408/546<br>
+    • 飞向终点 Y ≈ 440~520（围绕 Giant 嘴部）<br>
+    • 到位后触发 BorderExplodeAnimation 11 帧
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@4.0.0/dist/phaser.min.js"></script>
+
+<script>
+// Digit 帧（Shape）
+const DIGIT_FRAMES = {
+  '0': { x: 131, y: 769, w: 128, h: 128 },
+  '2': { x: 1,   y: 769, w: 128, h: 128 },
+  '4': { x: 261, y: 769, w: 128, h: 128 },
+  '8': { x: 131, y: 513, w: 128, h: 128 },
+};
+
+// 4 数字配置：标签 + X + 最终 Y
+const DIGITS = [
+  { label: '2', startX: 94,  finalY: 520 },
+  { label: '0', startX: 254, finalY: 440 },
+  { label: '4', startX: 408, finalY: 440 },
+  { label: '8', startX: 546, finalY: 520 },
+];
+const START_Y = 1240;  // 画布下方预埋位置
+
+// Giant Default
+const GIANT_DEFAULT = { x: 1619, y: 1025, w: 421, h: 610 };
+
+// BorderExplodeAnimation 11 帧（跨 3 张 sheet）
+const BURST_FRAMES = [
+  { sheet: 2, x: 257, y: 1,   w: 221, h: 221, pivotX: 0.502, pivotY: 0.502 },
+  { sheet: 0, x: 1,   y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { sheet: 1, x: 257, y: 257, w: 221, h: 236, pivotX: 0.502, pivotY: 0.500 },
+  { sheet: 0, x: 1,   y: 261, w: 232, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 2, x: 1,   y: 257, w: 208, h: 221, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 2, x: 257, y: 257, w: 200, h: 230, pivotX: 0.500, pivotY: 0.500 },
+  { sheet: 1, x: 257, y: 1,   w: 225, h: 242, pivotX: 0.502, pivotY: 0.500 },
+  { sheet: 1, x: 1,   y: 1,   w: 235, h: 233, pivotX: 0.502, pivotY: 0.502 },
+  { sheet: 0, x: 261, y: 1,   w: 250, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 0, x: 261, y: 257, w: 246, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 1, x: 1,   y: 257, w: 227, h: 234, pivotX: 0.502, pivotY: 0.500 },
+];
+
+// ============ Timeline 日志 ============
+const tlEl = document.getElementById('timeline');
+let tlStart = 0;
+function tlLog(txt, cls = 'tick') {
+  const t = performance.now() - tlStart;
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = `<span style="color:#8d97ad">[${t.toFixed(0).padStart(4,' ')}ms]</span> ${txt}`;
+  tlEl.appendChild(line);
+}
+function tlClear() { tlEl.innerHTML = ''; tlStart = performance.now(); }
+
+// ============ Phaser Scene ============
+class TitleScene extends Phaser.Scene {
+  constructor() { super({ key: 'Title' }); }
+  preload() {
+    this.load.image('playbg', 'assets/images/playbackground-sheet0.png');
+    this.load.image('shape-sheet', 'assets/images/shape-sheet0.png');
+    this.load.image('shared0', 'assets/images/shared-0-sheet0.png');
+    this.load.image('burst0', 'assets/images/borderexplodeanimation-sheet0.png');
+    this.load.image('burst1', 'assets/images/borderexplodeanimation-sheet1.png');
+    this.load.image('burst2', 'assets/images/borderexplodeanimation-sheet2.png');
+  }
+  create() {
+    // 背景
+    this.add.image(320, 480, 'playbg').setDisplaySize(640, 960);
+
+    // 注册 Shape frames（4 个数字）
+    const shapeTex = this.textures.get('shape-sheet');
+    Object.entries(DIGIT_FRAMES).forEach(([label, f]) => {
+      shapeTex.add(`digit_${label}`, 0, f.x, f.y, f.w, f.h);
+    });
+
+    // 注册 Giant Default frame
+    const sharedTex = this.textures.get('shared0');
+    sharedTex.add('giant_default', 0, GIANT_DEFAULT.x, GIANT_DEFAULT.y, GIANT_DEFAULT.w, GIANT_DEFAULT.h);
+
+    // 注册 BorderExplode 11 帧到各自 sheet
+    const burstTexes = [this.textures.get('burst0'), this.textures.get('burst1'), this.textures.get('burst2')];
+    BURST_FRAMES.forEach((f, i) => {
+      const tex = burstTexes[f.sheet];
+      tex.add(`burst_${i}`, 0, f.x, f.y, f.w, f.h);
+    });
+
+    // Giant 头像（上部中央，缩放 0.85）
+    this.giant = this.add.image(320, 40, 'shared0', 'giant_default')
+      .setOrigin(0.5, 0)
+      .setScale(0.85);
+
+    // 创建 4 数字 sprite，初始位置 Y=1240（画布外）
+    this.digitSprites = DIGITS.map((d, i) => {
+      const sprite = this.add.image(d.startX, START_Y, 'shape-sheet', `digit_${d.label}`)
+        .setOrigin(0.5)
+        .setAlpha(0);
+      return { sprite, ...d };
+    });
+
+    window.__scene = this;
+    tlEl.innerHTML = '<div>✓ Phaser 场景就绪</div>';
+  }
+
+  resetAll() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    this.digitSprites.forEach(({ sprite, startX }) => {
+      sprite.setPosition(startX, START_Y).setAlpha(0).setScale(1);
+    });
+    // 清理所有爆裂 sprite
+    if (this.activeBursts) {
+      this.activeBursts.forEach(b => b.destroy());
+      this.activeBursts = [];
+    }
+    tlClear();
+    tlLog('已复位');
+  }
+
+  playTitle(p) {
+    this.resetAll();
+    tlClear();
+    tlLog('🎬 "2048" 标题进场开始');
+
+    this.activeBursts = [];
+
+    this.digitSprites.forEach((d, i) => {
+      this.time.delayedCall(p.firstDelay + i * p.stagger, () => {
+        tlLog(`▶ 数字 "${d.label}" 从 Y=1240 飞起`);
+        d.sprite.setAlpha(1);
+
+        // 飞起：Y=1240 → finalY-20 (overshoot)
+        this.tweens.add({
+          targets: d.sprite,
+          y: d.finalY - 20,
+          scaleX: 1.1, scaleY: 1.1,
+          duration: p.popDur * 0.7,
+          ease: 'Cubic.out',
+          onComplete: () => {
+            // 回弹：finalY-20 → finalY
+            this.tweens.add({
+              targets: d.sprite,
+              y: d.finalY,
+              scaleX: 1.0, scaleY: 1.0,
+              duration: p.popDur * 0.3,
+              ease: 'Quad.out',
+            });
+          }
+        });
+
+        // 到位后爆裂
+        this.time.delayedCall(p.burstDelay, () => {
+          tlLog(`  ↳ "${d.label}" 爆裂特效 (11 帧)`);
+          this.playBurst(d.sprite.x, d.finalY, p.burstFrameDur);
+        });
+
+        // 最后一个数字的结束日志
+        if (i === this.digitSprites.length - 1) {
+          const totalEnd = p.burstDelay + BURST_FRAMES.length * p.burstFrameDur + 200;
+          this.time.delayedCall(totalEnd, () => tlLog('🎉 标题进场完成', 'done'));
+        }
+      });
+    });
+  }
+
+  playBurst(x, y, frameDur) {
+    const f0 = BURST_FRAMES[0];
+    const sprite = this.add.image(x, y, `burst${f0.sheet}`, 'burst_0')
+      .setOrigin(f0.pivotX, f0.pivotY)
+      .setScale(0.5);  // 原 sprite 220~258，缩放 0.5 约 110~130
+    this.activeBursts.push(sprite);
+
+    let idx = 0;
+    const tick = this.time.addEvent({
+      delay: frameDur,
+      loop: true,
+      callback: () => {
+        idx++;
+        if (idx >= BURST_FRAMES.length) {
+          tick.remove(false);
+          // 淡出
+          this.tweens.add({
+            targets: sprite,
+            alpha: 0,
+            duration: 150,
+            onComplete: () => {
+              sprite.destroy();
+              const i = this.activeBursts.indexOf(sprite);
+              if (i >= 0) this.activeBursts.splice(i, 1);
+            }
+          });
+          return;
+        }
+        const f = BURST_FRAMES[idx];
+        sprite.setTexture(`burst${f.sheet}`, `burst_${idx}`);
+        sprite.setOrigin(f.pivotX, f.pivotY);
+      }
+    });
+  }
+}
+
+const config = {
+  type: Phaser.AUTO,
+  width: 640,
+  height: 960,
+  parent: 'phaser-container',
+  backgroundColor: '#1a1d27',
+  scene: TitleScene,
+  render: { antialias: true },
+};
+const game = new Phaser.Game(config);
+
+function getParams() {
+  const n = (id, d) => parseInt(document.getElementById(id).value) || d;
+  return {
+    firstDelay: n('firstDelay', 0),
+    stagger: n('stagger', 250),
+    popDur: n('popDur', 400),
+    burstDelay: n('burstDelay', 380),
+    burstFrameDur: n('burstFrameDur', 50),
+  };
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  if (window.__scene) window.__scene.playTitle(getParams());
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (window.__scene) window.__scene.resetAll();
+});
+</script>
+
+<div class="info" style="margin-top:20px">
+<b>Phaser 4 实现要点</b>：<br>
+• <code>texture.add()</code> 注册 Shape 4 帧数字 + Giant Default + BorderExplode 11 帧<br>
+• 每个数字起始 <code>Phaser.GameObjects.Image</code> 位置 (startX, 1240)<br>
+• <code>this.tweens.add({ y, duration, ease })</code> 飞起 + 回弹<br>
+• <code>time.delayedCall</code> 串起 stagger 和 burst 延迟<br>
+• BorderExplodeAnimation 用 <code>time.addEvent loop</code> 手动切 texture frame
+</div>
+
+</body>
+</html>
