@@ -1103,6 +1103,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isPauseOpen || this.isResolvingTurn) return;
     this.isResolvingTurn = true;
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
+    this.debugPanel?.logDebugEvent(`发射：列${col + 1} 值=${shape.value}`);
     this.printGrid('发射前');
 
     const landingRow = this.findLandingRow(col);
@@ -1113,6 +1114,7 @@ export class GameScene extends Phaser.Scene {
       const bottomRow = GRID_ROWS - 1;
       if (this.grid.data[bottomRow][col] === shape.value) {
         console.log(`[直接合并] 列${col + 1}满，底行值=${this.grid.data[bottomRow][col]}与发射值=${shape.value}相同，直接合并`);
+        this.debugPanel?.logDebugEvent(`直接合并：列${col + 1} ${shape.value}+${shape.value}→${shape.value * 2}`);
         const shootValue = shape.value;
         shape.destroy();
         const newValue = shootValue * 2;
@@ -1195,6 +1197,7 @@ export class GameScene extends Phaser.Scene {
   private landShape(shape: Shape, col: number, targetRow: number): void {
     const value = shape.value;
     console.log(`[落地] 行${targetRow + 1} 列${col + 1} 值=${value}`);
+    this.debugPanel?.logDebugEvent(`落地：(${targetRow + 1},${col + 1}) = ${value}`, this.formatGrid());
     this.recorder?.recordShoot(col, value);
     shape.destroy();
 
@@ -1289,9 +1292,12 @@ export class GameScene extends Phaser.Scene {
     groups.sort((a, b) => b.cells.length - a.cells.length);
     const group = groups[0];
     console.log(`[合并] 值=${group.value}, 数量=${group.cells.length}, 位置=[${group.cells.map(c => `(${c.row + 1},${c.col + 1})`).join(', ')}]`);
+    const mergeCellsStr = group.cells.map(c => `(${c.row + 1},${c.col + 1})`).join(', ');
+    this.debugPanel?.logDebugEvent(`合并：${group.value}×${group.cells.length} @ ${mergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group, this.lastLandedCol);
     console.log(`[合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
+    this.debugPanel?.logDebugEvent(`合并结果：${result.newValue} @ (${result.row + 1},${result.col + 1})`, this.formatGrid());
 
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
@@ -1312,6 +1318,7 @@ export class GameScene extends Phaser.Scene {
     // 石头碎掉音效
     if (result.destroyedStones.length > 0) {
       console.log(`[石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.debugPanel?.logDebugEvent(`石头碎掉：${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
 
