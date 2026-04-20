@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — BorderExplodeAnimation 原版 11 帧数字爆裂</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+.back:hover { text-decoration: underline; }
+
+.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage {
+  position: relative; width: 400px; height: 400px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+.anchor-marker {
+  position: absolute; left: 50%; top: 50%;
+  width: 10px; height: 10px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 260px; }
+.speed-ctl { margin-bottom: 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.speed-ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
+
+/* 4 数字并排的模拟区 */
+.digits-stage {
+  display: flex; gap: 10px; background: #1a1d27;
+  border: 2px solid #ffd54a; padding: 40px; border-radius: 8px;
+  justify-content: center; align-items: center; min-height: 320px;
+  margin-bottom: 20px;
+}
+.digit-slot {
+  position: relative; width: 220px; height: 220px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,229,127,0.3);
+  display: flex; align-items: center; justify-content: center;
+  overflow: visible;
+}
+.digit-slot .digit {
+  font-size: 120px; font-weight: bold; color: rgba(255,213,74,0.6);
+  font-family: sans-serif;
+}
+.digit-sprite { position: absolute; top: 50%; left: 50%; z-index: 10; }
+
+.frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.frame-card {
+  padding: 10px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center;
+}
+.frame-card .cropped {
+  display: inline-block; background-repeat: no-repeat; margin-bottom: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.frame-card .label { font-size: 10px; color: #a5adc1; line-height: 1.5; }
+.frame-card .label strong { color: #ffd54a; }
+.frame-card .label .sheet { color: #4caf50; }
+</style>
+</head>
+<body>
+<a class="back" href="sprite-debug-index.html">← 返回索引</a>
+<h1>BorderExplodeAnimation — 原版 11 帧数字爆裂</h1>
+<div class="info">
+从 Construct 3 原版 <code>data.json</code> 抓取。<br>
+<b>11 帧</b>，变尺寸（200×221 至 258×258），pivot 均接近 <code>(0.5, 0.5)</code>（居中）<br>
+用了 3 张 sheet：<code>borderexplodeanimation-sheet0/1/2.png</code>（像粉色爆炸烟雾）<br>
+<b>Default</b> 动画，速度 <b>20 fps</b>（50ms/帧），不循环<br><br>
+<b>和 "2 0 4 8" 数字的关系</b>：BorderExplodeAnimation 和 <code>ShapeNumber</code> 同属一个 C3 container（container link: ShapeNumber 35）。
+即每个数字糖果（2/4/8/16/...）都有一个配对的爆裂动画实例。
+首页菜单里的 "2" / "0" / "4" / "8" 各有一份 ShapeNumber + BorderExplodeAnimation，
+所以看到的是 <b>同一个 11 帧序列在 4 个位置分别播放</b>（可能时间上错开）。
+</div>
+
+<h2>单帧播放（锚点对准红点）</h2>
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="anchor-marker" title="动画锚点"></div>
+  </div>
+  <div class="side-panel">
+    <div class="speed-ctl">
+      <label>每帧时长(ms):</label>
+      <input type="number" id="frameDur" value="50" min="10" max="500">
+      <span style="color:#555">(20fps = 50ms)</span>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 播放一次</button>
+      <button id="loopBtn">↻ 循环播放</button>
+      <button class="secondary" id="stopBtn">■ 停止</button>
+    </div>
+    <div id="frameInfo">点击"播放"开始</div>
+  </div>
+</div>
+
+<h2>4 数字 "2048" 同时爆裂模拟</h2>
+<div style="color:#8d97ad;font-size:12px;margin-bottom:12px">
+模拟首页效果：4 个数字位置各播放一次 11 帧动画（默认全部同时起播；下方按钮可以切换"错开起播"）
+</div>
+<div class="controls" style="margin-bottom: 14px">
+  <button id="simSimul">▶ 4 数字同时爆</button>
+  <button id="simStagger">▶ 4 数字错开 200ms 爆</button>
+  <button class="secondary" id="simStop">■ 停止</button>
+</div>
+<div class="digits-stage" id="digitsStage">
+  <div class="digit-slot" data-digit="2"><span class="digit">2</span></div>
+  <div class="digit-slot" data-digit="0"><span class="digit">0</span></div>
+  <div class="digit-slot" data-digit="4"><span class="digit">4</span></div>
+  <div class="digit-slot" data-digit="8"><span class="digit">8</span></div>
+</div>
+
+<h2>11 帧拆解（单独查看）</h2>
+<div class="frame-list" id="frameList"></div>
+
+<script>
+// 11 帧真实参数
+const FRAMES = [
+  { sheet: 2, x: 257, y: 1,   w: 221, h: 221, pivotX: 0.502, pivotY: 0.502 },
+  { sheet: 0, x: 1,   y: 1,   w: 258, h: 258, pivotX: 0.500, pivotY: 0.500 },
+  { sheet: 1, x: 257, y: 257, w: 221, h: 236, pivotX: 0.502, pivotY: 0.500 },
+  { sheet: 0, x: 1,   y: 261, w: 232, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 2, x: 1,   y: 257, w: 208, h: 221, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 2, x: 257, y: 257, w: 200, h: 230, pivotX: 0.500, pivotY: 0.500 },
+  { sheet: 1, x: 257, y: 1,   w: 225, h: 242, pivotX: 0.502, pivotY: 0.500 },
+  { sheet: 1, x: 1,   y: 1,   w: 235, h: 233, pivotX: 0.502, pivotY: 0.502 },
+  { sheet: 0, x: 261, y: 1,   w: 250, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 0, x: 261, y: 257, w: 246, h: 245, pivotX: 0.500, pivotY: 0.502 },
+  { sheet: 1, x: 1,   y: 257, w: 227, h: 234, pivotX: 0.502, pivotY: 0.500 },
+];
+const SHEETS = [
+  'assets/images/borderexplodeanimation-sheet0.png',
+  'assets/images/borderexplodeanimation-sheet1.png',
+  'assets/images/borderexplodeanimation-sheet2.png',
+];
+const ANCHOR_X = 200;
+const ANCHOR_Y = 200;
+
+// ====== 单帧播放 ======
+const stage = document.getElementById('stage');
+const frameInfoEl = document.getElementById('frameInfo');
+let currentSprite = null;
+let animInterval = null;
+function showFrame(idx) {
+  if (currentSprite) currentSprite.remove();
+  const f = FRAMES[idx];
+  const el = document.createElement('div');
+  el.className = 'frame-sprite';
+  el.style.width = f.w + 'px';
+  el.style.height = f.h + 'px';
+  el.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
+  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
+  stage.appendChild(el);
+  currentSprite = el;
+  frameInfoEl.innerHTML =
+    `<b>frame ${idx}</b> / ${FRAMES.length - 1}<br>` +
+    `sheet${f.sheet}.png · 源 (${f.x},${f.y}) · 尺寸 ${f.w}×${f.h}<br>` +
+    `pivot = (${f.pivotX.toFixed(3)}, ${f.pivotY.toFixed(3)})`;
+}
+function play(loop) {
+  stopAnim();
+  let idx = 0;
+  const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 50);
+  showFrame(idx);
+  animInterval = setInterval(() => {
+    idx++;
+    if (idx >= FRAMES.length) {
+      if (loop) idx = 0;
+      else { stopAnim(); frameInfoEl.innerHTML += '<br><span style="color:#10b981">✓ 播放结束</span>'; return; }
+    }
+    showFrame(idx);
+  }, dur);
+}
+function stopAnim() { if (animInterval) { clearInterval(animInterval); animInterval = null; } }
+document.getElementById('playBtn').addEventListener('click', () => play(false));
+document.getElementById('loopBtn').addEventListener('click', () => play(true));
+document.getElementById('stopBtn').addEventListener('click', stopAnim);
+showFrame(0);
+
+// ====== 4 数字模拟 ======
+const digitStages = document.querySelectorAll('.digit-slot');
+const digitAnims = new Map(); // slot -> { interval, sprite }
+
+function playDigitExplode(slot, startDelay) {
+  // slot size 220×220, anchor center
+  const anchorX = 110;
+  const anchorY = 110;
+  setTimeout(() => {
+    let idx = 0;
+    const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 50);
+    const render = () => {
+      const old = slot.querySelector('.digit-sprite');
+      if (old) old.remove();
+      const f = FRAMES[idx];
+      const el = document.createElement('div');
+      el.className = 'digit-sprite';
+      el.style.width = f.w + 'px';
+      el.style.height = f.h + 'px';
+      el.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+      el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+      el.style.left = (anchorX - f.pivotX * f.w) + 'px';
+      el.style.top = (anchorY - f.pivotY * f.h) + 'px';
+      el.style.transform = 'none';
+      slot.appendChild(el);
+    };
+    render();
+    const interval = setInterval(() => {
+      idx++;
+      if (idx >= FRAMES.length) {
+        clearInterval(interval);
+        digitAnims.delete(slot);
+        setTimeout(() => {
+          const s = slot.querySelector('.digit-sprite');
+          if (s) s.remove();
+        }, 300);
+        return;
+      }
+      render();
+    }, dur);
+    digitAnims.set(slot, { interval });
+  }, startDelay);
+}
+
+function stopDigitAnims() {
+  digitAnims.forEach(({interval}) => clearInterval(interval));
+  digitAnims.clear();
+  document.querySelectorAll('.digit-sprite').forEach(e => e.remove());
+}
+
+document.getElementById('simSimul').addEventListener('click', () => {
+  stopDigitAnims();
+  digitStages.forEach(slot => playDigitExplode(slot, 0));
+});
+document.getElementById('simStagger').addEventListener('click', () => {
+  stopDigitAnims();
+  digitStages.forEach((slot, i) => playDigitExplode(slot, i * 200));
+});
+document.getElementById('simStop').addEventListener('click', stopDigitAnims);
+
+// ====== 11 帧缩略图 ======
+const frameList = document.getElementById('frameList');
+FRAMES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'frame-card';
+  const img = document.createElement('div');
+  img.className = 'cropped';
+  img.style.width = f.w + 'px';
+  img.style.height = f.h + 'px';
+  img.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+  img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  card.appendChild(img);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.innerHTML = `<strong>帧${i}</strong> · <span class="sheet">sheet${f.sheet}</span><br>${f.w}×${f.h}<br>pivot (${f.pivotX.toFixed(2)}, ${f.pivotY.toFixed(2)})`;
+  card.appendChild(label);
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', () => { stopAnim(); showFrame(i); });
+  frameList.appendChild(card);
+});
+</script>
+</body>
+</html>
