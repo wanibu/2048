@@ -9,6 +9,9 @@ import { MergeSystem } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
 import { HUD } from '../ui/HUD';
+import { DebugPanel } from '../debug/DebugPanel';
+
+const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
 
 export class GameScene extends Phaser.Scene {
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
@@ -20,7 +23,7 @@ export class GameScene extends Phaser.Scene {
   private sling!: Sling;
   private mergeSystem!: MergeSystem;
   private rotateSystem!: RotateSystem;
-  private recorder!: ActionRecorder;
+  private recorder: ActionRecorder | null = null;
   private hud!: HUD;
   private layout!: LayoutConfig;
   private scoreDigits: Phaser.GameObjects.Image[] = [];
@@ -30,6 +33,9 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
   private lastLandedCol: number | undefined;
+  private debugPanel: DebugPanel | null = null;
+  private debugCurrentCandy: number = 2;
+  private debugNextCandy: number | null = 4;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -283,7 +289,7 @@ export class GameScene extends Phaser.Scene {
       pauseContainer.setVisible(false);
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
-      void this.recorder.finish(this.hud.getScore(), 'restart');
+      void this.recorder?.finish(this.hud.getScore(), 'restart');
             this.scene.restart();
     });
     pauseContainer.add(resumeBtn);
@@ -440,8 +446,8 @@ export class GameScene extends Phaser.Scene {
     this.topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
 
     this.layout = layout;
-    // 操作记录器：和后端通信，每步操作发给后端验证
-    this.recorder = new ActionRecorder();
+    // 操作记录器：和后端通信，每步操作发给后端验证（DEBUG 模式下不创建）
+    this.recorder = IS_DEBUG ? null : new ActionRecorder();
     this.hud = new HUD(this, w, false);
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
     this.grid = new Grid(this, layout);
@@ -468,8 +474,13 @@ export class GameScene extends Phaser.Scene {
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('userId') || '';
 
-    // 后端开局：获取本局完整 sequence。
-    this.initBackend(userId);
+    if (IS_DEBUG) {
+      // DEBUG 模式：不走后端，弹弓糖果和棋盘由 DebugPanel 控制
+      this.initDebugMode();
+    } else {
+      // 后端开局：获取本局完整 sequence。
+      this.initBackend(userId);
+    }
 
     this.refreshScoreSprites(updateSpriteNumber);
 
@@ -503,6 +514,7 @@ export class GameScene extends Phaser.Scene {
         return img;
       });
     });
+    this.debugPanel?.logScoreEvent(`+${points} → 总分 ${this.hud.getScore()}`);
   }
 
   private ensureBackgroundMusic(): void {
@@ -535,8 +547,8 @@ export class GameScene extends Phaser.Scene {
       grid: this.grid.data.map(row => [...row]),
       score: this.hud.getScore(),
       // 保存 gameId 和当前签名，恢复后继续
-      gameId: this.recorder.getGameId(),
-      sign: this.recorder.getSign(),
+      gameId: this.recorder?.getGameId() ?? '',
+      sign: this.recorder?.getSign() ?? '',
     };
     sessionStorage.setItem('giant2048_state', JSON.stringify(state));
     // 标记正在游戏中，刷新后 MenuScene 会直接跳到 GameScene
@@ -595,11 +607,13 @@ export class GameScene extends Phaser.Scene {
   private static initBackendSeq: number = 0;
 
   private async initBackend(userId: string): Promise<void> {
+    const recorder = this.recorder;
+    if (!recorder) return;
     // 每次调用递增序号，只有最新的一次能继续执行
     const mySeq = ++GameScene.initBackendSeq;
 
     try {
-      await this.recorder.init(userId);
+      await recorder.init(userId);
 
       // await 期间如果又有新的 create 调了 initBackend，序号已变，放弃本次
       if (mySeq !== GameScene.initBackendSeq) {
@@ -607,12 +621,12 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      const initialResult = this.recorder.prepareInitialCandies();
+      const initialResult = recorder.prepareInitialCandies();
       if (!initialResult) {
         throw new Error('Sequence does not contain any playable candy');
       }
       console.log(
-        `[开局] gameId=${this.recorder.getGameId()}, current=${initialResult.currentCandy}, ` +
+        `[开局] gameId=${recorder.getGameId()}, current=${initialResult.currentCandy}, ` +
         `next=${initialResult.nextCandy ?? 'none'}, pendingStones=${initialResult.pendingStones}`
       );
       // 开局时如果有 stone，先处理
@@ -633,6 +647,119 @@ export class GameScene extends Phaser.Scene {
         strokeThickness: 4,
       }).setOrigin(0.5).setDepth(250);
           }
+  }
+
+  // ===== DEBUG 模式：脱机运行，由右侧面板控制棋盘与弹弓 =====
+  private initDebugMode(): void {
+    console.log('[DEBUG] 模式已启用，不走后端 API');
+    this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    this.debugPanel = new DebugPanel({
+      debugSetCell: (row, col, value) => this.debugSetCell(row, col, value),
+      debugSetCurrentCandy: (value) => this.debugSetCurrentCandy(value),
+      debugSetNextCandy: (value) => this.debugSetNextCandy(value),
+      debugClearBoard: () => this.debugClearBoard(),
+      debugRandomFill: (emptyPct, stonePct) => this.debugRandomFill(emptyPct, stonePct),
+      debugGetBoardSnapshot: () => this.debugGetBoardSnapshot(),
+      debugGetScore: () => this.hud.getScore(),
+    });
+    this.debugPanel.mount();
+    // 场景关闭时卸载面板，避免重启后重复挂载
+    this.events.once('shutdown', () => {
+      this.debugPanel?.unmount();
+      this.debugPanel = null;
+    });
+    this.debugPanel.refreshFromGame();
+  }
+
+  private debugSetCell(row: number, col: number, value: number | 'stone' | null): void {
+    if (this.grid.borders[row][col]) this.grid.removeBorder(row, col);
+    if (this.grid.stones[row][col]) this.grid.removeStone(row, col);
+    if (value === 'stone') this.grid.placeStone(row, col);
+    else if (typeof value === 'number' && value > 0) this.grid.placeBorder(row, col, value);
+    const label = value === 'stone' ? 'S' : value === null ? '空' : String(value);
+    this.debugPanel?.logDebugEvent(`手动设置 (${row + 1},${col + 1}) = ${label}`, this.formatGrid());
+  }
+
+  private debugSetCurrentCandy(value: number): void {
+    this.debugCurrentCandy = value;
+    this.sling.initCandies(value, this.debugNextCandy);
+    this.debugPanel?.logDebugEvent(`设置当前糖果 = ${value}`);
+  }
+
+  private debugSetNextCandy(value: number | null): void {
+    this.debugNextCandy = value;
+    this.sling.setNextCandy(value);
+    this.debugPanel?.logDebugEvent(`设置下一个糖果 = ${value ?? '空'}`);
+  }
+
+  private debugClearBoard(): void {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (this.grid.borders[r][c]) this.grid.removeBorder(r, c);
+        if (this.grid.stones[r][c]) this.grid.removeStone(r, c);
+      }
+    }
+    this.debugPanel?.logDebugEvent('清空棋盘', this.formatGrid());
+  }
+
+  // DEBUG: 将当前 grid.data 格式化为多行字符串（S 表示石头）
+  private formatGrid(): string {
+    const lines: string[] = ['['];
+    for (let r = 0; r < GRID_ROWS; r++) {
+      const row = this.grid.data[r].map((v) => {
+        if (v === -1) return ' S';
+        if (v === 0) return ' 0';
+        return String(v).padStart(2, ' ');
+      });
+      lines.push('  ' + row.join(', ') + ',');
+    }
+    lines.push(']');
+    return lines.join('\n');
+  }
+
+  // DEBUG: 按比例随机填充棋盘（糖果值偏向 ≤32）
+  private debugRandomFill(emptyPct: number, stonePct: number): void {
+    this.debugClearBoard();
+    const emptyRate = Math.max(0, Math.min(100, emptyPct)) / 100;
+    const stoneRate = Math.max(0, Math.min(100, stonePct)) / 100;
+    // 糖果值加权：≤32 高频，≥64 低频
+    const weighted: Array<{ value: number; w: number }> = [
+      { value: 2, w: 5 }, { value: 4, w: 5 }, { value: 8, w: 5 },
+      { value: 16, w: 4 }, { value: 32, w: 3 },
+      { value: 64, w: 1 }, { value: 128, w: 0.5 }, { value: 256, w: 0.3 },
+      { value: 512, w: 0.2 }, { value: 1024, w: 0.1 },
+      { value: 2048, w: 0.05 }, { value: 4096, w: 0.02 }, { value: 8192, w: 0.01 },
+    ];
+    const totalW = weighted.reduce((sum, x) => sum + x.w, 0);
+    const pickCandy = (): number => {
+      let r = Math.random() * totalW;
+      for (const item of weighted) {
+        r -= item.w;
+        if (r <= 0) return item.value;
+      }
+      return weighted[0].value;
+    };
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const roll = Math.random();
+        if (roll < emptyRate) continue;
+        if (roll < emptyRate + stoneRate) {
+          this.grid.placeStone(r, c);
+        } else {
+          this.grid.placeBorder(r, c, pickCandy());
+        }
+      }
+    }
+    console.log(`[DEBUG] 随机填充完成，空格${emptyPct}% 石头${stonePct}%`);
+    this.debugPanel?.logDebugEvent(`随机生成 (空格${emptyPct}% 石头${stonePct}%)`, this.formatGrid());
+  }
+
+  private debugGetBoardSnapshot(): { grid: number[][]; current: number; next: number | null } {
+    return {
+      grid: this.grid.data.map((row) => [...row]),
+      current: this.sling.getCurrentValue() ?? this.debugCurrentCandy,
+      next: this.debugNextCandy,
+    };
   }
 
   // ===== 超时机制：45秒无操作提示，60秒结束 =====
@@ -715,10 +842,25 @@ export class GameScene extends Phaser.Scene {
 
   // 推进 token 队列，处理待定石头，然后装填弹弓
   private respawnWithSequence(): void {
-    const result = this.recorder.advanceAfterShot();
+    if (IS_DEBUG) {
+      // DEBUG 模式：从面板状态取当前/下一个糖果，不走后端
+      const currentCandy = this.debugCurrentCandy;
+      const nextCandy = this.debugNextCandy;
+      this.sling.setNextCandy(currentCandy);
+      this.sling.respawn();
+      this.time.delayedCall(350, () => {
+        this.sling.setNextCandy(nextCandy);
+        this.isResolvingTurn = false;
+        this.debugPanel?.refreshFromGame();
+      });
+      this.time.delayedCall(400, () => this.checkGameOver());
+      return;
+    }
+
+    const result = this.recorder?.advanceAfterShot() ?? null;
     if (!result) {
       // 区分网络问题和序列真正耗尽
-      if (this.recorder.tokenQueue.isWaitingForNetwork()) {
+      if (this.recorder?.tokenQueue.isWaitingForNetwork()) {
         console.warn('[GameScene] 网络异常，等待重试...');
         this.waitForNetwork();
         return;
@@ -785,7 +927,7 @@ export class GameScene extends Phaser.Scene {
 
     const retry = async () => {
       console.log('[GameScene] 重试获取 token...');
-      const success = await this.recorder.tokenQueue.retryRefill();
+      const success = (await this.recorder?.tokenQueue.retryRefill()) ?? false;
       if (success) {
         // 网络恢复，清除提示，继续游戏
         if (this.networkRetryText) {
@@ -793,7 +935,7 @@ export class GameScene extends Phaser.Scene {
           this.networkRetryText = null;
         }
         this.respawnWithSequence();
-      } else if (this.recorder.tokenQueue.isWaitingForNetwork()) {
+      } else if (this.recorder?.tokenQueue.isWaitingForNetwork()) {
         // 仍然失败，3 秒后再试
         console.warn('[GameScene] 重试失败，3秒后再次尝试...');
         this.time.delayedCall(3000, retry);
@@ -939,7 +1081,7 @@ export class GameScene extends Phaser.Scene {
     this.printGrid('旋转前');
 
     this.sound.play('rotation', { volume: 0.3 });
-    this.recorder.recordRotate(direction);
+    this.recorder?.recordRotate(direction);
 
     const onComplete = () => {
       this.isRotating = false;
@@ -973,7 +1115,7 @@ export class GameScene extends Phaser.Scene {
         const shootValue = shape.value;
         shape.destroy();
         const newValue = shootValue * 2;
-        this.recorder.recordDirectMerge(col, shootValue, newValue);
+        this.recorder?.recordDirectMerge(col, shootValue, newValue);
         const border = this.grid.borders[bottomRow][col];
         if (border) {
           border.setValue(newValue);
@@ -1052,7 +1194,7 @@ export class GameScene extends Phaser.Scene {
   private landShape(shape: Shape, col: number, targetRow: number): void {
     const value = shape.value;
     console.log(`[落地] 行${targetRow + 1} 列${col + 1} 值=${value}`);
-    this.recorder.recordShoot(col, value);
+    this.recorder?.recordShoot(col, value);
     shape.destroy();
 
     const border = this.grid.placeBorder(targetRow, col, value);
@@ -1369,7 +1511,7 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(201);
 
     // 整局结束后一次性提交结果
-    void this.recorder.finish(this.hud.getScore(), endReason);
+    void this.recorder?.finish(this.hud.getScore(), endReason);
 
     // 重新开始按钮
     const restartBtn = this.add.text(w / 2, h * 0.58, '↻ RESTART', {
