@@ -1339,9 +1339,12 @@ export class GameScene extends Phaser.Scene {
     groups.sort((a, b) => b.cells.length - a.cells.length);
     const group = groups[0];
     console.log(`[旋转后合并] 值=${group.value}, 数量=${group.cells.length}, 位置=[${group.cells.map(c => `(${c.row + 1},${c.col + 1})`).join(', ')}]`);
+    const rotMergeCellsStr = group.cells.map(c => `(${c.row + 1},${c.col + 1})`).join(', ');
+    this.debugPanel?.logDebugEvent(`旋转后合并：${group.value}×${group.cells.length} @ ${rotMergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group);
     console.log(`[旋转后合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
+    this.debugPanel?.logDebugEvent(`旋转合并结果：${result.newValue} @ (${result.row + 1},${result.col + 1})`, this.formatGrid());
 
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
@@ -1360,6 +1363,7 @@ export class GameScene extends Phaser.Scene {
 
     if (result.destroyedStones.length > 0) {
       console.log(`[旋转石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.debugPanel?.logDebugEvent(`旋转石头碎掉：${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
       this.sound.play('stonedestroy', { volume: 0.3 });
     }
     this.printGrid('旋转合并后');
