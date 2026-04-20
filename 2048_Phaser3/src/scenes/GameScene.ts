@@ -1240,6 +1240,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (destroyed.length > 0) {
       console.log(`[直接合并石头碎掉] ${destroyed.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
+      this.debugPanel?.logDebugEvent(`直接合并石头碎掉：${destroyed.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
       this.sound.play('stonedestroy', { volume: 0.3 });
       this.playStoneDestroyEffects(destroyed);
     }
@@ -1499,6 +1500,7 @@ export class GameScene extends Phaser.Scene {
   private gameOver(endReason: string = 'gameover'): void {
     if (this.isGameOver) return;
     this.isGameOver = true;
+    this.debugPanel?.logDebugEvent(`Game Over (${endReason})`, this.formatGrid());
 
     const w = GAME_WIDTH;
     const h = GAME_HEIGHT;
