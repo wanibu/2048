@@ -82,14 +82,13 @@ export function PlanAnalysisPage() {
   useEffect(() => { load(); }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div>
-          <h2 className="text-xl font-semibold">Plan 分析</h2>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            多维度对比每个 Plan 的实战数据，找出最适合玩家的平衡方案。
-            <span className="mx-2">|</span>
-            <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 mr-1">绿</span>理想
+          <h2 className="text-lg font-semibold">Plan 分析</h2>
+          <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+            多维度对比每个 Plan 的实战数据。
+            <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 mx-1">绿</span>理想
             <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mx-1">黄</span>边缘
             <span className="inline-block px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 mx-1">红</span>异常
           </p>
@@ -100,6 +99,7 @@ export function PlanAnalysisPage() {
         </Button>
       </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <Table>
@@ -246,6 +246,7 @@ export function PlanAnalysisPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

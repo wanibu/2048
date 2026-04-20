@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    <div className="relative w-full h-full overflow-auto">
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   )
@@ -12,7 +12,15 @@ Table.displayName = 'Table';
 
 export const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(
   ({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn('[&_tr]:border-b [&_tr]:border-[var(--color-border)]', className)} {...props} />
+    <thead
+      ref={ref}
+      className={cn(
+        'sticky top-0 z-10 bg-[var(--color-surface)] shadow-[0_1px_0_var(--color-border)]',
+        '[&_tr]:border-b [&_tr]:border-[var(--color-border)]',
+        className,
+      )}
+      {...props}
+    />
   )
 );
 TableHeader.displayName = 'TableHeader';

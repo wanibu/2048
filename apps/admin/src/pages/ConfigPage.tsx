@@ -111,17 +111,26 @@ export function ConfigPage() {
   const selectedSequence = selected?.type === 'sequence' ? sequences.find(s => s.id === selected.id) : null;
 
   return (
-    <div className="grid grid-cols-[300px_1fr] gap-4 min-h-[600px]">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 className="text-lg font-semibold">配置</h2>
+        <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          刷新
+        </Button>
+      </div>
+
+      <div className="flex-1 min-h-0 grid grid-cols-[300px_1fr] gap-4 p-6 overflow-hidden">
       {/* ======== LEFT SIDEBAR ======== */}
-      <Card className="overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)]">
-          <div className="text-xs font-semibold text-[var(--color-text-muted)]">配置</div>
+      <Card className="overflow-hidden flex flex-col min-h-0">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface-2)] shrink-0">
+          <div className="text-xs font-semibold text-[var(--color-text-muted)]">结构树</div>
           <Button variant="ghost" size="icon" onClick={loadAll} disabled={loading} title="刷新">
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* ---- Plans 区 ---- */}
           <SidebarSection
             icon={<Layers className="h-3.5 w-3.5" />}
@@ -269,7 +278,7 @@ export function ConfigPage() {
       </Card>
 
       {/* ======== RIGHT CONTENT ======== */}
-      <div>
+      <div className="min-h-0 overflow-y-auto">
         {!selected && (
           <EmptyState
             onNewPlan={() => { setPlanEditing(null); setPlanEditOpen(true); }}
@@ -339,6 +348,7 @@ export function ConfigPage() {
           loadAll();
         }}
       />
+      </div>
     </div>
   );
 }

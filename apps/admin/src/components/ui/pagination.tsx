@@ -7,22 +7,47 @@ interface PaginationProps {
   totalPages: number;
   total?: number;
   onChange: (page: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: number[];
   className?: string;
 }
 
-export function Pagination({ page, totalPages, total, onChange, className }: PaginationProps) {
-  if (totalPages <= 1 && !total) return null;
+const DEFAULT_SIZES = [10, 20, 50, 100];
+
+export function Pagination({
+  page, totalPages, total, onChange,
+  pageSize, onPageSizeChange, pageSizeOptions = DEFAULT_SIZES,
+  className,
+}: PaginationProps) {
+  if (totalPages <= 1 && !total && !onPageSizeChange) return null;
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
-  // 生成页码按钮（当前 ± 2）
   const pages: number[] = [];
   for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) pages.push(p);
 
   return (
     <div className={cn('flex items-center justify-between gap-3 py-2', className)}>
-      <div className="text-xs text-[var(--color-text-muted)]">
-        {total !== undefined ? `共 ${total} 条 · ` : ''}第 {page} / {totalPages || 1} 页
+      <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+        <span>
+          {total !== undefined ? `共 ${total} 条 · ` : ''}第 {page} / {totalPages || 1} 页
+        </span>
+        {pageSize !== undefined && onPageSizeChange && (
+          <span className="flex items-center gap-1.5">
+            每页
+            <select
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
+              className="h-7 px-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-xs cursor-pointer focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            >
+              {pageSizeOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            条
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-1">
         <Button variant="outline" size="sm" disabled={!canPrev} onClick={() => onChange(page - 1)}>

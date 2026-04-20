@@ -19,6 +19,7 @@ interface Props {
 
 export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<GamesResp | null>(null);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<GameDetail | null>(null);
@@ -26,10 +27,10 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchDeleting, setBatchDeleting] = useState(false);
 
-  async function load(p = page, filter: GamesStatusFilter = statusFilter) {
+  async function load(p = page, filter: GamesStatusFilter = statusFilter, size = pageSize) {
     setLoading(true);
     try {
-      const q = new URLSearchParams({ page: String(p), limit: '20' });
+      const q = new URLSearchParams({ page: String(p), limit: String(size) });
       if (filter !== 'all') q.set('status', filter);
       const res = await api<GamesResp>(`/api/admin/games?${q.toString()}`);
       setData(res);
@@ -42,7 +43,7 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
     }
   }
 
-  useEffect(() => { load(1, statusFilter); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
+  useEffect(() => { load(1, statusFilter, pageSize); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter, pageSize]);
 
   function toggleOne(id: string) {
     setSelected(prev => {
@@ -109,9 +110,9 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">游戏局列表</h2>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 className="text-lg font-semibold">游戏局列表</h2>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded border border-[var(--color-border)] overflow-hidden text-xs">
             {(['all', 'playing', 'finished'] as const).map(f => (
@@ -135,26 +136,27 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
         </div>
       </div>
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 px-3 py-2 rounded border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-sm">
-          <span>已选 <span className="font-semibold">{selected.size}</span> 局</span>
-          <Button
-            size="sm"
-            onClick={deleteSelected}
-            disabled={batchDeleting}
-            className="bg-[var(--color-danger)] hover:bg-[var(--color-danger)]/90 text-white"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {batchDeleting ? '删除中…' : `批量删除 ${selected.size}`}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={batchDeleting}>
-            清空选择
-          </Button>
-        </div>
-      )}
+      <div className="flex-1 min-h-0 flex flex-col p-6 gap-3">
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 px-3 py-2 rounded border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-sm">
+            <span>已选 <span className="font-semibold">{selected.size}</span> 局</span>
+            <Button
+              size="sm"
+              onClick={deleteSelected}
+              disabled={batchDeleting}
+              className="bg-[var(--color-danger)] hover:bg-[var(--color-danger)]/90 text-white"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {batchDeleting ? '删除中…' : `批量删除 ${selected.size}`}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={batchDeleting}>
+              清空选择
+            </Button>
+          </div>
+        )}
 
-      <Card>
-        <CardContent className="p-0">
+        <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <CardContent className="p-0 flex-1 min-h-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -246,17 +248,20 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {data && (
-        <Pagination
-          page={page}
-          totalPages={data.totalPages}
-          total={data.total}
-          onChange={load}
-        />
-      )}
+        {data && (
+          <Pagination
+            page={page}
+            totalPages={data.totalPages}
+            total={data.total}
+            onChange={(p) => load(p)}
+            pageSize={pageSize}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+          />
+        )}
+      </div>
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="max-w-3xl">

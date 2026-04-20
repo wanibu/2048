@@ -91,33 +91,35 @@ export function StatsPage({
   ] : [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">统计</h2>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <h2 className="text-lg font-semibold">统计</h2>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           刷新
         </Button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {items.map((it) => (
-          <Card
-            key={it.label}
-            onClick={it.onClick}
-            className={it.onClick ? 'cursor-pointer hover:border-[var(--color-primary)] hover:shadow-md transition' : ''}
-            title={it.hint}
-          >
-            <CardHeader>
-              <CardTitle className="text-xs font-normal text-[var(--color-text-muted)]">{it.label}</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className={`text-2xl font-bold ${it.color || ''}`}>{it.value}</div>
-              {it.hint && (
-                <div className="text-[10px] text-[var(--color-text-muted)] mt-1">{it.hint} →</div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {items.map((it) => (
+            <Card
+              key={it.label}
+              onClick={it.onClick}
+              className={it.onClick ? 'cursor-pointer hover:border-[var(--color-primary)] hover:shadow-md transition' : ''}
+              title={it.hint}
+            >
+              <CardHeader>
+                <CardTitle className="text-xs font-normal text-[var(--color-text-muted)]">{it.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className={`text-2xl font-bold ${it.color || ''}`}>{it.value}</div>
+                {it.hint && (
+                  <div className="text-[10px] text-[var(--color-text-muted)] mt-1">{it.hint} →</div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
