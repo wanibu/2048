@@ -678,6 +678,24 @@ admin.delete('/delete-game/:id', async (c) => {
   return c.json({ success: true });
 });
 
+// 批量删除游戏局
+admin.post('/delete-games', async (c) => {
+  const { ids } = await c.req.json<{ ids: string[] }>();
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: 'ids must be a non-empty array' }, 400);
+  }
+  console.log(`[delete-games] batch delete ${ids.length} games`);
+  const db = c.env.DB;
+  const placeholders = ids.map(() => '?').join(',');
+  const r1 = await db.prepare(`DELETE FROM scores WHERE game_id IN (${placeholders})`).bind(...ids).run();
+  const r2 = await db.prepare(`DELETE FROM games WHERE game_id IN (${placeholders})`).bind(...ids).run();
+  return c.json({
+    success: true,
+    deletedGames: r2.meta?.changes ?? 0,
+    deletedScores: r1.meta?.changes ?? 0,
+  });
+});
+
 // ---- Stages（加分页） ----
 admin.post('/stages', async (c) => {
   const { name, length, probabilities } = await c.req.json<{

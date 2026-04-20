@@ -23,6 +23,8 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<GameDetail | null>(null);
   const [sequence, setSequence] = useState<Array<string | number>>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   async function load(p = page, filter: GamesStatusFilter = statusFilter) {
     setLoading(true);
@@ -32,6 +34,7 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
       const res = await api<GamesResp>(`/api/admin/games?${q.toString()}`);
       setData(res);
       setPage(p);
+      setSelected(new Set()); // 翻页/刷新清空选择
     } catch (err) {
       toast.error((err as { error?: string })?.error || '加载失败');
     } finally {
@@ -40,6 +43,45 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   }
 
   useEffect(() => { load(1, statusFilter); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
+
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  function toggleAll() {
+    if (!data) return;
+    const ids = data.games.map(g => g.game_id);
+    const allSelected = ids.every(id => selected.has(id));
+    setSelected(prev => {
+      const n = new Set(prev);
+      if (allSelected) {
+        ids.forEach(id => n.delete(id));
+      } else {
+        ids.forEach(id => n.add(id));
+      }
+      return n;
+    });
+  }
+  async function deleteSelected() {
+    if (selected.size === 0) return;
+    if (!confirm(`确认批量删除 ${selected.size} 局（及对应分数记录）？不可恢复。`)) return;
+    setBatchDeleting(true);
+    try {
+      const r = await api<{ success: boolean; deletedGames: number; deletedScores: number }>(
+        '/api/admin/delete-games',
+        { method: 'POST', body: { ids: Array.from(selected) } },
+      );
+      toast.success(`已删除 ${r.deletedGames} 局 / ${r.deletedScores} 条分数记录`);
+      load(page);
+    } catch (err) {
+      toast.error((err as { error?: string })?.error || '批量删除失败');
+    } finally {
+      setBatchDeleting(false);
+    }
+  }
 
   async function showDetail(gameId: string) {
     try {
@@ -93,11 +135,45 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
         </div>
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-sm">
+          <span>已选 <span className="font-semibold">{selected.size}</span> 局</span>
+          <Button
+            size="sm"
+            onClick={deleteSelected}
+            disabled={batchDeleting}
+            className="bg-[var(--color-danger)] hover:bg-[var(--color-danger)]/90 text-white"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {batchDeleting ? '删除中…' : `批量删除 ${selected.size}`}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={batchDeleting}>
+            清空选择
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <input
+                    type="checkbox"
+                    className="cursor-pointer"
+                    checked={!!data && data.games.length > 0 && data.games.every(g => selected.has(g.game_id))}
+                    ref={(el) => {
+                      if (!el || !data) return;
+                      const ids = data.games.map(g => g.game_id);
+                      const some = ids.some(id => selected.has(id));
+                      const all = ids.length > 0 && ids.every(id => selected.has(id));
+                      el.indeterminate = some && !all;
+                    }}
+                    onChange={toggleAll}
+                    title="全选/反选本页"
+                  />
+                </TableHead>
                 <TableHead>局号</TableHead>
                 <TableHead>指纹</TableHead>
                 <TableHead>Plan</TableHead>
@@ -113,13 +189,21 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
             <TableBody>
               {!data || data.games.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-[var(--color-text-muted)] py-8">
+                  <TableCell colSpan={11} className="text-center text-[var(--color-text-muted)] py-8">
                     {loading ? '加载中...' : '暂无数据'}
                   </TableCell>
                 </TableRow>
               ) : (
                 data.games.map((g: Game) => (
-                  <TableRow key={g.game_id}>
+                  <TableRow key={g.game_id} className={selected.has(g.game_id) ? 'bg-[var(--color-primary)]/5' : ''}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        className="cursor-pointer"
+                        checked={selected.has(g.game_id)}
+                        onChange={() => toggleOne(g.game_id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{g.game_id}</TableCell>
                     <TableCell className="font-mono text-xs">{g.fingerprint.slice(0, 12)}…</TableCell>
                     <TableCell className="text-xs">
