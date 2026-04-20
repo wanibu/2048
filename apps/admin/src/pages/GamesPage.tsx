@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { RefreshCw, Eye, Trash2 } from 'lucide-react';
 import { api } from '@/api/client';
-import type { Game, GamesResp } from '@/api/types';
+import type { Game, GameDetail, GamesResp } from '@/api/types';
+import type { GamesStatusFilter } from '@/App';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,17 +12,24 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatDateTime } from '@/lib/utils';
 
-export function GamesPage() {
+interface Props {
+  statusFilter: GamesStatusFilter;
+  onStatusFilterChange: (f: GamesStatusFilter) => void;
+}
+
+export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<GamesResp | null>(null);
   const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<Game | null>(null);
+  const [detail, setDetail] = useState<GameDetail | null>(null);
   const [sequence, setSequence] = useState<Array<string | number>>([]);
 
-  async function load(p = page) {
+  async function load(p = page, filter: GamesStatusFilter = statusFilter) {
     setLoading(true);
     try {
-      const res = await api<GamesResp>(`/api/admin/games?page=${p}&limit=20`);
+      const q = new URLSearchParams({ page: String(p), limit: '20' });
+      if (filter !== 'all') q.set('status', filter);
+      const res = await api<GamesResp>(`/api/admin/games?${q.toString()}`);
       setData(res);
       setPage(p);
     } catch (err) {
@@ -31,11 +39,11 @@ export function GamesPage() {
     }
   }
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1, statusFilter); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter]);
 
   async function showDetail(gameId: string) {
     try {
-      const g = await api<Game & { sequence?: unknown }>(`/api/admin/game/${gameId}`);
+      const g = await api<GameDetail>(`/api/admin/game/${gameId}`);
       setDetail(g);
       let seq: unknown = g.sequence;
       if (typeof seq === 'string') {
@@ -62,10 +70,27 @@ export function GamesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">游戏局列表</h2>
-        <Button variant="outline" size="sm" onClick={() => load(page)} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded border border-[var(--color-border)] overflow-hidden text-xs">
+            {(['all', 'playing', 'finished'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => onStatusFilterChange(f)}
+                className={`px-3 py-1 cursor-pointer ${
+                  statusFilter === f
+                    ? 'bg-[var(--color-primary)] text-[var(--color-primary-fg)]'
+                    : 'hover:bg-[var(--color-surface-2)]'
+                }`}
+              >
+                {f === 'all' ? '全部' : f === 'playing' ? '进行中' : '已结束'}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => load(page)} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            刷新
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -75,7 +100,9 @@ export function GamesPage() {
               <TableRow>
                 <TableHead>局号</TableHead>
                 <TableHead>指纹</TableHead>
-                <TableHead>用户</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Sequence</TableHead>
+                <TableHead>进度</TableHead>
                 <TableHead>步数</TableHead>
                 <TableHead>分数</TableHead>
                 <TableHead>状态</TableHead>
@@ -86,16 +113,32 @@ export function GamesPage() {
             <TableBody>
               {!data || data.games.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-[var(--color-text-muted)] py-8">
+                  <TableCell colSpan={10} className="text-center text-[var(--color-text-muted)] py-8">
                     {loading ? '加载中...' : '暂无数据'}
                   </TableCell>
                 </TableRow>
               ) : (
-                data.games.map((g) => (
+                data.games.map((g: Game) => (
                   <TableRow key={g.game_id}>
                     <TableCell className="font-mono text-xs">{g.game_id}</TableCell>
-                    <TableCell className="font-mono text-xs">{g.fingerprint.slice(0, 16)}…</TableCell>
-                    <TableCell>{g.user_id || '-'}</TableCell>
+                    <TableCell className="font-mono text-xs">{g.fingerprint.slice(0, 12)}…</TableCell>
+                    <TableCell className="text-xs">
+                      {g.plan_name ? (
+                        <span title={g.sequence_plan_id || ''}>{g.plan_name}</span>
+                      ) : (
+                        <span className="text-[var(--color-text-muted)]">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {g.generated_sequence_id
+                        ? <span title={g.generated_sequence_id}>{g.generated_sequence_id.slice(0, 8)}…</span>
+                        : <span className="text-[var(--color-text-muted)]">-</span>}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {g.sequence_length
+                        ? `${g.sequence_index ?? 0} / ${g.sequence_length}`
+                        : '-'}
+                    </TableCell>
                     <TableCell>{g.step}</TableCell>
                     <TableCell className="font-semibold">{g.score}</TableCell>
                     <TableCell>
@@ -132,36 +175,91 @@ export function GamesPage() {
       )}
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>局详情 — {detail?.game_id}</DialogTitle>
           </DialogHeader>
           {detail && (
-            <div className="space-y-2 text-sm">
-              <Row label="状态" value={detail.status === 'playing' ? '进行中' : '已结束'} />
-              <Row label="结束原因" value={detail.end_reason || '-'} />
-              <Row label="指纹" value={detail.fingerprint} mono />
-              <Row label="用户" value={detail.user_id || '-'} />
-              <Row label="Seed" value={String(detail.seed)} />
-              <Row label="步数 / 分数" value={`${detail.step} / ${detail.score}`} />
-              <Row label="开始" value={formatDateTime(detail.created_at)} />
-              <Row label="结束" value={formatDateTime(detail.ended_at)} />
-              <Row label="签名" value={detail.sign?.slice(0, 48) + '...'} mono />
-              <div>
-                <div className="text-xs text-[var(--color-text-muted)] mb-1">糖果序列（{sequence.length}个）</div>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <Row label="状态" value={detail.status === 'playing' ? '进行中' : '已结束'} />
+                <Row label="结束原因" value={detail.end_reason || '-'} />
+                <Row label="用户" value={detail.user_id || '-'} />
+                <Row label="Seed" value={String(detail.seed)} />
+                <Row label="步数 / 分数" value={`${detail.step} / ${detail.score}`} />
+                <Row
+                  label="序列进度"
+                  value={detail.sequence_length
+                    ? `${detail.sequence_index ?? 0} / ${detail.sequence_length}`
+                    : '-'}
+                />
+                <Row label="开始" value={formatDateTime(detail.created_at)} />
+                <Row label="结束" value={formatDateTime(detail.ended_at)} />
+              </div>
+
+              <div className="border-t border-[var(--color-border)] pt-3 space-y-1">
+                <Row label="Plan" value={detail.plan_name || '-'} />
+                <Row label="Plan ID" value={detail.sequence_plan_id || '-'} mono />
+                <Row label="Sequence ID" value={detail.generated_sequence_id || '-'} mono />
+                <Row label="指纹" value={detail.fingerprint} mono />
+                <Row label="签名" value={detail.sign ? detail.sign.slice(0, 48) + '…' : '-'} mono />
+              </div>
+
+              {detail.stages && detail.stages.length > 0 && (
+                <div className="border-t border-[var(--color-border)] pt-3">
+                  <div className="text-xs text-[var(--color-text-muted)] mb-2">
+                    Plan 阶段组成（{detail.stages.length} 个，按顺序）
+                  </div>
+                  <div className="space-y-1">
+                    {detail.stages.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-start gap-2 p-2 bg-[var(--color-surface-2)] rounded text-xs"
+                      >
+                        <span className="font-mono text-[var(--color-text-muted)] w-6 shrink-0">
+                          #{s.stage_order}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div>
+                            <span className="font-medium">{s.name}</span>
+                            <span className="text-[var(--color-text-muted)] ml-2">长度 {s.length}</span>
+                          </div>
+                          <div className="text-[var(--color-text-muted)] font-mono break-all">
+                            {Object.entries(s.probabilities)
+                              .map(([k, v]) => `${k}:${v}%`)
+                              .join(' · ')}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-[var(--color-border)] pt-3">
+                <div className="text-xs text-[var(--color-text-muted)] mb-1">
+                  糖果序列（共 {sequence.length} 个{typeof detail.sequence_index === 'number' ? `，已用 ${detail.sequence_index}` : ''}）
+                </div>
                 <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto border border-[var(--color-border)] rounded p-2 bg-[var(--color-bg)]">
                   {sequence.length === 0 ? (
                     <span className="text-xs text-[var(--color-text-muted)]">（无）</span>
-                  ) : sequence.map((c, i) => (
-                    <span
-                      key={i}
-                      className={`text-xs px-1.5 py-0.5 rounded ${c === 'stone' || c === -1
-                        ? 'bg-orange-800/40 text-orange-300'
-                        : 'bg-[var(--color-surface-2)]'} ${i < detail.step ? 'opacity-40' : ''}`}
-                    >
-                      #{i + 1}: {c}
-                    </span>
-                  ))}
+                  ) : sequence.map((c, i) => {
+                    const consumed = typeof detail.sequence_index === 'number' && i < detail.sequence_index;
+                    const isStone = c === 'stone' || c === -1;
+                    return (
+                      <span
+                        key={i}
+                        className={`text-xs px-1.5 py-0.5 rounded ${
+                          isStone
+                            ? 'bg-orange-200 text-orange-800'
+                            : 'bg-[var(--color-surface-2)]'
+                        } ${consumed ? 'opacity-40 line-through' : ''}`}
+                        title={consumed ? '已消费' : '未消费'}
+                      >
+                        #{i + 1}: {c}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -174,9 +272,9 @@ export function GamesPage() {
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex items-center gap-4 py-1 border-b border-[var(--color-border)]/50">
-      <div className="w-20 text-xs text-[var(--color-text-muted)] shrink-0">{label}</div>
-      <div className={`flex-1 ${mono ? 'font-mono text-xs break-all' : ''}`}>{value}</div>
+    <div className="flex items-center gap-3 py-1 border-b border-[var(--color-border)]/40">
+      <div className="w-24 text-xs text-[var(--color-text-muted)] shrink-0">{label}</div>
+      <div className={`flex-1 min-w-0 ${mono ? 'font-mono text-xs break-all' : ''}`}>{value}</div>
     </div>
   );
 }

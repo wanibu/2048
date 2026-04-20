@@ -28,10 +28,27 @@ export interface Game {
   status: 'playing' | 'finished';
   sequence_plan_id: string | null;
   generated_sequence_id: string | null;
+  sequence_index: number;
   end_reason: string | null;
   ended_at: string | null;
   last_update_at: string | null;
   created_at: string;
+  // joined / enriched
+  plan_name?: string | null;
+  sequence_length?: number;
+}
+
+export interface GameDetail extends Game {
+  plan_name: string | null;
+  sequence: string | null;
+  sequence_length: number;
+  stages: Array<{
+    id: string;
+    name: string;
+    length: number;
+    stage_order: number;
+    probabilities: Record<string, number>;
+  }>;
 }
 export interface GamesResp extends PaginatedResponse {
   games: Game[];
@@ -81,4 +98,45 @@ export interface GeneratedSequence {
 }
 export interface SequencesResp extends PaginatedResponse {
   sequences: GeneratedSequence[];
+}
+
+export interface NumStats {
+  count: number;
+  min: number | null;
+  max: number | null;
+  avg: number | null;
+  median: number | null;
+  p90: number | null;
+  std: number | null;
+  cv: number | null;
+}
+
+export interface PlanStat {
+  plan_id: string | null;
+  plan_name: string | null;
+  games_total: number;
+  games_finished: number;
+  games_playing: number;
+  unique_players: number;
+  score: NumStats;
+  duration_sec: NumStats;
+  step: NumStats;
+  end_reasons: Record<string, number>;
+  ceiling_ratio: number | null;
+  gameover_share: number | null;
+  timeout_share: number | null;
+  first_game: {
+    count: number;
+    avg_step: number | null;
+    avg_score: number | null;
+  };
+  retry_rate: number | null;
+  learning_curve: {
+    sample: number;
+    avg_delta: number | null;
+  };
+}
+
+export interface PlanStatsResp {
+  plans: PlanStat[];
 }

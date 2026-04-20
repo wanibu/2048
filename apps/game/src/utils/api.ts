@@ -47,17 +47,32 @@ interface EndGamePayload {
   endReason?: string;
 }
 
+let apiCallSeq = 0;
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error((err as Record<string, string>).error || `HTTP ${res.status}`);
+  const seq = ++apiCallSeq;
+  const t0 = performance.now();
+  console.log(`[api #${seq}] → POST ${path}`, body);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const dur = (performance.now() - t0).toFixed(0);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+      console.warn(`[api #${seq}] ✗ POST ${path} ${res.status} (${dur}ms)`, err);
+      throw new Error((err as Record<string, string>).error || `HTTP ${res.status}`);
+    }
+    const data = await res.json() as T;
+    console.log(`[api #${seq}] ✓ POST ${path} 200 (${dur}ms)`, data);
+    return data;
+  } catch (e) {
+    const dur = (performance.now() - t0).toFixed(0);
+    console.error(`[api #${seq}] ✗ POST ${path} throw (${dur}ms)`, e);
+    throw e;
   }
-  return res.json() as Promise<T>;
 }
 
 // 开局：获取初始 tokens（前几个），后续通过 nextToken 按需拉取。

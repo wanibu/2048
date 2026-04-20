@@ -507,6 +507,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private addScore(points: number): void {
+    const before = this.hud.getScore();
+    console.log(`[score] +${points}, ${before} → ${before + points}`);
     this.hud.addScore(points);
     this.refreshScoreSprites((images, num, startX, startY, depth) => {
       images.forEach(img => img.destroy());
@@ -1027,6 +1029,7 @@ export class GameScene extends Phaser.Scene {
 
   // 推进 token 队列，处理待定石头，然后装填弹弓
   private respawnWithSequence(): void {
+    console.log(`[GameScene] respawnWithSequence(), DEBUG=${IS_DEBUG}, isResolvingTurn=${this.isResolvingTurn}`);
     if (IS_DEBUG) {
       // DEBUG 模式：从面板状态取当前/下一个糖果，不走后端
       const currentCandy = this.debugCurrentCandy;
@@ -1076,12 +1079,14 @@ export class GameScene extends Phaser.Scene {
 
   // 依次处理待定石头，每个间隔 400ms，全部完成后执行回调
   private processPendingStones(count: number, onComplete: () => void): void {
+    console.log(`[GameScene] processPendingStones count=${count}`);
     let processed = 0;
     const processNext = () => {
       if (processed >= count) {
         onComplete();
         return;
       }
+      console.log(`[GameScene] spawnStone #${processed + 1}/${count}`);
       this.spawnStone();
       processed++;
       if (processed < count) {
@@ -1629,16 +1634,23 @@ export class GameScene extends Phaser.Scene {
 
   // 检查游戏是否结束：当前糖果在 4 种旋转状态下都无法放入任何列
   private checkGameOver(): void {
-    if (this.isGameOver) return;
+    if (this.isGameOver) {
+      console.log('[checkGameOver] 已经 gameOver，跳过');
+      return;
+    }
 
     const currentValue = this.sling.getCurrentValue();
-    if (currentValue === null) return;
+    if (currentValue === null) {
+      console.log('[checkGameOver] currentValue=null，跳过');
+      return;
+    }
 
     const gridData = this.grid.data;
 
     for (let rotation = 0; rotation < 4; rotation++) {
       const rotated = this.rotateGridData(gridData, rotation);
       if (this.canPlaceInGrid(rotated, currentValue)) {
+        console.log(`[checkGameOver] currentValue=${currentValue} 可放入（rotation=${rotation}）`);
         return;
       }
     }

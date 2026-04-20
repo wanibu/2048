@@ -16,7 +16,10 @@ export function clearToken() {
 export interface ApiError {
   status: number;
   error: string;
+  [key: string]: unknown;
 }
+
+let apiSeq = 0;
 
 export async function api<T = unknown>(
   path: string,
@@ -30,25 +33,36 @@ export async function api<T = unknown>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const seq = ++apiSeq;
+  const t0 = performance.now();
+  console.log(`[admin-api #${seq}] → ${method} ${path}`, body ?? '');
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  const dur = (performance.now() - t0).toFixed(0);
 
   if (!res.ok) {
-    let msg = '';
+    let body: Record<string, unknown> = {};
     try {
-      const j = await res.json();
-      msg = (j as Record<string, unknown>)?.error as string || '';
+      body = (await res.json()) as Record<string, unknown>;
     } catch {
-      msg = res.statusText;
+      // not JSON
     }
-    const err: ApiError = { status: res.status, error: msg || 'Request failed' };
+    const err: ApiError = {
+      ...body,
+      status: res.status,
+      error: (body.error as string) || res.statusText || 'Request failed',
+    };
+    console.warn(`[admin-api #${seq}] ✗ ${method} ${path} → ${res.status} (${dur}ms)`, err);
     throw err;
   }
 
-  return res.json() as Promise<T>;
+  const data = await res.json() as T;
+  console.log(`[admin-api #${seq}] ✓ ${method} ${path} → 200 (${dur}ms)`, data);
+  return data;
 }
 
 export async function login(username: string, password: string): Promise<string> {

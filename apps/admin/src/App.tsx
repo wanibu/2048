@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { LogOut, Gamepad2, LayoutGrid, Layers, ListOrdered, BarChart3 } from 'lucide-react';
+import { LogOut, Gamepad2, Settings, BarChart3, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getToken, clearToken } from '@/api/client';
 import { LoginPage } from '@/pages/LoginPage';
 import { StatsPage } from '@/pages/StatsPage';
 import { GamesPage } from '@/pages/GamesPage';
-import { StagesPage } from '@/pages/StagesPage';
-import { PlansPage } from '@/pages/PlansPage';
-import { SequencesPage } from '@/pages/SequencesPage';
+import { ConfigPage } from '@/pages/ConfigPage';
+import { PlanAnalysisPage } from '@/pages/PlanAnalysisPage';
+
+export type GamesStatusFilter = 'all' | 'playing' | 'finished';
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [tab, setTab] = useState('stats');
+  const [gamesFilter, setGamesFilter] = useState<GamesStatusFilter>('all');
 
   useEffect(() => {
     setLoggedIn(!!getToken());
@@ -24,6 +27,11 @@ export default function App() {
   function handleLogout() {
     clearToken();
     setLoggedIn(false);
+  }
+
+  function navigateToGames(filter: GamesStatusFilter) {
+    setGamesFilter(filter);
+    setTab('games');
   }
 
   return (
@@ -40,30 +48,35 @@ export default function App() {
       </header>
 
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
-        <Tabs defaultValue="stats">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="stats">
               <BarChart3 className="h-4 w-4 mr-1" /> 统计
             </TabsTrigger>
+            <TabsTrigger value="plan-analysis">
+              <Sparkles className="h-4 w-4 mr-1" /> Plan 分析
+            </TabsTrigger>
             <TabsTrigger value="games">
               <Gamepad2 className="h-4 w-4 mr-1" /> 游戏局
             </TabsTrigger>
-            <TabsTrigger value="stages">
-              <LayoutGrid className="h-4 w-4 mr-1" /> Stages
-            </TabsTrigger>
-            <TabsTrigger value="plans">
-              <Layers className="h-4 w-4 mr-1" /> Plans
-            </TabsTrigger>
-            <TabsTrigger value="sequences">
-              <ListOrdered className="h-4 w-4 mr-1" /> Sequences
+            <TabsTrigger value="config">
+              <Settings className="h-4 w-4 mr-1" /> 配置
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="stats"><StatsPage /></TabsContent>
-          <TabsContent value="games"><GamesPage /></TabsContent>
-          <TabsContent value="stages"><StagesPage /></TabsContent>
-          <TabsContent value="plans"><PlansPage /></TabsContent>
-          <TabsContent value="sequences"><SequencesPage /></TabsContent>
+          <TabsContent value="stats">
+            <StatsPage
+              onNavigateGames={navigateToGames}
+              onNavigatePlanAnalysis={() => setTab('plan-analysis')}
+              onNavigatePlans={() => setTab('config')}
+              onNavigateSequences={() => setTab('config')}
+            />
+          </TabsContent>
+          <TabsContent value="plan-analysis"><PlanAnalysisPage /></TabsContent>
+          <TabsContent value="games">
+            <GamesPage statusFilter={gamesFilter} onStatusFilterChange={setGamesFilter} />
+          </TabsContent>
+          <TabsContent value="config"><ConfigPage /></TabsContent>
         </Tabs>
       </main>
     </div>

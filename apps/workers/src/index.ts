@@ -135,9 +135,21 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// 请求日志
+app.use('*', async (c, next) => {
+  const t0 = Date.now();
+  const method = c.req.method;
+  const path = new URL(c.req.url).pathname;
+  await next();
+  const dur = Date.now() - t0;
+  const status = c.res.status;
+  const mark = status >= 500 ? '💥' : status >= 400 ? '⚠️ ' : '✓';
+  console.log(`${mark} ${method} ${path} → ${status} (${dur}ms)`);
+});
+
 // 全局错误处理
 app.onError((err, c) => {
-  console.error(err);
+  console.error('[onError]', err);
   return c.json({ error: 'Internal error' }, 500);
 });
 
@@ -145,19 +157,22 @@ app.onError((err, c) => {
 
 app.post('/api/start-game', async (c) => {
   const { fingerprint, userId } = await c.req.json<{ fingerprint: string; userId?: string }>();
+  console.log(`[start-game] fp=${fingerprint?.slice(0, 12)}… userId=${userId || '(anon)'}`);
   if (!fingerprint) return c.json({ error: 'Missing fingerprint' }, 400);
 
   const db = c.env.DB;
 
-  await db.prepare(
+  const sweep = await db.prepare(
     "UPDATE games SET status = 'finished', end_reason = 'new_game', ended_at = ? WHERE fingerprint = ? AND status = 'playing'"
   ).bind(new Date().toISOString(), fingerprint).run();
+  console.log(`[start-game] swept ${sweep.meta?.changes ?? '?'} playing games for this fp`);
 
   const gameId = generateGameId();
   const seed = Math.floor(Math.random() * 2147483647);
   const now = new Date().toISOString();
   const sign = await initSign(gameId);
   const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(db);
+  console.log(`[start-game] picked plan=${sequencePlanId} seq=${generatedSequenceId}`);
 
   const genSeq = await db.prepare(
     'SELECT sequence_data FROM generated_sequences WHERE id = ?'
@@ -175,6 +190,7 @@ app.post('/api/start-game', async (c) => {
     sequencePlanId, generatedSequenceId, newIndex, '', '', now, now,
   ).run();
 
+  console.log(`[start-game] ✓ gameId=${gameId} initialTokens=${JSON.stringify(tokens)} sequenceIndex=${newIndex}`);
   return c.json({ gameId, tokens, sequencePlanId, generatedSequenceId, sign });
 });
 
@@ -184,6 +200,7 @@ app.post('/api/extend-sequence', (c) =>
 
 app.post('/api/next-token', async (c) => {
   const { gameId } = await c.req.json<{ gameId: string }>();
+  console.log(`[next-token] gameId=${gameId}`);
   if (!gameId) return c.json({ error: 'Missing gameId' }, 400);
 
   const db = c.env.DB;
@@ -191,8 +208,14 @@ app.post('/api/next-token', async (c) => {
     'SELECT game_id, status, generated_sequence_id, sequence_index FROM games WHERE game_id = ?'
   ).bind(gameId).first() as Record<string, unknown> | null;
 
-  if (!game) return c.json({ error: 'Game not found' }, 404);
-  if (game.status !== 'playing') return c.json({ error: 'Game finished' }, 400);
+  if (!game) {
+    console.warn(`[next-token] game not found: ${gameId}`);
+    return c.json({ error: 'Game not found' }, 404);
+  }
+  if (game.status !== 'playing') {
+    console.warn(`[next-token] game not playing: ${gameId} status=${game.status}`);
+    return c.json({ error: 'Game finished' }, 400);
+  }
 
   const genSeq = await db.prepare(
     'SELECT sequence_data FROM generated_sequences WHERE id = ?'
@@ -202,6 +225,7 @@ app.post('/api/next-token', async (c) => {
 
   const currentIndex = game.sequence_index as number;
   const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, currentIndex, 3);
+  console.log(`[next-token] idx ${currentIndex} → ${newIndex}, tokens=${JSON.stringify(tokens)}`);
 
   await db.prepare(
     'UPDATE games SET sequence_index = ?, last_update_at = ? WHERE game_id = ?'
@@ -221,6 +245,7 @@ app.post('/api/action', async (c) => {
       resultValue?: number;
     };
   }>();
+  console.log(`[action] gameId=${gameId} action=${JSON.stringify(action)}`);
   if (!gameId || !action) return c.json({ error: 'Missing fields' }, 400);
 
   const db = c.env.DB;
@@ -228,8 +253,14 @@ app.post('/api/action', async (c) => {
     'SELECT * FROM games WHERE game_id = ?'
   ).bind(gameId).first() as Record<string, unknown> | null;
 
-  if (!game) return c.json({ error: 'Game not found' }, 404);
-  if (game.status !== 'playing') return c.json({ error: 'Game finished' }, 400);
+  if (!game) {
+    console.warn(`[action] game not found: ${gameId}`);
+    return c.json({ error: 'Game not found' }, 404);
+  }
+  if (game.status !== 'playing') {
+    console.warn(`[action] game not playing: ${gameId} status=${game.status} end_reason=${game.end_reason}`);
+    return c.json({ error: 'Game finished' }, 400);
+  }
 
   if (action.type === 'shoot' || action.type === 'direct_merge') {
     if (action.col === undefined || action.col < 0 || action.col >= 5) {
@@ -250,19 +281,22 @@ app.post('/api/action', async (c) => {
     'UPDATE games SET step = ?, sign = ?, last_update_at = ? WHERE game_id = ?'
   ).bind(newStep, newSign, now, gameId).run();
 
+  console.log(`[action] ✓ gameId=${gameId} step ${game.step} → ${newStep}`);
   return c.json({ step: newStep, sign: newSign });
 });
 
 app.post('/api/update-score', async (c) => {
   const { gameId, score } = await c.req.json<{ gameId: string; score: number }>();
+  console.log(`[update-score] gameId=${gameId} score=${score}`);
   if (!gameId || !Number.isFinite(score)) {
     return c.json({ error: 'Missing or invalid fields' }, 400);
   }
 
-  await c.env.DB.prepare(
+  const r = await c.env.DB.prepare(
     "UPDATE games SET score = ?, last_update_at = ? WHERE game_id = ? AND status = 'playing'"
   ).bind(score, new Date().toISOString(), gameId).run();
 
+  if (!r.meta?.changes) console.warn(`[update-score] no row updated (game may be finished or missing): ${gameId}`);
   return c.json({ success: true });
 });
 
@@ -270,14 +304,24 @@ async function finishGame(db: D1Database, body: {
   gameId: string; finalSign: string; finalScore: number; endReason?: string;
 }) {
   const { gameId, finalSign, finalScore, endReason } = body;
+  console.log(`[finishGame] gameId=${gameId} finalScore=${finalScore} endReason=${endReason || '(gameover)'}`);
   if (!gameId || !finalSign || !Number.isFinite(finalScore)) {
     return { status: 400 as const, body: { error: 'Missing or invalid fields' } };
   }
 
   const game = await db.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
-  if (!game) return { status: 404 as const, body: { error: 'Game not found' } };
-  if (game.status !== 'playing') return { status: 400 as const, body: { error: 'Game already finished' } };
-  if (finalSign !== game.sign) return { status: 403 as const, body: { error: 'Invalid signature' } };
+  if (!game) {
+    console.warn(`[finishGame] game not found: ${gameId}`);
+    return { status: 404 as const, body: { error: 'Game not found' } };
+  }
+  if (game.status !== 'playing') {
+    console.warn(`[finishGame] game already finished: ${gameId} end_reason=${game.end_reason}`);
+    return { status: 400 as const, body: { error: 'Game already finished' } };
+  }
+  if (finalSign !== game.sign) {
+    console.warn(`[finishGame] signature mismatch for ${gameId}: got=${finalSign?.slice(0, 16)}… expected=${(game.sign as string)?.slice(0, 16)}…`);
+    return { status: 403 as const, body: { error: 'Invalid signature' } };
+  }
 
   const now = new Date().toISOString();
   const reason = endReason || 'gameover';
@@ -291,8 +335,10 @@ async function finishGame(db: D1Database, body: {
   ).bind(gameId, game.fingerprint as string, finalScore, game.step as number, finalSign, now).run();
 
   const rankResult = await db.prepare('SELECT COUNT(*) as rank FROM scores WHERE score > ?').bind(finalScore).first() as Record<string, unknown> | null;
+  const rank = rankResult ? (rankResult.rank as number) + 1 : 1;
 
-  return { status: 200 as const, body: { success: true, score: finalScore, rank: rankResult ? (rankResult.rank as number) + 1 : 1 } };
+  console.log(`[finishGame] ✓ ${gameId} finalScore=${finalScore} rank=${rank}`);
+  return { status: 200 as const, body: { success: true, score: finalScore, rank } };
 }
 
 app.post('/api/submit-game', async (c) => {
@@ -337,6 +383,176 @@ admin.use('*', async (c, next) => {
 });
 
 // ---- 统计 ----
+// ---- Plan 分析：按 plan 聚合多维指标（用于调优评估）----
+admin.get('/plan-stats', async (c) => {
+  const db = c.env.DB;
+  console.log('[plan-stats] aggregating');
+
+  const rows = await db.prepare(
+    `SELECT g.sequence_plan_id, sp.name AS plan_name,
+            g.fingerprint, g.step, g.score, g.end_reason,
+            g.created_at, g.ended_at, g.status
+     FROM games g
+     LEFT JOIN sequence_plans sp ON g.sequence_plan_id = sp.id
+     ORDER BY g.created_at ASC`
+  ).all();
+
+  type G = { score: number; step: number; duration_sec: number | null; end_reason: string; fingerprint: string; status: string; created_at: string };
+
+  const byPlan = new Map<string, { plan_id: string | null; plan_name: string | null; games: G[] }>();
+
+  for (const r of (rows.results || []) as Array<Record<string, unknown>>) {
+    const pid = (r.sequence_plan_id as string | null) || '';
+    const key = pid || '__none__';
+    let bucket = byPlan.get(key);
+    if (!bucket) {
+      bucket = { plan_id: pid || null, plan_name: (r.plan_name as string | null) || null, games: [] };
+      byPlan.set(key, bucket);
+    }
+    let duration: number | null = null;
+    const endedAt = r.ended_at as string | null;
+    const createdAt = r.created_at as string | null;
+    if (endedAt && createdAt) {
+      const d = (Date.parse(endedAt) - Date.parse(createdAt)) / 1000;
+      if (Number.isFinite(d) && d >= 0) duration = d;
+    }
+    bucket.games.push({
+      score: (r.score as number) || 0,
+      step: (r.step as number) || 0,
+      duration_sec: duration,
+      end_reason: (r.end_reason as string) || '',
+      fingerprint: (r.fingerprint as string) || '',
+      status: (r.status as string) || '',
+      created_at: createdAt || '',
+    });
+  }
+
+  function percentile(sorted: number[], p: number): number | null {
+    if (sorted.length === 0) return null;
+    if (sorted.length === 1) return sorted[0];
+    const idx = (sorted.length - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+
+  function stats(nums: number[]) {
+    if (nums.length === 0) return { count: 0, min: null, avg: null, median: null, p90: null, max: null, std: null, cv: null };
+    const sorted = [...nums].sort((a, b) => a - b);
+    const sum = sorted.reduce((s, v) => s + v, 0);
+    const avg = sum / sorted.length;
+    const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / sorted.length;
+    const std = Math.sqrt(variance);
+    return {
+      count: sorted.length,
+      min: sorted[0],
+      max: sorted[sorted.length - 1],
+      avg,
+      median: percentile(sorted, 0.5),
+      p90: percentile(sorted, 0.9),
+      std,
+      cv: avg > 0 ? std / avg : null,
+    };
+  }
+
+  const plans = Array.from(byPlan.values()).map((b) => {
+    const finished = b.games.filter((g) => g.status === 'finished');
+    const playing = b.games.filter((g) => g.status === 'playing');
+    const durations = finished.map((g) => g.duration_sec).filter((d): d is number => d !== null);
+    const scores = finished.map((g) => g.score);
+    const steps = finished.map((g) => g.step);
+
+    const endReasons: Record<string, number> = {};
+    for (const g of finished) {
+      const r = g.end_reason || '(none)';
+      endReasons[r] = (endReasons[r] || 0) + 1;
+    }
+
+    const uniqueFingerprints = new Set(b.games.map((g) => g.fingerprint).filter(Boolean));
+
+    // 按 fp 聚合：新手首局表现 + retry 比例 + 学习曲线
+    const byFp = new Map<string, G[]>();
+    for (const g of b.games.filter(x => x.fingerprint)) {
+      if (!byFp.has(g.fingerprint)) byFp.set(g.fingerprint, []);
+      byFp.get(g.fingerprint)!.push(g);
+    }
+    for (const list of byFp.values()) {
+      list.sort((x, y) => x.created_at.localeCompare(y.created_at));
+    }
+
+    // 新手首局：每个 fp 的第一局（只取 finished 的，避免进行中没分数污染）
+    const firstGames = Array.from(byFp.values())
+      .map(list => list.find(g => g.status === 'finished'))
+      .filter((g): g is G => !!g);
+    const firstGameStats = {
+      count: firstGames.length,
+      avg_step: firstGames.length ? firstGames.reduce((s, g) => s + g.step, 0) / firstGames.length : null,
+      avg_score: firstGames.length ? firstGames.reduce((s, g) => s + g.score, 0) / firstGames.length : null,
+    };
+
+    // Retry: 连续开局 ≥ 3 的 fp 比例（不过滤 status，统计一个 fp 开了几局）
+    const fpGameCounts = Array.from(byFp.values()).map(list => list.length);
+    const retryCount = fpGameCounts.filter(c => c >= 3).length;
+    const retryRate = fpGameCounts.length > 0 ? retryCount / fpGameCounts.length : null;
+
+    // 学习曲线：对 ≥5 局的 fp，(第5局score / 第1局score) - 1，求平均
+    const learningDeltas: number[] = [];
+    for (const list of byFp.values()) {
+      const finishedSorted = list.filter(g => g.status === 'finished');
+      if (finishedSorted.length >= 5) {
+        const first = finishedSorted[0].score;
+        const fifth = finishedSorted[4].score;
+        if (first > 0) learningDeltas.push(fifth / first - 1);
+      }
+    }
+    const learningCurve = {
+      sample: learningDeltas.length,
+      avg_delta: learningDeltas.length > 0
+        ? learningDeltas.reduce((s, v) => s + v, 0) / learningDeltas.length
+        : null,
+    };
+
+    // 天花板比：p90 / p50
+    const scoreStat = stats(scores);
+    const ceilingRatio = (scoreStat.p90 && scoreStat.median && scoreStat.median > 0)
+      ? scoreStat.p90 / scoreStat.median
+      : null;
+
+    // gameover / timeout 占比
+    const gameoverShare = finished.length > 0
+      ? (endReasons['gameover'] || 0) / finished.length
+      : null;
+    const timeoutShare = finished.length > 0
+      ? (endReasons['timeout'] || 0) / finished.length
+      : null;
+
+    return {
+      plan_id: b.plan_id,
+      plan_name: b.plan_name,
+      games_total: b.games.length,
+      games_finished: finished.length,
+      games_playing: playing.length,
+      unique_players: uniqueFingerprints.size,
+      score: scoreStat,
+      duration_sec: stats(durations),
+      step: stats(steps),
+      end_reasons: endReasons,
+      // 高级指标
+      ceiling_ratio: ceilingRatio,
+      gameover_share: gameoverShare,
+      timeout_share: timeoutShare,
+      first_game: firstGameStats,
+      retry_rate: retryRate,
+      learning_curve: learningCurve,
+    };
+  });
+
+  plans.sort((a, b) => b.games_finished - a.games_finished);
+
+  return c.json({ plans });
+});
+
 admin.get('/stats', async (c) => {
   const db = c.env.DB;
   const totalGames = await db.prepare('SELECT COUNT(*) as c FROM games').first() as Record<string, unknown>;
@@ -360,16 +576,34 @@ admin.get('/stats', async (c) => {
 admin.get('/games', async (c) => {
   const page = parseInt(c.req.query('page') || '1');
   const limit = parseInt(c.req.query('limit') || '20');
+  const status = c.req.query('status'); // 'playing' | 'finished' | undefined
   const offset = (page - 1) * limit;
   const db = c.env.DB;
 
-  const games = await db.prepare(
-    `SELECT game_id, fingerprint, user_id, seed, step, score, sign, status,
-     sequence_plan_id, generated_sequence_id, end_reason, ended_at, last_update_at, created_at
-     FROM games ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all();
+  const where: string[] = [];
+  const params: Array<string | number> = [];
+  if (status === 'playing' || status === 'finished') {
+    where.push('g.status = ?');
+    params.push(status);
+  }
+  const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
-  const countResult = await db.prepare('SELECT COUNT(*) as total FROM games').first() as Record<string, unknown> | null;
+  const games = await db.prepare(
+    `SELECT g.game_id, g.fingerprint, g.user_id, g.seed, g.step, g.score, g.sign, g.status,
+            g.sequence_plan_id, g.generated_sequence_id, g.sequence_index,
+            g.end_reason, g.ended_at, g.last_update_at, g.created_at,
+            sp.name AS plan_name,
+            gs.sequence_length AS sequence_length
+     FROM games g
+     LEFT JOIN sequence_plans sp ON g.sequence_plan_id = sp.id
+     LEFT JOIN generated_sequences gs ON g.generated_sequence_id = gs.id
+     ${whereSQL}
+     ORDER BY g.created_at DESC LIMIT ? OFFSET ?`
+  ).bind(...params, limit, offset).all();
+
+  const countResult = await db.prepare(
+    `SELECT COUNT(*) as total FROM games g ${whereSQL}`
+  ).bind(...params).first() as Record<string, unknown> | null;
 
   return c.json({
     games: games.results,
@@ -382,9 +616,59 @@ admin.get('/games', async (c) => {
 
 admin.get('/game/:id', async (c) => {
   const gameId = c.req.param('id');
-  const game = await c.env.DB.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
+  const db = c.env.DB;
+  const game = await db.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
   if (!game) return c.json({ error: 'Game not found' }, 404);
-  return c.json({ ...game });
+
+  let plan_name: string | null = null;
+  let sequence: string | null = null;
+  let sequence_length = 0;
+  let stages: unknown[] = [];
+
+  if (game.sequence_plan_id) {
+    const plan = await db.prepare(
+      'SELECT name FROM sequence_plans WHERE id = ?'
+    ).bind(game.sequence_plan_id as string).first() as Record<string, unknown> | null;
+    plan_name = plan ? (plan.name as string) : null;
+
+    const stageRows = await db.prepare(
+      `SELECT s.id, s.name, s.length, s.probabilities, sps.stage_order
+       FROM sequence_plan_stages sps
+       JOIN stages s ON s.id = sps.stage_id
+       WHERE sps.sequence_plan_id = ?
+       ORDER BY sps.stage_order ASC`
+    ).bind(game.sequence_plan_id as string).all();
+    stages = (stageRows.results || []).map((r) => {
+      const rec = r as Record<string, unknown>;
+      let probs: Record<string, number> = {};
+      try { probs = JSON.parse(rec.probabilities as string); } catch { /* ignore */ }
+      return {
+        id: rec.id,
+        name: rec.name,
+        length: rec.length,
+        stage_order: rec.stage_order,
+        probabilities: probs,
+      };
+    });
+  }
+
+  if (game.generated_sequence_id) {
+    const gs = await db.prepare(
+      'SELECT sequence_data, sequence_length FROM generated_sequences WHERE id = ?'
+    ).bind(game.generated_sequence_id as string).first() as Record<string, unknown> | null;
+    if (gs) {
+      sequence = gs.sequence_data as string;
+      sequence_length = (gs.sequence_length as number) || 0;
+    }
+  }
+
+  return c.json({
+    ...game,
+    plan_name,
+    sequence,
+    sequence_length,
+    stages,
+  });
 });
 
 admin.delete('/delete-game/:id', async (c) => {
@@ -732,14 +1016,44 @@ admin.put('/generated-sequences/:id', async (c) => {
 
 admin.delete('/generated-sequences/:id', async (c) => {
   const seqId = c.req.param('id');
-  const ref = await c.env.DB.prepare(
+  const force = c.req.query('force') === 'true';
+  const db = c.env.DB;
+
+  const totalRef = await db.prepare(
     'SELECT COUNT(*) as c FROM games WHERE generated_sequence_id = ?'
   ).bind(seqId).first() as Record<string, unknown>;
-  if (ref && (ref.c as number) > 0) {
-    return c.json({ error: 'Sequence is used by games, cannot delete' }, 400);
+  const totalCount = totalRef ? (totalRef.c as number) : 0;
+
+  const playingRef = await db.prepare(
+    "SELECT COUNT(*) as c FROM games WHERE generated_sequence_id = ? AND status = 'playing'"
+  ).bind(seqId).first() as Record<string, unknown>;
+  const playingCount = playingRef ? (playingRef.c as number) : 0;
+
+  if (totalCount > 0 && !force) {
+    return c.json({
+      error: 'Sequence is used by games, cannot delete',
+      refCount: totalCount,
+      playingCount,
+    }, 400);
   }
-  await c.env.DB.prepare('DELETE FROM generated_sequences WHERE id = ?').bind(seqId).run();
-  return c.json({ success: true });
+
+  let stoppedGames = 0;
+  if (force && totalCount > 0) {
+    const now = new Date().toISOString();
+    if (playingCount > 0) {
+      await db.prepare(
+        "UPDATE games SET status = 'finished', end_reason = 'sequence_force_deleted', ended_at = ?, last_update_at = ? WHERE generated_sequence_id = ? AND status = 'playing'"
+      ).bind(now, now, seqId).run();
+      stoppedGames = playingCount;
+    }
+    // 解除 FK 引用，否则后面 DELETE 会被外键约束拒绝
+    await db.prepare(
+      'UPDATE games SET generated_sequence_id = NULL WHERE generated_sequence_id = ?'
+    ).bind(seqId).run();
+  }
+
+  await db.prepare('DELETE FROM generated_sequences WHERE id = ?').bind(seqId).run();
+  return c.json({ success: true, stoppedGames });
 });
 
 // 挂载 admin 路由到 /api/admin

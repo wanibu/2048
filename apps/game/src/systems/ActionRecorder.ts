@@ -3,6 +3,8 @@ import { startGame, sendAction, updateScore, endGame } from '../utils/api';
 import { TokenQueue, AdvanceResult } from './TokenQueue';
 
 export class ActionRecorder {
+  private static initSeq: number = 0;
+
   private gameId: string = '';
   private currentSign: string = '';
   private ready: boolean = false;
@@ -14,11 +16,17 @@ export class ActionRecorder {
   public tokenQueue: TokenQueue = new TokenQueue();
 
   async init(userId?: string): Promise<void> {
+    const mySeq = ++ActionRecorder.initSeq;
     this.userId = userId || '';
     const fingerprint = await getFingerprint();
     console.log('[ActionRecorder] fingerprint:', fingerprint.slice(0, 16) + '...');
 
     const result = await startGame(fingerprint, this.userId);
+    // 并发守卫：只有最新一次 init 才可写回状态，否则落后响应会覆盖最新 gameId
+    if (mySeq !== ActionRecorder.initSeq) {
+      console.warn(`[ActionRecorder.init] 落后响应被丢弃 seq=${mySeq}, current=${ActionRecorder.initSeq}, staleGameId=${result.gameId}`);
+      return;
+    }
     this.gameId = result.gameId;
     this.currentSign = result.sign;
     this.sequencePlanId = result.sequencePlanId;
@@ -35,13 +43,23 @@ export class ActionRecorder {
   }
 
   prepareInitialCandies(): AdvanceResult | null {
-    if (!this.ready) return null;
-    return this.tokenQueue.prepareInitial();
+    if (!this.ready) {
+      console.warn('[ActionRecorder] prepareInitialCandies called but not ready');
+      return null;
+    }
+    const r = this.tokenQueue.prepareInitial();
+    console.log('[ActionRecorder] prepareInitialCandies →', r);
+    return r;
   }
 
   advanceAfterShot(): AdvanceResult | null {
-    if (!this.ready) return null;
-    return this.tokenQueue.advance();
+    if (!this.ready) {
+      console.warn('[ActionRecorder] advanceAfterShot called but not ready');
+      return null;
+    }
+    const r = this.tokenQueue.advance();
+    console.log('[ActionRecorder] advanceAfterShot →', r);
+    return r;
   }
 
   async recordShoot(col: number, value: number): Promise<void> {
@@ -85,7 +103,11 @@ export class ActionRecorder {
   }
 
   async reportScore(score: number): Promise<void> {
-    if (!this.ready) return;
+    if (!this.ready) {
+      console.warn(`[ActionRecorder] reportScore(${score}) skipped, not ready`);
+      return;
+    }
+    console.log(`[ActionRecorder] reportScore score=${score}`);
     try {
       await updateScore({ gameId: this.gameId, score });
     } catch (e) {
