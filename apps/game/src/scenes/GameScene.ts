@@ -5,11 +5,11 @@ import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
 import { Border } from '../objects/Border';
 import { Stone } from '../objects/Stone';
-import { MergeSystem } from '../systems/MergeSystem';
+import { MergeSystem, GhostBorder } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
 import { HUD } from '../ui/HUD';
-import { DebugPanel, StoneExplodeParams, MergeEffectParams } from '../debug/DebugPanel';
+import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY, SavedSnapshot } from '../debug/DebugPanel';
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
 
@@ -683,7 +683,39 @@ export class GameScene extends Phaser.Scene {
       this.debugPanel?.unmount();
       this.debugPanel = null;
     });
+    this.restoreDebugSnapshotIfAny();
     this.debugPanel.refreshFromGame();
+  }
+
+  // DEBUG：如果 localStorage 里存着快照，启动时自动恢复
+  private restoreDebugSnapshotIfAny(): void {
+    const raw = localStorage.getItem(SNAPSHOT_STORAGE_KEY);
+    if (!raw) return;
+    let snap: SavedSnapshot;
+    try {
+      snap = JSON.parse(raw) as SavedSnapshot;
+    } catch (e) {
+      console.warn('[DEBUG] 快照解析失败，忽略', e);
+      return;
+    }
+    if (!snap.grid || snap.grid.length !== GRID_ROWS) return;
+
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (this.grid.borders[r][c]) this.grid.removeBorder(r, c);
+        if (this.grid.stones[r][c]) this.grid.removeStone(r, c);
+        const v = snap.grid[r]?.[c] ?? 0;
+        if (v === -1) this.grid.placeStone(r, c);
+        else if (v > 0) this.grid.placeBorder(r, c, v);
+      }
+    }
+    if (typeof snap.current === 'number' && snap.current > 0) {
+      this.debugCurrentCandy = snap.current;
+    }
+    this.debugNextCandy = snap.next ?? null;
+    this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    console.log('[DEBUG] 已从本地快照恢复棋盘', snap);
+    this.debugPanel?.logDebugEvent(`从本地快照恢复（${new Date(snap.savedAt).toLocaleTimeString()}）`);
   }
 
   private debugSetCell(row: number, col: number, value: number | 'stone' | null): void {
@@ -863,6 +895,26 @@ export class GameScene extends Phaser.Scene {
         },
       });
     });
+  }
+
+  // 合并时被消除格子的"飞向目标 + 淡出"动画
+  // MergeSystem 已把这些 border 从 grid 里摘出来（不销毁），这里负责过渡+销毁
+  private animateMergeGhosts(ghosts: GhostBorder[], targetRow: number, targetCol: number): void {
+    if (!ghosts || ghosts.length === 0) return;
+    const { x: tx, y: ty } = this.grid.localCellToPixel(targetRow, targetCol);
+    for (const { border } of ghosts) {
+      this.tweens.add({
+        targets: border,
+        x: tx,
+        y: ty,
+        alpha: 0,
+        scaleX: 0.6,
+        scaleY: 0.6,
+        duration: 180,
+        ease: 'Quad.easeIn',
+        onComplete: () => border.destroy(),
+      });
+    }
   }
 
   // DEBUG: 在中心格 (3,3) 播放糖果合并特效（临时放 16，动画后恢复）
@@ -1512,6 +1564,9 @@ export class GameScene extends Phaser.Scene {
     this.sound.play('collapse1', { volume: 0.4 });
     this.lastLandedCol = result.col;
 
+    this.animateMergeGhosts(result.ghostBorders, result.row, result.col);
+    this.playMergeEffectFrames([{ row: result.row, col: result.col }]);
+
     const border = this.grid.borders[result.row][result.col];
     if (border) {
       this.tweens.add({
@@ -1557,6 +1612,9 @@ export class GameScene extends Phaser.Scene {
 
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
+
+    this.animateMergeGhosts(result.ghostBorders, result.row, result.col);
+    this.playMergeEffectFrames([{ row: result.row, col: result.col }]);
 
     const border = this.grid.borders[result.row][result.col];
     if (border) {

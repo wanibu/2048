@@ -1,9 +1,15 @@
 import { Grid } from '../objects/Grid';
 import { GRID_ROWS, GRID_COLS } from '../config';
+import { Border } from '../objects/Border';
 
 interface MergeGroup {
   cells: { row: number; col: number }[];
   value: number;
+}
+
+export interface GhostBorder {
+  border: Border;
+  from: { row: number; col: number };
 }
 
 export class MergeSystem {
@@ -70,7 +76,7 @@ export class MergeSystem {
     }
   }
 
-  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; removedCells: { row: number; col: number }[]; destroyedStones: { row: number; col: number }[] } {
+  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; removedCells: { row: number; col: number }[]; destroyedStones: { row: number; col: number }[]; ghostBorders: GhostBorder[] } {
     // 2个: ×2, 3个: ×4, 4个: ×8 ...
     const newValue = group.value * Math.pow(2, group.cells.length - 1);
 
@@ -99,10 +105,19 @@ export class MergeSystem {
       c => !(c.row === mergeTarget.row && c.col === mergeTarget.col)
     );
 
-    // Remove all cells
-    for (const cell of group.cells) {
-      this.grid.removeBorder(cell.row, cell.col);
+    // 被消除的 border 先从 grid 里分离出来作为 ghost，交给调用方做"飞向目标"动画
+    const ghostBorders: GhostBorder[] = [];
+    for (const cell of removedCells) {
+      const b = this.grid.borders[cell.row][cell.col];
+      if (b) {
+        ghostBorders.push({ border: b, from: cell });
+        this.grid.borders[cell.row][cell.col] = null;
+        this.grid.data[cell.row][cell.col] = 0;
+      }
     }
+
+    // 目标位置的旧 border 还要销毁（它会被新值覆盖）
+    this.grid.removeBorder(mergeTarget.row, mergeTarget.col);
 
     // 记录被消除的列（去重）
     const affectedCols = [...new Set(group.cells.map(c => c.col))];
@@ -139,6 +154,6 @@ export class MergeSystem {
       }
     }
 
-    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, removedCells, destroyedStones };
+    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, removedCells, destroyedStones, ghostBorders };
   }
 }

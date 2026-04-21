@@ -33,6 +33,14 @@ export interface DebugPanelGameAPI {
 
 const DESKTOP_BREAKPOINT = 768;
 const PANEL_WIDTH = 440;
+export const SNAPSHOT_STORAGE_KEY = 'giant2048_debug_snapshot';
+
+export interface SavedSnapshot {
+  grid: number[][];
+  current: number;
+  next: number | null;
+  savedAt: number;
+}
 const CELL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '', label: '—' },
   { value: 'S', label: 'S' },
@@ -70,6 +78,7 @@ export class DebugPanel {
   private scoreTotalEl: HTMLDivElement | null = null;
   private scoreLogEl: HTMLDivElement | null = null;
   private debugLogEl: HTMLDivElement | null = null;
+  private savedTimestampEl: HTMLDivElement | null = null;
   private explodeInputs: {
     frameSize: HTMLInputElement | null;
     frameDuration: HTMLInputElement | null;
@@ -245,6 +254,7 @@ export class DebugPanel {
     this.scoreTotalEl = null;
     this.scoreLogEl = null;
     this.debugLogEl = null;
+    this.savedTimestampEl = null;
     this.explodeInputs = {
       frameSize: null,
       frameDuration: null,
@@ -444,9 +454,82 @@ export class DebugPanel {
     wrap.appendChild(this.buildCandySection());
     wrap.appendChild(this.buildRatesSection());
     wrap.appendChild(this.buildActionsSection());
+    wrap.appendChild(this.buildSnapshotSection());
     wrap.appendChild(this.buildEffectTestSection());
     this.boardTab = wrap;
     return wrap;
+  }
+
+  // 保存 / 清除 当前棋盘快照。保存后下次刷新页面会自动恢复
+  private buildSnapshotSection(): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:6px';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px';
+
+    const saveBtn = this.makeButton('保存棋盘', '#10b981');
+    saveBtn.addEventListener('click', () => {
+      const snap = this.api.debugGetBoardSnapshot();
+      const payload: SavedSnapshot = {
+        grid: snap.grid,
+        current: snap.current,
+        next: snap.next,
+        savedAt: Date.now(),
+      };
+      try {
+        localStorage.setItem(SNAPSHOT_STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.error('[DebugPanel] 保存失败', e);
+      }
+      this.refreshSavedTimestamp();
+      this.logDebugEvent('保存棋盘快照', this.formatSnapshotGrid(payload.grid));
+    });
+
+    const clearBtn = this.makeButton('清除保存', '#6c7280');
+    clearBtn.addEventListener('click', () => {
+      localStorage.removeItem(SNAPSHOT_STORAGE_KEY);
+      this.refreshSavedTimestamp();
+      this.logDebugEvent('清除棋盘保存');
+    });
+
+    row.appendChild(saveBtn);
+    row.appendChild(clearBtn);
+
+    const ts = document.createElement('div');
+    ts.style.cssText = 'font-size:11px;color:#8d97ad;padding:2px 2px';
+    this.savedTimestampEl = ts;
+
+    wrap.appendChild(row);
+    wrap.appendChild(ts);
+    this.refreshSavedTimestamp();
+    return wrap;
+  }
+
+  private refreshSavedTimestamp(): void {
+    if (!this.savedTimestampEl) return;
+    const raw = localStorage.getItem(SNAPSHOT_STORAGE_KEY);
+    if (!raw) {
+      this.savedTimestampEl.textContent = '未保存';
+      this.savedTimestampEl.style.color = '#8d97ad';
+      return;
+    }
+    try {
+      const payload = JSON.parse(raw) as SavedSnapshot;
+      const d = new Date(payload.savedAt);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      this.savedTimestampEl.textContent = `已保存 @ ${hh}:${mm}:${ss}（刷新后自动加载）`;
+      this.savedTimestampEl.style.color = '#10b981';
+    } catch {
+      this.savedTimestampEl.textContent = '保存数据损坏';
+      this.savedTimestampEl.style.color = '#d9534f';
+    }
+  }
+
+  private formatSnapshotGrid(grid: number[][]): string {
+    return grid.map((row) => row.map((v) => (v === STONE_VALUE ? 'S' : v === 0 ? '.' : String(v))).join('\t')).join('\n');
   }
 
   private buildEffectTestSection(): HTMLElement {
