@@ -40,6 +40,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('shared3', 'assets/images/shared-0-sheet3.png');
     this.load.image('stonedestroy-full', 'assets/images/stonedestroy-sheet0.png');
     this.load.image('mergeeffect-full', 'assets/images/mergeeffect-sheet0.png');
+    this.load.image('mergeeffect-full-1', 'assets/images/mergeeffect-sheet1.png');
+    this.load.image('mergeeffect-full-2', 'assets/images/mergeeffect-sheet2.png');
 
     // Background
     this.load.image('playbackground', 'assets/images/playbackground-sheet0.png');

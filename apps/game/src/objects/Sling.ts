@@ -111,6 +111,28 @@ export class Sling {
     this.updateNextPreview();
   }
 
+  // 当前糖果发射成立后，立刻把 next 顶到弹弓上显示出来。
+  // 但仍保持锁定状态，等 GameScene 在结算完成后解锁。
+  promoteNextToCurrent(): boolean {
+    const next = this.nextValue;
+    if (next === null) {
+      this.updateNextPreview();
+      return false;
+    }
+
+    this.nextValue = null;
+    this.spawnWithValue(next);
+    this.shootAvailable = false;
+    this.updateNextPreview();
+    return true;
+  }
+
+  unlockCurrentShape(): void {
+    if (this.currentShape && this.currentShape.active) {
+      this.shootAvailable = true;
+    }
+  }
+
   // respawn：用 nextValue 生成当前糖果（下一个糖果等后端返回后设置）
   private spawnNextShape(): void {
     if (this.nextValue === null) {
@@ -295,6 +317,6 @@ export class Sling {
       this.currentShape.destroy();
       this.currentShape = null;
     }
-    this.scene.time.delayedCall(300, () => this.spawnNextShape());
+    this.spawnNextShape();
   }
 }

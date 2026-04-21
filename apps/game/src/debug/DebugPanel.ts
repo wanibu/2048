@@ -27,7 +27,7 @@ export interface DebugPanelGameAPI {
   debugGetMergeEffectParams(): MergeEffectParams;
   debugSetMergeEffectParams(params: MergeEffectParams): void;
   debugResetMergeEffectParams(): MergeEffectParams;
-  debugGetBoardSnapshot(): { grid: number[][]; current: number; next: number | null };
+  debugGetBoardSnapshot(): { grid: number[][]; current: number | null; next: number | null };
   debugGetScore(): number;
 }
 
@@ -37,7 +37,7 @@ export const SNAPSHOT_STORAGE_KEY = 'giant2048_debug_snapshot';
 
 export interface SavedSnapshot {
   grid: number[][];
-  current: number;
+  current: number | null;
   next: number | null;
   savedAt: number;
 }
@@ -285,7 +285,9 @@ export class DebugPanel {
         sel.value = v === STONE_VALUE ? 'S' : v === 0 ? '' : String(v);
       }
     }
-    if (this.currentSelect) this.currentSelect.value = String(snapshot.current);
+    if (this.currentSelect) {
+      this.currentSelect.value = snapshot.current === null ? '' : String(snapshot.current);
+    }
     if (this.nextSelect) {
       this.nextSelect.value = snapshot.next === null ? '' : String(snapshot.next);
     }
@@ -1394,7 +1396,7 @@ export class DebugPanel {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'margin-bottom:14px;display:flex;flex-direction:column;gap:8px';
 
-    const cur = this.makeLabeledSelect('当前糖果', CANDY_OPTIONS_REQUIRED, '2');
+    const cur = this.makeLabeledSelect('当前糖果', CANDY_OPTIONS_NULLABLE, '2');
     cur.select.addEventListener('change', () => {
       const v = Number(cur.select.value);
       if (Number.isFinite(v) && v > 0) this.api.debugSetCurrentCandy(v);

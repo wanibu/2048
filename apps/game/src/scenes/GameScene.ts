@@ -13,7 +13,37 @@ import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
 
+type OriginalMergeTwinkleFrame = {
+  textureKey: 'mergeeffect-full' | 'mergeeffect-full-1' | 'mergeeffect-full-2';
+  frameKey: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  pivotX: number;
+  pivotY: number;
+};
+
+const ORIGINAL_MERGE_TWINKLE_FRAME_DURATION_MS = 40;
+const ORIGINAL_MERGE_TWINKLE_FRAMES: OriginalMergeTwinkleFrame[] = [
+  { textureKey: 'mergeeffect-full-1', frameKey: 'orig_merge_twinkle_0', x: 0, y: 0, w: 50, h: 64, pivotX: 0.320, pivotY: 0.391 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_1', x: 385, y: 897, w: 70, h: 90, pivotX: 0.314, pivotY: 0.344 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_2', x: 129, y: 897, w: 83, h: 106, pivotX: 0.313, pivotY: 0.330 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_3', x: 385, y: 769, w: 111, h: 125, pivotX: 0.423, pivotY: 0.384 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_4', x: 1, y: 769, w: 125, h: 154, pivotX: 0.448, pivotY: 0.481 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_5', x: 159, y: 513, w: 136, h: 185, pivotX: 0.463, pivotY: 0.514 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_6', x: 257, y: 1, w: 143, h: 207, pivotX: 0.469, pivotY: 0.541 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_7', x: 156, y: 257, w: 148, h: 226, pivotX: 0.473, pivotY: 0.566 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_8', x: 1, y: 257, w: 153, h: 227, pivotX: 0.477, pivotY: 0.568 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_9', x: 297, y: 513, w: 153, h: 164, pivotX: 0.484, pivotY: 0.409 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_10', x: 1, y: 513, w: 156, h: 167, pivotX: 0.481, pivotY: 0.431 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_11', x: 306, y: 257, w: 162, h: 168, pivotX: 0.463, pivotY: 0.458 },
+  { textureKey: 'mergeeffect-full', frameKey: 'orig_merge_twinkle_12', x: 257, y: 961, w: 124, h: 62, pivotX: 0.250, pivotY: 1.306 },
+  { textureKey: 'mergeeffect-full-2', frameKey: 'orig_merge_twinkle_13', x: 0, y: 0, w: 13, h: 13, pivotX: -6.462, pivotY: 3.077 },
+];
+
 export class GameScene extends Phaser.Scene {
+  private static readonly SLING_PROMOTION_DELAY_MS = 150;
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
   private readonly debugDisableButtonActions = false;
   private readonly showButtonHitAreaDebug = false;
@@ -34,7 +64,7 @@ export class GameScene extends Phaser.Scene {
   private isPauseOpen: boolean = false;
   private lastLandedCol: number | undefined;
   private debugPanel: DebugPanel | null = null;
-  private debugCurrentCandy: number = 2;
+  private debugCurrentCandy: number | null = 2;
   private debugNextCandy: number | null = 4;
   private stoneExplodeParams: StoneExplodeParams = this.defaultStoneExplodeParams();
   private stoneExplodeAnimBuildId: number = 0;
@@ -658,7 +688,11 @@ export class GameScene extends Phaser.Scene {
   // ===== DEBUG 模式：脱机运行，由右侧面板控制棋盘与弹弓 =====
   private initDebugMode(): void {
     console.log('[DEBUG] 模式已启用，不走后端 API');
-    this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    if (this.debugCurrentCandy !== null) {
+      this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    } else {
+      this.sling.setNextCandy(this.debugNextCandy);
+    }
     this.debugPanel = new DebugPanel({
       debugSetCell: (row, col, value) => this.debugSetCell(row, col, value),
       debugSetCurrentCandy: (value) => this.debugSetCurrentCandy(value),
@@ -709,11 +743,13 @@ export class GameScene extends Phaser.Scene {
         else if (v > 0) this.grid.placeBorder(r, c, v);
       }
     }
-    if (typeof snap.current === 'number' && snap.current > 0) {
-      this.debugCurrentCandy = snap.current;
-    }
+    this.debugCurrentCandy = typeof snap.current === 'number' && snap.current > 0 ? snap.current : null;
     this.debugNextCandy = snap.next ?? null;
-    this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    if (this.debugCurrentCandy !== null) {
+      this.sling.initCandies(this.debugCurrentCandy, this.debugNextCandy);
+    } else {
+      this.sling.setNextCandy(this.debugNextCandy);
+    }
     console.log('[DEBUG] 已从本地快照恢复棋盘', snap);
     this.debugPanel?.logDebugEvent(`从本地快照恢复（${new Date(snap.savedAt).toLocaleTimeString()}）`);
   }
@@ -905,16 +941,18 @@ export class GameScene extends Phaser.Scene {
     return new Promise((resolve) => {
       let remaining = ghosts.length;
       for (const { border } of ghosts) {
+        const stopTwinkle = this.playOriginalMergeTwinkleFollowBorder(border);
         this.tweens.add({
           targets: border,
           x: tx,
           y: ty,
-          alpha: 0,
+          alpha: 0.5,
           scaleX: 0.6,
           scaleY: 0.6,
           duration: 180,
           ease: 'Quad.easeIn',
           onComplete: () => {
+            stopTwinkle();
             border.destroy();
             remaining--;
             if (remaining === 0) {
@@ -924,6 +962,78 @@ export class GameScene extends Phaser.Scene {
         });
       }
     });
+  }
+
+  private ensureOriginalMergeTwinkleFrames(): void {
+    for (const frame of ORIGINAL_MERGE_TWINKLE_FRAMES) {
+      const texture = this.textures.get(frame.textureKey);
+      if (!texture.has(frame.frameKey)) {
+        texture.add(frame.frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+      }
+    }
+  }
+
+  // 原版 14 帧 Twinkle：贴在正在合入的源数字身上，跟着它一起移动和缩小。
+  // 返回 stop 函数，供 ghost tween 结束时销毁。
+  private playOriginalMergeTwinkleFollowBorder(border: GhostBorder['border']): () => void {
+    this.ensureOriginalMergeTwinkleFrames();
+
+    const first = ORIGINAL_MERGE_TWINKLE_FRAMES[0];
+    const effect = this.add.image(border.x, border.y, first.textureKey, first.frameKey);
+    effect.setOrigin(first.pivotX, first.pivotY);
+    this.grid.addToEffectLayer(effect);
+
+    let idx = 0;
+    let stopped = false;
+    const applyFrame = (frameIndex: number) => {
+      if (stopped || !effect.active || !border.active) return;
+      const frame = ORIGINAL_MERGE_TWINKLE_FRAMES[frameIndex];
+      if (!frame) return;
+      effect.setTexture(frame.textureKey, frame.frameKey);
+      effect.setOrigin(frame.pivotX, frame.pivotY);
+      effect.setPosition(border.x, border.y);
+      effect.setScale(border.scaleX, border.scaleY);
+      effect.setAlpha(Math.max(0.35, border.alpha));
+    };
+    applyFrame(0);
+
+    const ticker = this.time.addEvent({
+      delay: ORIGINAL_MERGE_TWINKLE_FRAME_DURATION_MS,
+      loop: true,
+      callback: () => {
+        if (stopped || !effect.active || !border.active) {
+          ticker.remove(false);
+          if (effect.active) effect.destroy();
+          return;
+        }
+        idx++;
+        if (idx >= ORIGINAL_MERGE_TWINKLE_FRAMES.length) {
+          idx = 0;
+        }
+        applyFrame(idx);
+      },
+    });
+
+    const follow = this.time.addEvent({
+      delay: 16,
+      loop: true,
+      callback: () => {
+        if (stopped || !effect.active || !border.active) {
+          follow.remove(false);
+          return;
+        }
+        effect.setPosition(border.x, border.y);
+        effect.setScale(border.scaleX, border.scaleY);
+        effect.setAlpha(Math.max(0.35, border.alpha));
+      },
+    });
+
+    return () => {
+      stopped = true;
+      ticker.remove(false);
+      follow.remove(false);
+      if (effect.active) effect.destroy();
+    };
   }
 
   private popMergedBorder(row: number, col: number): Promise<void> {
@@ -984,6 +1094,13 @@ export class GameScene extends Phaser.Scene {
       if (stones.length === 0) {
         resolve();
         return;
+      }
+
+      // 石头要保留到真正开始爆裂的这一刻，避免提前消失。
+      for (const { row, col } of stones) {
+        if (this.grid.stones[row][col]) {
+          this.grid.removeStone(row, col);
+        }
       }
 
       this.sound.play('stonedestroy', { volume: 0.3 });
@@ -1070,7 +1187,7 @@ export class GameScene extends Phaser.Scene {
     this.debugPanel?.logDebugEvent(`随机生成 (空格${emptyPct}% 石头${stonePct}%)`, this.formatGrid());
   }
 
-  private debugGetBoardSnapshot(): { grid: number[][]; current: number; next: number | null } {
+  private debugGetBoardSnapshot(): { grid: number[][]; current: number | null; next: number | null } {
     return {
       grid: this.grid.data.map((row) => [...row]),
       current: this.sling.getCurrentValue() ?? this.debugCurrentCandy,
@@ -1160,13 +1277,18 @@ export class GameScene extends Phaser.Scene {
   private respawnWithSequence(): void {
     console.log(`[GameScene] respawnWithSequence(), DEBUG=${IS_DEBUG}, isResolvingTurn=${this.isResolvingTurn}`);
     if (IS_DEBUG) {
-      // DEBUG 模式：从面板状态取当前/下一个糖果，不走后端
-      const currentCandy = this.debugCurrentCandy;
+      // DEBUG 模式：只消费当前面板里已设置的糖果，current -> next -> 停。
       const nextCandy = this.debugNextCandy;
-      this.sling.setNextCandy(currentCandy);
-      this.sling.respawn();
-      this.time.delayedCall(350, () => {
+      this.debugCurrentCandy = nextCandy;
+      this.debugNextCandy = null;
+      const hasPromotedCurrent = this.sling.getCurrentValue() !== null;
+      if (!hasPromotedCurrent && nextCandy !== null) {
         this.sling.setNextCandy(nextCandy);
+        this.sling.respawn();
+      }
+      this.time.delayedCall(350, () => {
+        this.sling.setNextCandy(this.debugNextCandy);
+        this.sling.unlockCurrentShape();
         this.isResolvingTurn = false;
         this.debugPanel?.refreshFromGame();
       });
@@ -1188,11 +1310,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     const doRespawn = () => {
-      this.sling.setNextCandy(result.currentCandy);
-      this.sling.respawn();
+      const hasPromotedCurrent = this.sling.getCurrentValue() !== null;
+      if (!hasPromotedCurrent) {
+        this.sling.setNextCandy(result.currentCandy);
+        this.sling.respawn();
+      }
       this.time.delayedCall(350, () => {
         this.sling.setNextCandy(result.nextCandy);
         // 装填完成，解锁操作
+        this.sling.unlockCurrentShape();
         this.isResolvingTurn = false;
       });
       // 装填完成后检查 game over
@@ -1452,6 +1578,9 @@ export class GameScene extends Phaser.Scene {
         console.log(`[直接合并] 列${col + 1}满，底行值=${this.grid.data[bottomRow][col]}与发射值=${shape.value}相同，直接合并`);
         this.debugPanel?.logDebugEvent(`直接合并：列${col + 1} ${shape.value}+${shape.value}→${shape.value * 2}`);
         const shootValue = shape.value;
+        this.time.delayedCall(GameScene.SLING_PROMOTION_DELAY_MS, () => {
+          this.sling.promoteNextToCurrent();
+        });
         shape.destroy();
         const newValue = shootValue * 2;
         this.recorder?.recordDirectMerge(col, shootValue, newValue);
@@ -1492,6 +1621,9 @@ export class GameScene extends Phaser.Scene {
     const targetPos = this.grid.cellToPixel(landingRow, col);
     const distance = Math.abs(shape.y - targetPos.y);
     const duration = Math.max(150, distance * 0.4);
+    this.time.delayedCall(GameScene.SLING_PROMOTION_DELAY_MS, () => {
+      this.sling.promoteNextToCurrent();
+    });
 
     this.tweens.add({
       targets: shape,
@@ -1647,7 +1779,6 @@ export class GameScene extends Phaser.Scene {
     this.sound.play('collapse1', { volume: 0.4 });
     this.lastLandedCol = result.finalCol;
 
-    this.playMergeEffectFrames([{ row: result.landedRow, col: result.landedCol }]);
     await this.animateMergeGhosts(result.ghostBorders, result.landedRow, result.landedCol);
     await this.popMergedBorder(result.landedRow, result.landedCol);
     await this.slideResultToFinalRow(result.landedRow, result.landedCol, result.finalRow);
@@ -1692,7 +1823,6 @@ export class GameScene extends Phaser.Scene {
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
 
-    this.playMergeEffectFrames([{ row: result.landedRow, col: result.landedCol }]);
     await this.animateMergeGhosts(result.ghostBorders, result.landedRow, result.landedCol);
     await this.popMergedBorder(result.landedRow, result.landedCol);
     await this.slideResultToFinalRow(result.landedRow, result.landedCol, result.finalRow);

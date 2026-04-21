@@ -157,7 +157,6 @@ export class MergeSystem {
         n.col >= 0 && n.col < GRID_COLS &&
         this.grid.isStone(n.row, n.col)
       ) {
-        this.grid.removeStone(n.row, n.col);
         destroyedStones.push({ row: n.row, col: n.col });
         if (!affectedCols.includes(n.col)) {
           affectedCols.push(n.col);
