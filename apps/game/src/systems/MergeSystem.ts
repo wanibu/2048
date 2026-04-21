@@ -12,6 +12,18 @@ export interface GhostBorder {
   from: { row: number; col: number };
 }
 
+export interface MergeResult {
+  finalRow: number;
+  finalCol: number;
+  landedRow: number;
+  landedCol: number;
+  newValue: number;
+  affectedCols: number[];
+  removedCells: { row: number; col: number }[];
+  destroyedStones: { row: number; col: number }[];
+  ghostBorders: GhostBorder[];
+}
+
 export class MergeSystem {
   private grid: Grid;
 
@@ -76,11 +88,11 @@ export class MergeSystem {
     }
   }
 
-  executeMerge(group: MergeGroup, landedCol?: number): { row: number; col: number; newValue: number; affectedCols: number[]; removedCells: { row: number; col: number }[]; destroyedStones: { row: number; col: number }[]; ghostBorders: GhostBorder[] } {
+  executeMerge(group: MergeGroup, landedCol?: number): MergeResult {
     // 2个: ×2, 3个: ×4, 4个: ×8 ...
     const newValue = group.value * Math.pow(2, group.cells.length - 1);
 
-    // 合并位置：纵向取最小行号（向上靠拢），横向取打入的列（吸引过来）
+    // 合并结果最终位置：纵向取最小行号（向上靠拢）
     let minRow = group.cells[0].row;
     for (const cell of group.cells) {
       if (cell.row < minRow) minRow = cell.row;
@@ -98,11 +110,18 @@ export class MergeSystem {
       }
     }
 
-    const mergeTarget = { row: minRow, col: targetCol };
+    // 落点位置：目标列内最靠下的同值格子。
+    // 结果先在这里生成，后续再沿列滑到最终位置。
+    let landedRow = minRow;
+    for (const cell of group.cells) {
+      if (cell.col === targetCol && cell.row > landedRow) {
+        landedRow = cell.row;
+      }
+    }
 
-    // 记录被消除的格子（合并目标位置除外，因为会被新值覆盖）
+    // 记录被消除的格子（落点位置除外，因为会被新值覆盖）
     const removedCells = group.cells.filter(
-      c => !(c.row === mergeTarget.row && c.col === mergeTarget.col)
+      c => !(c.row === landedRow && c.col === targetCol)
     );
 
     // 被消除的 border 先从 grid 里分离出来作为 ghost，交给调用方做"飞向目标"动画
@@ -116,44 +135,46 @@ export class MergeSystem {
       }
     }
 
-    // 目标位置的旧 border 还要销毁（它会被新值覆盖）
-    this.grid.removeBorder(mergeTarget.row, mergeTarget.col);
+    // 落点位置的旧 border 还要销毁（它会被新值覆盖）
+    this.grid.removeBorder(landedRow, targetCol);
 
-    // 记录被消除的列（去重）
+    // Place merged result at landed row first; GameScene will animate it upward later.
+    this.grid.placeBorder(landedRow, targetCol, newValue);
+
     const affectedCols = [...new Set(group.cells.map(c => c.col))];
-
-    // Place merged result
-    this.grid.placeBorder(mergeTarget.row, mergeTarget.col, newValue);
 
     // 碎掉合并组周围的石头
     const destroyedStones: { row: number; col: number }[] = [];
-    const checked = new Set<string>();
-    for (const cell of group.cells) {
-      const neighbors = [
-        { row: cell.row - 1, col: cell.col },
-        { row: cell.row + 1, col: cell.col },
-        { row: cell.row, col: cell.col - 1 },
-        { row: cell.row, col: cell.col + 1 },
-      ];
-      for (const n of neighbors) {
-        const key = `${n.row},${n.col}`;
-        if (checked.has(key)) continue;
-        checked.add(key);
-        if (
-          n.row >= 0 && n.row < GRID_ROWS &&
-          n.col >= 0 && n.col < GRID_COLS &&
-          this.grid.isStone(n.row, n.col)
-        ) {
-          this.grid.removeStone(n.row, n.col);
-          destroyedStones.push({ row: n.row, col: n.col });
-          // 石头被碎的列也需要上靠
-          if (!affectedCols.includes(n.col)) {
-            affectedCols.push(n.col);
-          }
+    const neighbors = [
+      { row: minRow - 1, col: targetCol },
+      { row: minRow + 1, col: targetCol },
+      { row: minRow, col: targetCol - 1 },
+      { row: minRow, col: targetCol + 1 },
+    ];
+    for (const n of neighbors) {
+      if (
+        n.row >= 0 && n.row < GRID_ROWS &&
+        n.col >= 0 && n.col < GRID_COLS &&
+        this.grid.isStone(n.row, n.col)
+      ) {
+        this.grid.removeStone(n.row, n.col);
+        destroyedStones.push({ row: n.row, col: n.col });
+        if (!affectedCols.includes(n.col)) {
+          affectedCols.push(n.col);
         }
       }
     }
 
-    return { row: mergeTarget.row, col: mergeTarget.col, newValue, affectedCols, removedCells, destroyedStones, ghostBorders };
+    return {
+      finalRow: minRow,
+      finalCol: targetCol,
+      landedRow,
+      landedCol: targetCol,
+      newValue,
+      affectedCols,
+      removedCells,
+      destroyedStones,
+      ghostBorders,
+    };
   }
 }

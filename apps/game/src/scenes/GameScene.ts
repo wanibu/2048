@@ -899,22 +899,99 @@ export class GameScene extends Phaser.Scene {
 
   // 合并时被消除格子的"飞向目标 + 淡出"动画
   // MergeSystem 已把这些 border 从 grid 里摘出来（不销毁），这里负责过渡+销毁
-  private animateMergeGhosts(ghosts: GhostBorder[], targetRow: number, targetCol: number): void {
-    if (!ghosts || ghosts.length === 0) return;
+  private animateMergeGhosts(ghosts: GhostBorder[], targetRow: number, targetCol: number): Promise<void> {
+    if (!ghosts || ghosts.length === 0) return Promise.resolve();
     const { x: tx, y: ty } = this.grid.localCellToPixel(targetRow, targetCol);
-    for (const { border } of ghosts) {
+    return new Promise((resolve) => {
+      let remaining = ghosts.length;
+      for (const { border } of ghosts) {
+        this.tweens.add({
+          targets: border,
+          x: tx,
+          y: ty,
+          alpha: 0,
+          scaleX: 0.6,
+          scaleY: 0.6,
+          duration: 180,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            border.destroy();
+            remaining--;
+            if (remaining === 0) {
+              resolve();
+            }
+          },
+        });
+      }
+    });
+  }
+
+  private popMergedBorder(row: number, col: number): Promise<void> {
+    return new Promise((resolve) => {
+      const border = this.grid.borders[row][col];
+      if (!border) {
+        resolve();
+        return;
+      }
+
       this.tweens.add({
         targets: border,
-        x: tx,
-        y: ty,
-        alpha: 0,
-        scaleX: 0.6,
-        scaleY: 0.6,
-        duration: 180,
-        ease: 'Quad.easeIn',
-        onComplete: () => border.destroy(),
+        scaleX: 1.3,
+        scaleY: 1.3,
+        duration: 120,
+        yoyo: true,
+        ease: 'Back.easeOut',
+        onComplete: () => resolve(),
       });
-    }
+    });
+  }
+
+  // 结果先在落点生成，再滑到最终 minRow。
+  private slideResultToFinalRow(row: number, col: number, finalRow: number): Promise<void> {
+    return new Promise((resolve) => {
+      if (row === finalRow) {
+        resolve();
+        return;
+      }
+
+      const border = this.grid.borders[row][col];
+      if (!border) {
+        resolve();
+        return;
+      }
+
+      this.grid.borders[finalRow][col] = border;
+      this.grid.data[finalRow][col] = border.value;
+      this.grid.borders[row][col] = null;
+      this.grid.data[row][col] = 0;
+      border.gridRow = finalRow;
+      border.gridCol = col;
+
+      const { x, y } = this.grid.localCellToPixel(finalRow, col);
+      this.tweens.add({
+        targets: border,
+        x,
+        y,
+        duration: 180,
+        ease: 'Quad.easeOut',
+        onComplete: () => resolve(),
+      });
+    });
+  }
+
+  private playStoneDestroyAndWait(stones: { row: number; col: number }[]): Promise<void> {
+    return new Promise((resolve) => {
+      if (stones.length === 0) {
+        resolve();
+        return;
+      }
+
+      this.sound.play('stonedestroy', { volume: 0.3 });
+      this.playStoneDestroyEffects(stones);
+
+      const waitMs = STONE_DESTROY_FRAMES.length * STONE_DESTROY_FRAME_DURATION_MS + 20;
+      this.time.delayedCall(waitMs, () => resolve());
+    });
   }
 
   // DEBUG: 在中心格 (3,3) 播放糖果合并特效（临时放 16，动画后恢复）
@@ -1540,7 +1617,7 @@ export class GameScene extends Phaser.Scene {
   // 合并检查：BFS找相邻同值组 → 执行最大组合并 → 链式检查
   // 合并规则：2个×2, 3个×4, 4个×8
   // 合并位置：纵向取最小行号（向上靠拢），横向取打入的列（吸引）
-  private checkMerges(): void {
+  private async checkMerges(): Promise<void> {
     const groups = this.mergeSystem.findMergeGroups();
     console.log(`[合并检查] 找到 ${groups.length} 个合并组`);
 
@@ -1557,44 +1634,40 @@ export class GameScene extends Phaser.Scene {
     this.debugPanel?.logDebugEvent(`合并：${group.value}×${group.cells.length} @ ${mergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group, this.lastLandedCol);
-    console.log(`[合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
-    this.debugPanel?.logDebugEvent(`合并结果：${result.newValue} @ (${result.row + 1},${result.col + 1})`, this.formatGrid());
+    console.log(
+      `[合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
+      `最终=(${result.finalRow + 1},${result.finalCol + 1})`
+    );
+    this.debugPanel?.logDebugEvent(
+      `合并结果：${result.newValue} @ 落点(${result.landedRow + 1},${result.landedCol + 1}) → 最终(${result.finalRow + 1},${result.finalCol + 1})`,
+      this.formatGrid(),
+    );
 
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
-    this.lastLandedCol = result.col;
+    this.lastLandedCol = result.finalCol;
 
-    this.animateMergeGhosts(result.ghostBorders, result.row, result.col);
-    this.playMergeEffectFrames([{ row: result.row, col: result.col }]);
+    this.playMergeEffectFrames([{ row: result.landedRow, col: result.landedCol }]);
+    await this.animateMergeGhosts(result.ghostBorders, result.landedRow, result.landedCol);
+    await this.popMergedBorder(result.landedRow, result.landedCol);
+    await this.slideResultToFinalRow(result.landedRow, result.landedCol, result.finalRow);
 
-    const border = this.grid.borders[result.row][result.col];
-    if (border) {
-      this.tweens.add({
-        targets: border,
-        scaleX: 1.3,
-        scaleY: 1.3,
-        duration: 120,
-        yoyo: true,
-        ease: 'Back.easeOut',
-      });
-    }
-
-    // 石头碎掉音效
     if (result.destroyedStones.length > 0) {
       console.log(`[石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
       this.debugPanel?.logDebugEvent(`石头碎掉：${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
-      this.sound.play('stonedestroy', { volume: 0.3 });
     }
+    await this.playStoneDestroyAndWait(result.destroyedStones);
 
     this.printGrid('合并后');
-    // 合并后上靠：只处理被消除的列
     this.applyGravityUp([...result.removedCells, ...result.destroyedStones]);
     this.printGrid('上靠后');
-    this.time.delayedCall(400, () => this.checkMerges());
+    this.time.delayedCall(400, () => {
+      void this.checkMerges();
+    });
   }
 
   // 旋转后合并检查——不调用 respawn，因为弹弓上已经有糖果
-  private checkMergesAfterRotation(): void {
+  private async checkMergesAfterRotation(): Promise<void> {
     const groups = this.mergeSystem.findMergeGroups();
     console.log(`[旋转后合并检查] 找到 ${groups.length} 个合并组`);
 
@@ -1607,36 +1680,34 @@ export class GameScene extends Phaser.Scene {
     this.debugPanel?.logDebugEvent(`旋转后合并：${group.value}×${group.cells.length} @ ${rotMergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group);
-    console.log(`[旋转后合并结果] 新值=${result.newValue}, 位置=(${result.row + 1},${result.col + 1})`);
-    this.debugPanel?.logDebugEvent(`旋转合并结果：${result.newValue} @ (${result.row + 1},${result.col + 1})`, this.formatGrid());
+    console.log(
+      `[旋转后合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
+      `最终=(${result.finalRow + 1},${result.finalCol + 1})`
+    );
+    this.debugPanel?.logDebugEvent(
+      `旋转合并结果：${result.newValue} @ 落点(${result.landedRow + 1},${result.landedCol + 1}) → 最终(${result.finalRow + 1},${result.finalCol + 1})`,
+      this.formatGrid(),
+    );
 
     this.addScore(result.newValue);
     this.sound.play('collapse1', { volume: 0.4 });
 
-    this.animateMergeGhosts(result.ghostBorders, result.row, result.col);
-    this.playMergeEffectFrames([{ row: result.row, col: result.col }]);
-
-    const border = this.grid.borders[result.row][result.col];
-    if (border) {
-      this.tweens.add({
-        targets: border,
-        scaleX: 1.3,
-        scaleY: 1.3,
-        duration: 120,
-        yoyo: true,
-        ease: 'Back.easeOut',
-      });
-    }
+    this.playMergeEffectFrames([{ row: result.landedRow, col: result.landedCol }]);
+    await this.animateMergeGhosts(result.ghostBorders, result.landedRow, result.landedCol);
+    await this.popMergedBorder(result.landedRow, result.landedCol);
+    await this.slideResultToFinalRow(result.landedRow, result.landedCol, result.finalRow);
 
     if (result.destroyedStones.length > 0) {
       console.log(`[旋转石头碎掉] ${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
       this.debugPanel?.logDebugEvent(`旋转石头碎掉：${result.destroyedStones.map(s => `(${s.row + 1},${s.col + 1})`).join(', ')}`);
-      this.sound.play('stonedestroy', { volume: 0.3 });
     }
+    await this.playStoneDestroyAndWait(result.destroyedStones);
     this.printGrid('旋转合并后');
     this.applyGravityUp([...result.removedCells, ...result.destroyedStones]);
     this.printGrid('旋转上靠后');
-    this.time.delayedCall(400, () => this.checkMergesAfterRotation());
+    this.time.delayedCall(400, () => {
+      void this.checkMergesAfterRotation();
+    });
   }
 
   // 上靠逻辑：只在被消除的格子处，把下方元素往上填补
