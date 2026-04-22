@@ -27,14 +27,14 @@ const PLAN_STATS = [
 
 const PLAN_SEQ_STATS = {
   'bdbe684e-681c-4452-b5a6-291b55f79928': [
-    { id: '34025f32-a2c1-4da8', name: 'planA_seq_1a8f', games: 1420, unique: 480, score_min: 120,  score_max: 8960,  score_avg: 1920, score_med: 1780, dur_avg: 138, dur_med: 132 },
-    { id: '92e9a3d4-b018-4c22', name: 'planA_seq_9e21', games: 1180, unique: 396, score_min: 240,  score_max: 10240, score_avg: 2040, score_med: 1890, dur_avg: 152, dur_med: 146 },
-    { id: '31d10fb0-c410-4e88', name: 'planA_seq_7c4d', games: 820,  unique: 261, score_min: 80,   score_max: 6420,  score_avg: 1640, score_med: 1520, dur_avg: 128, dur_med: 122 },
-    { id: '8640e23a-4a20-4c00', name: 'planA_seq_2f06', games: 420,  unique: 148, score_min: 160,  score_max: 5820,  score_avg: 1780, score_med: 1640, dur_avg: 142, dur_med: 138 },
+    { id: '34025f32-a2c1-4da8', name: 'planA_seq_1a8f', displayName: 'planA版本1', games: 1420, unique: 480, score_min: 120,  score_max: 8960,  score_avg: 1920, score_med: 1780, dur_avg: 138, dur_med: 132 },
+    { id: '92e9a3d4-b018-4c22', name: 'planA_seq_9e21', displayName: 'planA版本2', games: 1180, unique: 396, score_min: 240,  score_max: 10240, score_avg: 2040, score_med: 1890, dur_avg: 152, dur_med: 146 },
+    { id: '31d10fb0-c410-4e88', name: 'planA_seq_7c4d', displayName: 'planA版本3', games: 820,  unique: 261, score_min: 80,   score_max: 6420,  score_avg: 1640, score_med: 1520, dur_avg: 128, dur_med: 122 },
+    { id: '8640e23a-4a20-4c00', name: 'planA_seq_2f06', displayName: 'planA版本4', games: 420,  unique: 148, score_min: 160,  score_max: 5820,  score_avg: 1780, score_med: 1640, dur_avg: 142, dur_med: 138 },
   ],
   '7a210ff8-c42e-4812-a6c0-5514f88b0a12': [
-    { id: 'a12fe842-b004-4122', name: 'planB_seq_4b81', games: 1620, unique: 540, score_min: 180, score_max: 11200, score_avg: 2280, score_med: 2080, dur_avg: 172, dur_med: 164 },
-    { id: 'b73ff9c2-0880-4e22', name: 'planB_seq_c091', games: 1364, unique: 452, score_min: 220, score_max: 9840,  score_avg: 2040, score_med: 1940, dur_avg: 168, dur_med: 160 },
+    { id: 'a12fe842-b004-4122', name: 'planB_seq_4b81', displayName: 'planB版本1', games: 1620, unique: 540, score_min: 180, score_max: 11200, score_avg: 2280, score_med: 2080, dur_avg: 172, dur_med: 164 },
+    { id: 'b73ff9c2-0880-4e22', name: 'planB_seq_c091', displayName: 'planB版本2', games: 1364, unique: 452, score_min: 220, score_max: 9840,  score_avg: 2040, score_med: 1940, dur_avg: 168, dur_med: 160 },
   ],
 };
 
@@ -104,11 +104,11 @@ function PageHeader({ title, crumbs, actions }) {
     <div style={{ height: 48, borderBottom: '1px solid #ececf2', display: 'flex', alignItems: 'center', padding: '0 22px', background: '#fff', flexShrink: 0 }}>
       {crumbs && crumbs.map((c, i) => (
         <React.Fragment key={i}>
-          <div style={{ fontSize: 13, color: i === crumbs.length - 1 ? '#2a2a33' : '#9b9ba6', fontWeight: i === crumbs.length - 1 ? 600 : 500 }}>{c}</div>
-          {i < crumbs.length - 1 && <div style={{ color: '#d0d0d6', margin: '0 8px', fontSize: 11 }}>/</div>}
+          <div style={{ fontSize: '0.8125rem', color: i === crumbs.length - 1 ? '#2a2a33' : '#9b9ba6', fontWeight: i === crumbs.length - 1 ? 600 : 500 }}>{c}</div>
+          {i < crumbs.length - 1 && <div style={{ color: '#d0d0d6', margin: '0 8px', fontSize: '0.6875rem' }}>/</div>}
         </React.Fragment>
       )) }
-      {!crumbs && <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>}
+      {!crumbs && <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{title}</div>}
       <div style={{ flex: 1 }} />
       {actions}
     </div>
@@ -117,7 +117,9 @@ function PageHeader({ title, crumbs, actions }) {
 
 function RefreshBtn() {
   return (
-    <button style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #e6e6ec', borderRadius: 6, background: '#fff', color: '#5a5a66', cursor: 'pointer', fontFamily: 'inherit' }}>↻ 刷新</button>
+    <button style={{ fontSize: '0.75rem', padding: '5px 12px', border: '1px solid #e6e6ec', borderRadius: 6, background: '#fff', color: '#5a5a66', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <Icon name="RefreshCw" size={12} /> 刷新
+    </button>
   );
 }
 
@@ -136,8 +138,12 @@ function StatsPage() {
   ];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="统计" actions={<RefreshBtn />} />
+      <PageHeader title="统计" />
       <div style={{ flex: 1, overflow: 'auto', padding: 24, background: '#f7f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ flex: 1 }} />
+          <RefreshBtn />
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
           {cards.map((c) => (
             <div key={c.key} style={{
@@ -146,13 +152,13 @@ function StatsPage() {
               position: 'relative', overflow: 'hidden',
             }}>
               <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: c.accent, opacity: 0.65 }} />
-              <div style={{ fontSize: 11, color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{c.label}</div>
+              <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>{c.label}</div>
               <div style={{
                 fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600,
-                fontSize: 30, color: '#2a2a33', fontVariantNumeric: 'tabular-nums',
+                fontSize: '1.875rem', color: '#2a2a33', fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1.1, marginBottom: 6,
               }}>{c.value.toLocaleString()}</div>
-              <div style={{ fontSize: 11, color: '#9b9ba6' }}>{c.hint}</div>
+              <div style={{ fontSize: '0.6875rem', color: '#9b9ba6' }}>{c.hint}</div>
             </div>
           ))}
         </div>
@@ -162,7 +168,7 @@ function StatsPage() {
           marginTop: 20, background: '#fff', border: '1px solid #ececf2', borderRadius: 10,
           padding: '16px 20px',
         }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>近 24 小时趋势</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 12 }}>近 24 小时趋势</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
             <Spark label="新增局数" value="+1,284" delta="+12%" positive data={[4,6,5,8,7,9,12,10,14,13,16,18]} color="#5a7cff" />
             <Spark label="独立玩家" value="+342" delta="+8%" positive data={[2,3,2,4,5,4,6,5,7,8,7,9]} color="#4ecd7a" />
@@ -181,9 +187,9 @@ function Spark({ label, value, delta, positive, data, color }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-        <div style={{ fontSize: 11, color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</div>
-        <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: 18, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-        <div style={{ fontSize: 11, color: positive ? '#1fa85a' : '#c83a3a', fontWeight: 500 }}>{delta}</div>
+        <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</div>
+        <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '1.125rem', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        <div style={{ fontSize: '0.6875rem', color: positive ? '#1fa85a' : '#c83a3a', fontWeight: 500 }}>{delta}</div>
       </div>
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: 40, display: 'block' }}>
         <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
@@ -193,41 +199,8 @@ function Spark({ label, value, delta, positive, data, color }) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// 样本分析 PlanAnalysis — 13-column table + expand + end-reasons
+// 样本分析 PlanAnalysis — 12-column table + expand + end-reasons
 // ════════════════════════════════════════════════════════════════
-const RANGES = {
-  dur_p50:      { green: [90, 180], yellow: [60, 300] },
-  score_p50:    { green: [1000, 3000], yellow: [500, 5000] },
-  ceiling:      { green: [2.5, 6], yellow: [1.8, 10] },
-  cv:           { green: [0.3, 0.6], yellow: [0.2, 0.9] },
-  first_step:   { green: [10, 30], yellow: [5, 50] },
-  retry:        { green: [0.4, 1], yellow: [0.2, 1] },
-  gameover:     { green: [0.7, 1], yellow: [0.5, 1] },
-  learning:     { green: [0.2, 3], yellow: [0, 5] },
-};
-
-function healthColor(v, key) {
-  const r = RANGES[key]; if (!r) return null;
-  if (v >= r.green[0] && v <= r.green[1]) return '#1fa85a';
-  if (v >= r.yellow[0] && v <= r.yellow[1]) return '#d48a1f';
-  return '#c83a3a';
-}
-
-function HCell({ value, rkey, formatter, dense }) {
-  const fmt = formatter || ((v) => v);
-  const color = healthColor(value, rkey);
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600,
-      fontVariantNumeric: 'tabular-nums', fontSize: dense ? 12 : 12.5,
-    }}>
-      <span style={{ color: '#2a2a33' }}>{fmt(value)}</span>
-      {color && <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />}
-    </span>
-  );
-}
-
 function PlanAnalysisPage() {
   const [expanded, setExpanded] = React.useState(new Set([PLAN_STATS[0].id]));
   const totalEnd = END_REASONS.overall.reduce((a, e) => a + e.count, 0);
@@ -240,17 +213,17 @@ function PlanAnalysisPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="样本分析" actions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <HealthLegend />
+      <PageHeader title="样本分析" />
+      <div style={{ flex: 1, overflow: 'auto', padding: 22, background: '#f7f7fa' }}>
+        {/* toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ flex: 1 }} />
           <RefreshBtn />
         </div>
-      } />
-      <div style={{ flex: 1, overflow: 'auto', padding: 22, background: '#f7f7fa' }}>
         {/* main table */}
         <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
               <thead>
                 <tr style={{ background: '#fafafc' }}>
                   <th style={analysisTh}></th>
@@ -259,7 +232,7 @@ function PlanAnalysisPage() {
                   <th style={{ ...analysisTh, textAlign: 'right' }}>样本数</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>独立用户数</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>游玩次数</th>
-                  <th style={{ ...analysisTh, textAlign: 'right' }}>得分最小</th>
+                  <th style={{ ...analysisTh, textAlign: 'right' }}>最小得分</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>最大得分</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>平均得分</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>中位数得分</th>
@@ -276,9 +249,11 @@ function PlanAnalysisPage() {
                     <React.Fragment key={p.id}>
                       <tr style={{ cursor: 'pointer' }} onClick={() => toggle(p.id)}>
                         <td style={{ ...analysisTd, width: 28, paddingRight: 0 }}>
-                          <span style={{ color: '#9b9ba6', display: 'inline-block', width: 14, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▸</span>
+                          <span style={{ color: '#6a6a74', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>
+                            <Icon name="ChevronRight" size={14} />
+                          </span>
                         </td>
-                        <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: 11, color: '#6a6a74' }}>{p.id.slice(0, 8)}…{p.id.slice(-4)}</td>
+                        <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: '0.6875rem', color: '#6a6a74' }}>{p.id.slice(0, 8)}…{p.id.slice(-4)}</td>
                         <td style={{ ...analysisTd, fontWeight: 600, color: '#2a2a33', fontFamily: 'Fredoka, system-ui, sans-serif' }}>{p.name}</td>
                         <td style={numTd}>{p.seq_count}</td>
                         <td style={numTdDim}>{p.unique.toLocaleString()}</td>
@@ -294,18 +269,19 @@ function PlanAnalysisPage() {
                         <tr>
                           <td colSpan={12} style={{ padding: 0, background: '#fafafc', borderBottom: '1px solid #ececf2' }}>
                             <div style={{ padding: '12px 20px 14px 42px' }}>
-                              <div style={{ fontSize: 11, color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
+                              <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
                                 {p.name} · 序列明细 ({(PLAN_SEQ_STATS[p.id] || []).length || '暂无'})
                               </div>
                               {PLAN_SEQ_STATS[p.id] ? (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5, background: '#fff', border: '1px solid #ececf2', borderRadius: 6, overflow: 'hidden' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7188rem', background: '#fff', border: '1px solid #ececf2', borderRadius: 6, overflow: 'hidden' }}>
                                   <thead>
                                     <tr style={{ background: '#fff' }}>
+                                      <th style={seqTh}>ID</th>
                                       <th style={seqTh}>序列 ID</th>
                                       <th style={seqTh}>序列名称</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>游玩次数</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>独立用户数</th>
-                                      <th style={{ ...seqTh, textAlign: 'right' }}>得分最小</th>
+                                      <th style={{ ...seqTh, textAlign: 'right' }}>最小得分</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>最大得分</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>平均得分</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>中位数得分</th>
@@ -318,6 +294,7 @@ function PlanAnalysisPage() {
                                       <tr key={s.id}>
                                         <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{s.id}</td>
                                         <td style={{ ...seqTd, fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 500 }}>{s.name}</td>
+                                        <td style={{ ...seqTd, color: '#2a2a33' }}>{s.displayName || '—'}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif' }}>{s.games.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', color: '#6a6a74' }}>{s.unique.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>{s.score_min.toLocaleString()}</td>
@@ -331,7 +308,7 @@ function PlanAnalysisPage() {
                                   </tbody>
                                 </table>
                               ) : (
-                                <div style={{ fontSize: 11.5, color: '#9b9ba6', padding: '8px 0' }}>暂无序列数据</div>
+                                <div style={{ fontSize: '0.7188rem', color: '#9b9ba6', padding: '8px 0' }}>暂无序列数据</div>
                               )}
                             </div>
                           </td>
@@ -348,15 +325,15 @@ function PlanAnalysisPage() {
         {/* end_reason card */}
         <div style={{ marginTop: 16, background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>终止原因分布</div>
-            <div style={{ marginLeft: 8, fontSize: 11, color: '#9b9ba6' }}>全量 {totalEnd.toLocaleString()} 局</div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>终止原因分布</div>
+            <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#9b9ba6' }}>全量 {totalEnd.toLocaleString()} 局</div>
           </div>
 
           {/* stacked bar */}
           <div style={{ display: 'flex', height: 28, borderRadius: 6, overflow: 'hidden', background: '#f4f4f8', marginBottom: 14 }}>
             {END_REASONS.overall.map((e) => (
               <div key={e.key} title={`${e.label} · ${e.count.toLocaleString()} · ${((e.count / totalEnd) * 100).toFixed(1)}%`}
-                style={{ flex: `0 0 ${(e.count / totalEnd) * 100}%`, background: e.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, color: '#fff', fontWeight: 500, letterSpacing: 0.3, overflow: 'hidden' }}>
+                style={{ flex: `0 0 ${(e.count / totalEnd) * 100}%`, background: e.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6562rem', color: '#fff', fontWeight: 500, letterSpacing: 0.3, overflow: 'hidden' }}>
                 {((e.count / totalEnd) * 100) >= 6 && `${((e.count / totalEnd) * 100).toFixed(1)}%`}
               </div>
             ))}
@@ -367,10 +344,10 @@ function PlanAnalysisPage() {
               <div key={e.key} style={{ border: '1px solid #f0f0f4', borderRadius: 8, padding: '8px 10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: e.color }} />
-                  <div style={{ fontSize: 10.5, color: '#6a6a74', letterSpacing: 0.4, fontWeight: 500 }}>{e.label}</div>
+                  <div style={{ fontSize: '0.6562rem', color: '#6a6a74', letterSpacing: 0.4, fontWeight: 500 }}>{e.label}</div>
                 </div>
-                <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>{e.count.toLocaleString()}</div>
-                <div style={{ fontSize: 10.5, color: '#9b9ba6' }}>{((e.count / totalEnd) * 100).toFixed(1)}%</div>
+                <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '1rem', fontVariantNumeric: 'tabular-nums' }}>{e.count.toLocaleString()}</div>
+                <div style={{ fontSize: '0.6562rem', color: '#9b9ba6' }}>{((e.count / totalEnd) * 100).toFixed(1)}%</div>
               </div>
             ))}
           </div>
@@ -380,20 +357,9 @@ function PlanAnalysisPage() {
   );
 }
 
-function HealthLegend() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: '#8a8a94' }}>
-      <span style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>健康区间</span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fa85a' }} />绿</span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d48a1f' }} />黄</span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#c83a3a' }} />红</span>
-    </div>
-  );
-}
-
 const analysisTh = {
   textAlign: 'left', padding: '10px 12px',
-  fontSize: 10, color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5,
+  fontSize: '0.625rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5,
   fontWeight: 500, borderBottom: '1px solid #ececf2', whiteSpace: 'nowrap',
 };
 const analysisTd = {
@@ -401,7 +367,7 @@ const analysisTd = {
   verticalAlign: 'middle', whiteSpace: 'nowrap',
 };
 const seqTh = {
-  textAlign: 'left', padding: '7px 10px', fontSize: 10, color: '#8a8a94',
+  textAlign: 'left', padding: '7px 10px', fontSize: '0.625rem', color: '#8a8a94',
   textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: 500,
   borderBottom: '1px solid #ececf2',
 };
@@ -410,9 +376,10 @@ const seqTd = { padding: '7px 10px', borderBottom: '1px solid #f8f8fa' };
 // ════════════════════════════════════════════════════════════════
 // 游戏局 Games — paginated list + filters + bulk
 // ════════════════════════════════════════════════════════════════
-function GamesPage({ onOpenGame }) {
+function GamesPage() {
   const [tab, setTab] = React.useState('all');
   const [sel, setSel] = React.useState(new Set());
+  const [sheetGame, setSheetGame] = React.useState(null);
   const filtered = tab === 'all' ? GAMES : GAMES.filter((g) => g.status === tab);
   const allSelected = filtered.length > 0 && filtered.every((g) => sel.has(g.id));
   const toggleAll = () => {
@@ -429,15 +396,10 @@ function GamesPage({ onOpenGame }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title="游戏局" actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ ...secondaryBtn, padding: '5px 11px', fontSize: 12, opacity: sel.size ? 1 : 0.45, cursor: sel.size ? 'pointer' : 'not-allowed' }}>批量删除 {sel.size ? `(${sel.size})` : ''}</button>
-          <RefreshBtn />
-        </div>
-      } />
+      <PageHeader title="游戏局" />
       <div style={{ flex: 1, overflow: 'auto', padding: 22, background: '#f7f7fa' }}>
-        {/* tabs + count */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 14 }}>
+        {/* tabs + 批量删除 + 搜索 + 刷新 */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 10 }}>
           <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #ececf2', borderRadius: 8, padding: 3 }}>
             {[
               { k: 'all', label: '全部', n: GAMES.length },
@@ -445,23 +407,27 @@ function GamesPage({ onOpenGame }) {
               { k: 'finished', label: '已结束', n: GAMES.filter((g) => g.status === 'finished').length },
             ].map((t) => (
               <button key={t.k} onClick={() => setTab(t.k)} style={{
-                padding: '5px 14px', fontSize: 12, border: 'none', borderRadius: 6,
+                padding: '5px 14px', fontSize: '0.75rem', border: 'none', borderRadius: 6,
                 background: tab === t.k ? '#2a2a33' : 'transparent',
                 color: tab === t.k ? '#fff' : '#6a6a74',
                 cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
               }}>{t.label} <span style={{ opacity: 0.7, marginLeft: 3 }}>{t.n}</span></button>
             ))}
           </div>
+          <button style={{ ...secondaryBtn, padding: '5px 11px', fontSize: '0.75rem', opacity: sel.size ? 1 : 0.45, cursor: sel.size ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="Trash2" size={12} /> 批量删除 {sel.size ? `(${sel.size})` : ''}
+          </button>
           <div style={{ flex: 1 }} />
           <input placeholder="按 game_id 或 fingerprint 搜索…" style={{
-            width: 260, padding: '6px 12px', fontSize: 12, border: '1px solid #e6e6ec',
+            width: 260, padding: '6px 12px', fontSize: '0.75rem', border: '1px solid #e6e6ec',
             borderRadius: 6, background: '#fff', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
           }} />
+          <RefreshBtn />
         </div>
 
         {/* table */}
         <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
             <thead>
               <tr style={{ background: '#fafafc' }}>
                 <th style={{ ...analysisTh, width: 40, textAlign: 'center' }}>
@@ -482,12 +448,12 @@ function GamesPage({ onOpenGame }) {
               {filtered.map((g) => {
                 const sc = Math.min(1, g.score / 12000);
                 return (
-                  <tr key={g.id} onClick={() => onOpenGame && onOpenGame(g.id)} style={{ cursor: 'pointer' }}>
+                  <tr key={g.id} onClick={() => setSheetGame(g)} style={{ cursor: 'pointer' }}>
                     <td style={{ ...analysisTd, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={sel.has(g.id)} onChange={() => toggleOne(g.id)} style={{ cursor: 'pointer' }} />
                     </td>
-                    <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: 11.5 }}>{g.id}</td>
-                    <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: 11.5, color: '#6a6a74' }}>{g.fp}</td>
+                    <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: '0.7188rem' }}>{g.id}</td>
+                    <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: '0.7188rem', color: '#6a6a74' }}>{g.fp}</td>
                     <td style={{ ...analysisTd, fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 500 }}>{g.plan}</td>
                     <td style={analysisTd}><StatusPill status={g.status} /></td>
                     <td style={{ ...analysisTd, textAlign: 'right' }}>
@@ -501,7 +467,7 @@ function GamesPage({ onOpenGame }) {
                     <td style={{ ...analysisTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', color: '#6a6a74' }}>{g.step}</td>
                     <td style={{ ...analysisTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', color: '#6a6a74' }}>{g.dur}s</td>
                     <td style={{ ...analysisTd, color: '#9b9ba6' }}>{g.created}</td>
-                    <td style={{ ...analysisTd, textAlign: 'right', color: '#c6c6cc' }}>›</td>
+                    <td style={{ ...analysisTd, textAlign: 'right', color: '#c6c6cc' }}><Icon name="ChevronRight" size={14} /></td>
                   </tr>
                 );
               })}
@@ -510,14 +476,14 @@ function GamesPage({ onOpenGame }) {
         </div>
 
         {/* pagination */}
-        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#6a6a74' }}>
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.75rem', color: '#6a6a74' }}>
           <div>显示 1–{filtered.length} / 共 {GAMES.length} 条</div>
           <div style={{ flex: 1 }} />
-          <button style={{ ...secondaryBtn, padding: '5px 10px', fontSize: 12 }}>‹</button>
+          <button style={{ ...secondaryBtn, padding: '5px 10px', fontSize: '0.75rem' }}>‹</button>
           <div style={{ display: 'flex', gap: 4 }}>
             {[1, 2, 3, '…', 24].map((p, i) => (
               <button key={i} style={{
-                width: 28, height: 28, borderRadius: 6, fontSize: 12,
+                width: 28, height: 28, borderRadius: 6, fontSize: '0.75rem',
                 border: p === 1 ? 'none' : '1px solid #e6e6ec',
                 background: p === 1 ? '#2a2a33' : '#fff',
                 color: p === 1 ? '#fff' : '#5a5a66',
@@ -525,9 +491,10 @@ function GamesPage({ onOpenGame }) {
               }}>{p}</button>
             ))}
           </div>
-          <button style={{ ...secondaryBtn, padding: '5px 10px', fontSize: 12 }}>›</button>
+          <button style={{ ...secondaryBtn, padding: '5px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center' }}><Icon name="ChevronRight" size={14} /></button>
         </div>
       </div>
+      <GameDetailSheet open={!!sheetGame} onClose={() => setSheetGame(null)} game={sheetGame} />
     </div>
   );
 }
@@ -541,7 +508,7 @@ function StatusPill({ status }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '2px 8px', borderRadius: 10, fontSize: 10.5, fontWeight: 500,
+      padding: '2px 8px', borderRadius: 10, fontSize: '0.6562rem', fontWeight: 500,
       background: m.bg, color: m.c, border: `1px solid ${m.c}22`,
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: m.c }} />
@@ -553,35 +520,120 @@ function StatusPill({ status }) {
 // ════════════════════════════════════════════════════════════════
 // 游戏局详情 GameDetail
 // ════════════════════════════════════════════════════════════════
-function GameDetailPage({ onBack }) {
-  const g = GAME_DETAIL;
+// Pick a deterministic sequence for a game based on its plan + id.
+// Matches the plan's real sequences from ALL_PLANS when available
+// (planA / planB defined), else synthesizes a short fallback name.
+function getMockSequenceForGame(g) {
+  if (!g) return { id: '', name: '' };
+  const plans = (typeof window !== 'undefined' && window.ALL_PLANS) || [];
+  const plan = plans.find((p) => p.name === g.plan);
+  const hashHex = (g.id || '').replace(/-/g, '').slice(0, 6) || '000000';
+  const hash = parseInt(hashHex, 16) || 0;
+  if (plan && plan.sequences && plan.sequences.length > 0) {
+    const pick = plan.sequences[Math.abs(hash) % plan.sequences.length];
+    return { id: pick.id, name: pick.name, plan, sequence: pick };
+  }
+  // synthesize short name for plans without defined sequences
+  const tag = hashHex.slice(0, 4);
+  return { id: hashHex, name: `${g.plan}_seq_${tag}`, plan: null, sequence: null };
+}
+
+// Build a full game-detail mock from a single GamesPage row (row has only
+// id/fp/plan/status/score/step/dur/created).  Reuses GAME_DETAIL's richer
+// fields (scores curve, sequence preview) for the parts that don't need to
+// differ per row.  Status 'finished' → progress maxed + endReason set.
+function buildGameDetail(g) {
+  if (!g) return null;
+  const isFinished = g.status === 'finished';
+  const sequenceLength = 120;
+  const fpFull = g.fp && g.fp.endsWith('…') ? g.fp.replace('…', '5f7e8b1') : (g.fp || '');
+  const seedHex = (g.id || '').replace(/-/g, '').slice(0, 8);
+  const seed = parseInt(seedHex, 16);
+  const seq = getMockSequenceForGame(g);
+  return {
+    id: g.id + '-9d04-1e7c83b99f02',
+    fp: fpFull,
+    userId: '',
+    seed: Number.isFinite(seed) ? Math.abs(seed) : 1729516234,
+    step: g.step,
+    score: g.score,
+    status: g.status,
+    plan: g.plan,
+    planId: 'bdbe684e-681c-4452-b5a6-291b55f79928',
+    sequenceId: seq.name,  // short name like planB_seq_4b81
+    sequenceRef: (seq.plan && seq.sequence) ? { plan: seq.plan, sequence: seq.sequence } : null,
+    sequenceIndex: isFinished ? sequenceLength : Math.min(g.step, sequenceLength),
+    sequenceLength,
+    endReason: isFinished ? 'GAMEOVER' : '',
+    createdAt: `2026/4/21 ${g.created}`,
+    lastUpdate: `2026/4/21 ${g.created}`,
+    scores: GAME_DETAIL.scores,
+    sequencePreview: (seq.sequence && seq.sequence.tokens)
+      ? seq.sequence.tokens.slice(0, 39)
+      : GAME_DETAIL.sequencePreview,
+  };
+}
+
+function GameDetailSheet({ open, onClose, game }) {
+  const [seqSheet, setSeqSheet] = React.useState(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (e.key === 'Escape' && !seqSheet) onClose(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose, seqSheet]);
+
+  if (!open || !game) return null;
+
+  const g = buildGameDetail(game);
   const progress = g.sequenceIndex / g.sequenceLength;
+  const seqClickable = !!g.sequenceRef;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader crumbs={['游戏局', g.id.slice(0, 18) + '…']} actions={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onBack} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>← 返回列表</button>
+    <React.Fragment>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(16, 16, 24, 0.35)',
+        zIndex: 60, animation: 'planSheetOverlayIn 200ms ease-out',
+      }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '80vw', maxWidth: 1200,
+        background: '#f7f7fa', zIndex: 70,
+        boxShadow: '-12px 0 32px rgba(0, 0, 0, 0.15)',
+        animation: 'planSheetSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <button onClick={onClose} aria-label="关闭"
+          style={{
+            position: 'absolute', top: 14, right: '100%',
+            width: 40, height: 40,
+            background: '#fff', border: '1px solid #ececf2', borderRadius: 4,
+            color: '#6a6a74', fontSize: '1.375rem', lineHeight: 1, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0, fontFamily: 'inherit',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          }}><Icon name="X" size={18} /></button>
+      <div style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* top actions bar (删除) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           <button style={{
-            padding: '5px 12px', fontSize: 12, background: '#fff', color: '#c83a3a',
+            padding: '5px 12px', fontSize: '0.75rem', background: '#fff', color: '#c83a3a',
             border: '1px solid #f0d6d6', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
-          }}>🗑 删除</button>
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+          }}><Icon name="Trash2" size={13} /> 删除</button>
         </div>
-      } />
-
-      <div style={{ flex: 1, overflow: 'auto', padding: 22, background: '#f7f7fa', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* header card */}
         <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-            <div style={{ fontFamily: 'Menlo, monospace', fontSize: 14, fontWeight: 600 }}>{g.id}</div>
+            <div style={{ fontFamily: 'Menlo, monospace', fontSize: '0.875rem', fontWeight: 600 }}>{g.id}</div>
             <StatusPill status={g.status} />
             <div style={{ flex: 1 }} />
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 10, color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6 }}>当前得分</div>
-              <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 700, fontSize: 26, color: '#2a2a33', lineHeight: 1.1 }}>{g.score.toLocaleString()}</div>
+              <div style={{ fontSize: '0.625rem', color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6 }}>当前得分</div>
+              <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 700, fontSize: '1.625rem', color: '#2a2a33', lineHeight: 1.1 }}>{g.score.toLocaleString()}</div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, fontSize: 11.5, color: '#8a8a94' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0, fontSize: '0.7188rem', color: '#8a8a94' }}>
             <MetaCell label="Plan"       value={g.plan} />
             <MetaCell label="Fingerprint" value={g.fp} mono />
             <MetaCell label="Seed"        value={g.seed} mono />
@@ -594,35 +646,47 @@ function GameDetailPage({ onBack }) {
         {/* progress + score curve row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '18px 22px' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>序列进度</div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 12 }}>序列进度</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
-              <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 700, fontSize: 24 }}>{g.sequenceIndex}</div>
-              <div style={{ color: '#9b9ba6', fontSize: 13 }}>/ {g.sequenceLength}</div>
-              <div style={{ marginLeft: 8, fontSize: 11, color: '#6a6a74' }}>{Math.round(progress * 100)}% 已消费</div>
+              <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 700, fontSize: '1.5rem' }}>{g.sequenceIndex}</div>
+              <div style={{ color: '#9b9ba6', fontSize: '0.8125rem' }}>/ {g.sequenceLength}</div>
+              <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#6a6a74' }}>{Math.round(progress * 100)}% 已消费</div>
             </div>
             <div style={{ width: '100%', height: 10, background: '#f0f0f4', borderRadius: 5, overflow: 'hidden', marginBottom: 8 }}>
               <div style={{ width: `${progress * 100}%`, height: '100%', background: 'linear-gradient(to right, #5a7cff, #8a5cff)' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9b9ba6' }}>
-              <span>序列 <span style={{ fontFamily: 'Menlo, monospace', color: '#5a5a66' }}>{g.sequenceId}</span></span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#9b9ba6' }}>
+              <span>序列 {seqClickable ? (
+                <button onClick={() => setSeqSheet(g.sequenceRef)} title="查看序列详情"
+                  style={{
+                    fontFamily: 'Menlo, monospace', color: '#5a7cff',
+                    background: 'transparent', border: 'none', padding: 0,
+                    cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted',
+                    textUnderlineOffset: 3, fontSize: 'inherit',
+                  }}>{g.sequenceId}</button>
+              ) : (
+                <span style={{ fontFamily: 'Menlo, monospace', color: '#5a5a66' }}>{g.sequenceId}</span>
+              )}</span>
               <span>剩余 {g.sequenceLength - g.sequenceIndex} 块</span>
             </div>
           </div>
 
+          {/* TODO: 含义待定，暂时注释
           <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '18px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>得分曲线</div>
-              <div style={{ fontSize: 10.5, color: '#9b9ba6' }}>每次合成快照</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>得分曲线</div>
+              <div style={{ fontSize: '0.6562rem', color: '#9b9ba6' }}>每次合成快照</div>
             </div>
             <ScoreCurve scores={g.scores} maxStep={g.step} />
           </div>
+          */}
         </div>
 
         {/* sequence preview */}
         <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 600 }}>序列时间轴</div>
-            <div style={{ marginLeft: 8, fontSize: 11, color: '#9b9ba6' }}>前 {g.sequencePreview.length} / {g.sequenceLength} 块 · 当前位置 <b style={{ color: '#5a7cff' }}>#{g.sequenceIndex}</b></div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>序列时间轴</div>
+            <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#9b9ba6' }}>前 {g.sequencePreview.length} / {g.sequenceLength} 块 · 当前位置 <b style={{ color: '#5a7cff' }}>#{g.sequenceIndex}</b></div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {g.sequencePreview.map((tok, i) => {
@@ -646,11 +710,19 @@ function GameDetailPage({ onBack }) {
                 </div>
               );
             })}
-            <div style={{ padding: '6px 10px', fontSize: 11, color: '#9b9ba6', display: 'flex', alignItems: 'center' }}>+ {g.sequenceLength - g.sequencePreview.length} more</div>
+            <div style={{ padding: '6px 10px', fontSize: '0.6875rem', color: '#9b9ba6', display: 'flex', alignItems: 'center' }}>+ {g.sequenceLength - g.sequencePreview.length} more</div>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <SequenceDetailSheet
+        open={!!seqSheet}
+        onClose={() => setSeqSheet(null)}
+        plan={seqSheet && seqSheet.plan}
+        sequence={seqSheet && seqSheet.sequence}
+        zLevel={1}
+      />
+    </React.Fragment>
   );
 }
 
@@ -681,6 +753,6 @@ function ScoreCurve({ scores, maxStep }) {
 
 Object.assign(window, {
   STATS, PLAN_STATS, END_REASONS, GAMES, GAME_DETAIL,
-  StatsPage, PlanAnalysisPage, GamesPage, GameDetailPage,
+  StatsPage, PlanAnalysisPage, GamesPage, GameDetailSheet,
   PageHeader, RefreshBtn, StatusPill,
 });

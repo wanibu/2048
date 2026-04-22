@@ -40,8 +40,8 @@ function ChipPicker({ current, onAdd, includeStone = true }) {
           onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7fa')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
           <CandyChip v={v} size={20} />
-          <span style={{ fontSize: 12, color: '#5a5a66' }}>{labelOf(v)}</span>
-          <span style={{ fontSize: 14, color: '#c6c6cc', marginLeft: 2 }}>+</span>
+          <span style={{ fontSize: '0.75rem', color: '#5a5a66' }}>{labelOf(v)}</span>
+          <span style={{ fontSize: '0.875rem', color: '#c6c6cc', marginLeft: 2 }}>+</span>
         </button>
       ))}
     </div>
@@ -138,8 +138,8 @@ function ProbBar({ weights, onChange, height = 36, showPercent = true }) {
               <div style={{
                 fontFamily: 'Fredoka, system-ui, sans-serif',
                 fontWeight: 700, fontSize: Math.min(13, height * 0.42),
-                color: k === 2048 ? '#8a6a10' : '#fff',
-                textShadow: k === 2048 ? 'none' : '0 1px 0 rgba(0,0,0,.3)',
+                color: '#fff',
+                textShadow: '0 1px 0 rgba(0,0,0,.3)',
                 lineHeight: 1, pointerEvents: 'none',
                 whiteSpace: 'nowrap',
               }}>{pct.toFixed(1)}%</div>
@@ -195,9 +195,9 @@ function AdminV1_Refined() {
       {/* modal header */}
       <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 6px 24px rgba(0,0,0,.06)', overflow: 'hidden' }}>
         <div style={{ padding: '20px 28px', borderBottom: '1px solid #f0f0f4', display: 'flex', alignItems: 'center' }}>
-          <div style={{ fontSize: 17, fontWeight: 600 }}>新增 Plan</div>
+          <div style={{ fontSize: '1.0625rem', fontWeight: 600 }}>新增 Plan</div>
           <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 13, color: '#9b9ba6' }}>总长度 <b style={{ color: '#2a2a33', marginLeft: 4 }}>{totalLength}</b></div>
+          <div style={{ fontSize: '0.8125rem', color: '#9b9ba6' }}>总长度 <b style={{ color: '#2a2a33', marginLeft: 4 }}>{totalLength}</b></div>
         </div>
 
         <div style={{ padding: 24 }}>
@@ -207,7 +207,7 @@ function AdminV1_Refined() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#2a2a33' }}>阶段列表 <span style={{ color: '#9b9ba6', fontWeight: 400, marginLeft: 6 }}>按顺序生成</span></div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#2a2a33' }}>阶段列表 <span style={{ color: '#9b9ba6', fontWeight: 400, marginLeft: 6 }}>按顺序生成</span></div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -224,9 +224,9 @@ function AdminV1_Refined() {
             ))}
             <button style={{
               padding: '14px', border: '1.5px dashed #d4d4dc', background: 'transparent',
-              borderRadius: 10, cursor: 'pointer', color: '#6a6a74', fontSize: 13, fontFamily: 'inherit',
+              borderRadius: 10, cursor: 'pointer', color: '#6a6a74', fontSize: '0.8125rem', fontFamily: 'inherit',
               fontWeight: 500,
-            }}>+ 添加 Stage</button>
+            }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="Plus" size={12} /> 添加 Stage</span></button>
           </div>
         </div>
 
@@ -253,21 +253,21 @@ function StageCard({ idx, stage, onName, onLength, onWeights, onAdd, onRemove, o
         <div style={{
           width: 26, height: 22, borderRadius: 5, background: '#ececf2', color: '#5a5a66',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: 12,
+          fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '0.75rem',
         }}>#{idx + 1}</div>
         <input value={stage.name} onChange={(e) => onName(e.target.value)} style={{
           flex: 1, border: '1px solid #e6e6ec', borderRadius: 6, padding: '6px 10px',
-          fontSize: 13, background: '#fff', outline: 'none', fontFamily: 'inherit',
+          fontSize: '0.8125rem', background: '#fff', outline: 'none', fontFamily: 'inherit',
         }} />
-        <label style={{ fontSize: 12, color: '#8a8a94' }}>长度</label>
+        <label style={{ fontSize: '0.75rem', color: '#8a8a94' }}>长度</label>
         <input type="number" value={stage.length} onChange={(e) => onLength(Number(e.target.value))} style={{
           width: 64, border: '1px solid #e6e6ec', borderRadius: 6, padding: '6px 8px',
-          fontSize: 13, textAlign: 'center', background: '#fff', outline: 'none', fontFamily: 'inherit',
+          fontSize: '0.8125rem', textAlign: 'center', background: '#fff', outline: 'none', fontFamily: 'inherit',
         }} />
         <DifficultyBadge weights={stage.weights} dense />
-        <IconBtn title="上移">↑</IconBtn>
-        <IconBtn title="下移">↓</IconBtn>
-        <IconBtn title="删除" danger disabled={!canDelete} onClick={onDelete}>×</IconBtn>
+        <IconBtn title="上移"><Icon name="ArrowUp" size={13} /></IconBtn>
+        <IconBtn title="下移"><Icon name="ArrowDown" size={13} /></IconBtn>
+        <IconBtn title="删除" danger disabled={!canDelete} onClick={onDelete}><Icon name="X" size={13} /></IconBtn>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -275,7 +275,7 @@ function StageCard({ idx, stage, onName, onLength, onWeights, onAdd, onRemove, o
           <ProbBar weights={stage.weights} onChange={onWeights} height={34} />
         </div>
         <div style={{
-          fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: 14,
+          fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '0.875rem',
           color: showTotal === 100 ? '#1fa85a' : '#c83a3a',
           fontVariantNumeric: 'tabular-nums', minWidth: 52, textAlign: 'right',
         }}>{showTotal}%</div>
@@ -286,19 +286,19 @@ function StageCard({ idx, stage, onName, onLength, onWeights, onAdd, onRemove, o
         <button onClick={() => setPicker((o) => !o)} style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
           padding: '4px 10px 4px 8px', border: '1px dashed #c4c4cc', borderRadius: 14,
-          background: '#fff', cursor: 'pointer', color: '#6a6a74', fontSize: 12, fontFamily: 'inherit',
-        }}>+ 加入</button>
+          background: '#fff', cursor: 'pointer', color: '#6a6a74', fontSize: '0.75rem', fontFamily: 'inherit',
+        }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="Plus" size={11} /> 加入</span></button>
         {keys.map((v) => (
           <button key={v} onClick={() => onRemove(v)} title="移除" style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             padding: '3px 8px 3px 3px', border: '1px solid #ececf2', borderRadius: 14,
-            background: '#fff', cursor: 'pointer', fontSize: 12, color: '#5a5a66', fontFamily: 'inherit',
+            background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#5a5a66', fontFamily: 'inherit',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = '#fff0f0', e.currentTarget.style.borderColor = '#ffd4d4')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#fff', e.currentTarget.style.borderColor = '#ececf2')}>
             <CandyChip v={v} size={18} />
             <span>{labelOf(v)}</span>
-            <span style={{ color: '#c6c6cc', marginLeft: 2 }}>×</span>
+            <span style={{ color: '#c6c6cc', marginLeft: 2, display: 'inline-flex', alignItems: 'center' }}><Icon name="X" size={11} /></span>
           </button>
         ))}
         {picker && (
@@ -314,11 +314,11 @@ function StageCard({ idx, stage, onName, onLength, onWeights, onAdd, onRemove, o
 function LabeledInput({ label, value, onChange, placeholder }) {
   return (
     <div>
-      <div style={{ fontSize: 11, color: '#8a8a94', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</div>
+      <div style={{ fontSize: '0.6875rem', color: '#8a8a94', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</div>
       <input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         style={{
           width: '100%', border: '1px solid #e6e6ec', borderRadius: 8,
-          padding: '10px 12px', fontSize: 14, background: '#fff', outline: 'none',
+          padding: '10px 12px', fontSize: '0.875rem', background: '#fff', outline: 'none',
           boxSizing: 'border-box', fontFamily: 'inherit',
         }} />
     </div>
@@ -331,7 +331,7 @@ function IconBtn({ children, danger, disabled, onClick, title }) {
       width: 26, height: 26, borderRadius: 6, border: '1px solid #ececf2',
       background: '#fff', cursor: disabled ? 'not-allowed' : 'pointer',
       color: disabled ? '#c6c6cc' : danger ? '#c83a3a' : '#6a6a74',
-      fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'inherit', padding: 0,
     }}>{children}</button>
   );
@@ -339,11 +339,11 @@ function IconBtn({ children, danger, disabled, onClick, title }) {
 
 const primaryBtn = {
   padding: '9px 20px', background: '#2a2a33', color: '#fff', border: 'none',
-  borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+  borderRadius: 8, fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
 };
 const secondaryBtn = {
   padding: '9px 20px', background: '#fff', color: '#5a5a66', border: '1px solid #e6e6ec',
-  borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+  borderRadius: 8, fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
 };
 
 Object.assign(window, {
