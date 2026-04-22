@@ -20,7 +20,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { key: 'stats', label: '统计', icon: <BarChart3 className="h-4 w-4" /> },
-  { key: 'plan-analysis', label: 'Plan 分析', icon: <Sparkles className="h-4 w-4" /> },
+  { key: 'plan-analysis', label: '样本分析', icon: <Sparkles className="h-4 w-4" /> },
   { key: 'games', label: '游戏局', icon: <Gamepad2 className="h-4 w-4" /> },
   { key: 'config', label: '配置', icon: <Settings className="h-4 w-4" /> },
 ];

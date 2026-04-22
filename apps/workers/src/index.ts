@@ -553,6 +553,81 @@ admin.get('/plan-stats', async (c) => {
   return c.json({ plans });
 });
 
+// ---- 样本分析：某个 Plan 下按 generated_sequence 聚合（懒加载，plan 展开时调用）----
+admin.get('/plan-sequence-stats', async (c) => {
+  const db = c.env.DB;
+  const planId = c.req.query('plan_id');
+  if (!planId) return c.json({ error: 'plan_id required' }, 400);
+
+  const rows = await db.prepare(
+    `SELECT g.generated_sequence_id, g.score, g.created_at, g.ended_at, g.status, g.fingerprint
+     FROM games g
+     WHERE g.sequence_plan_id = ?
+       AND g.generated_sequence_id IS NOT NULL
+     ORDER BY g.created_at ASC`
+  ).bind(planId).all();
+
+  const bySeq = new Map<string, { games_total: number; games_finished: number; scores: number[]; durations: number[]; fps: Set<string> }>();
+  for (const r of (rows.results || []) as Array<Record<string, unknown>>) {
+    const sid = (r.generated_sequence_id as string) || '';
+    if (!sid) continue;
+    let bucket = bySeq.get(sid);
+    if (!bucket) {
+      bucket = { games_total: 0, games_finished: 0, scores: [], durations: [], fps: new Set() };
+      bySeq.set(sid, bucket);
+    }
+    bucket.games_total += 1;
+    const status = (r.status as string) || '';
+    if (status === 'finished') bucket.games_finished += 1;
+    bucket.scores.push((r.score as number) || 0);
+    const fp = (r.fingerprint as string) || '';
+    if (fp) bucket.fps.add(fp);
+    const endedAt = r.ended_at as string | null;
+    const createdAt = r.created_at as string | null;
+    if (endedAt && createdAt) {
+      const d = (Date.parse(endedAt) - Date.parse(createdAt)) / 1000;
+      if (Number.isFinite(d) && d >= 0) bucket.durations.push(d);
+    }
+  }
+
+  function percentile(sorted: number[], p: number): number | null {
+    if (sorted.length === 0) return null;
+    if (sorted.length === 1) return sorted[0];
+    const idx = (sorted.length - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+
+  const sequences = Array.from(bySeq.entries()).map(([id, b]) => {
+    const sortedScore = [...b.scores].sort((a, b) => a - b);
+    const sortedDur = [...b.durations].sort((a, b) => a - b);
+    const avgScore = sortedScore.length
+      ? sortedScore.reduce((s, v) => s + v, 0) / sortedScore.length
+      : null;
+    const avgDur = sortedDur.length
+      ? sortedDur.reduce((s, v) => s + v, 0) / sortedDur.length
+      : null;
+    return {
+      sequence_id: id,
+      games_total: b.games_total,
+      games_finished: b.games_finished,
+      unique_players: b.fps.size,
+      score_min: sortedScore.length ? sortedScore[0] : null,
+      score_max: sortedScore.length ? sortedScore[sortedScore.length - 1] : null,
+      score_avg: avgScore,
+      score_median: percentile(sortedScore, 0.5),
+      duration_avg: avgDur,
+      duration_median: percentile(sortedDur, 0.5),
+    };
+  });
+
+  sequences.sort((a, b) => b.games_total - a.games_total);
+
+  return c.json({ plan_id: planId, sequences });
+});
+
 admin.get('/stats', async (c) => {
   const db = c.env.DB;
   const totalGames = await db.prepare('SELECT COUNT(*) as c FROM games').first() as Record<string, unknown>;
@@ -696,102 +771,38 @@ admin.post('/delete-games', async (c) => {
   });
 });
 
-// ---- Stages（加分页） ----
-admin.post('/stages', async (c) => {
-  const { name, length, probabilities } = await c.req.json<{
-    name: string; length: number; probabilities: Record<string, number>;
-  }>();
-  if (!name || !length || !probabilities) return c.json({ error: 'Missing fields' }, 400);
+// ---- Sequence Plans（含内联 stages，每个 plan 私有）----
+interface InlineStageInput {
+  name: string;
+  length: number;
+  probabilities: Record<string, number>;
+  stage_order: number;
+}
 
-  const total = Object.values(probabilities).reduce((sum, v) => sum + v, 0);
-  if (Math.abs(total - 100) > 0.01) {
-    return c.json({ error: `Probabilities sum must be 100, got ${total}` }, 400);
-  }
-
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  await c.env.DB.prepare(
-    'INSERT INTO stages (id, name, length, probabilities, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(id, name, length, JSON.stringify(probabilities), now, now).run();
-
-  return c.json({ id, name, length, probabilities, created_at: now });
-});
-
-admin.get('/stages', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
-  const limit = parseInt(c.req.query('limit') || '20');
-  const offset = (page - 1) * limit;
-  const db = c.env.DB;
-
-  const results = await db.prepare(
-    'SELECT * FROM stages ORDER BY created_at DESC LIMIT ? OFFSET ?'
-  ).bind(limit, offset).all();
-
-  const countResult = await db.prepare('SELECT COUNT(*) as total FROM stages').first() as Record<string, unknown> | null;
-
-  return c.json({
-    stages: results.results.map((s: Record<string, unknown>) => ({
-      ...s,
-      probabilities: JSON.parse(s.probabilities as string),
-    })),
-    total: countResult?.total || 0,
-    page,
-    limit,
-    totalPages: Math.ceil(((countResult?.total as number) || 0) / limit),
-  });
-});
-
-admin.put('/stages/:id', async (c) => {
-  const stageId = c.req.param('id');
-  const { name, length, probabilities } = await c.req.json<{
-    name?: string; length?: number; probabilities?: Record<string, number>;
-  }>();
-
-  if (probabilities) {
-    const total = Object.values(probabilities).reduce((sum, v) => sum + v, 0);
+function validateInlineStages(stages: InlineStageInput[]): string | null {
+  if (!stages || stages.length === 0) return 'stages required';
+  for (const s of stages) {
+    if (!s.name) return 'stage name required';
+    if (!s.length || s.length <= 0) return 'stage length must be > 0';
+    if (!s.probabilities || Object.keys(s.probabilities).length === 0) {
+      return `stage "${s.name}" has empty probabilities`;
+    }
+    const total = Object.values(s.probabilities).reduce((sum, v) => sum + v, 0);
     if (Math.abs(total - 100) > 0.01) {
-      return c.json({ error: `Probabilities sum must be 100, got ${total}` }, 400);
+      return `stage "${s.name}" probabilities sum must be 100, got ${total}`;
     }
   }
+  return null;
+}
 
-  const existing = await c.env.DB.prepare('SELECT * FROM stages WHERE id = ?').bind(stageId).first();
-  if (!existing) return c.json({ error: 'Stage not found' }, 404);
-
-  const now = new Date().toISOString();
-  await c.env.DB.prepare(
-    'UPDATE stages SET name = ?, length = ?, probabilities = ?, updated_at = ? WHERE id = ?'
-  ).bind(
-    name || existing.name as string,
-    length || existing.length as number,
-    probabilities ? JSON.stringify(probabilities) : existing.probabilities as string,
-    now, stageId,
-  ).run();
-
-  return c.json({ success: true });
-});
-
-admin.delete('/stages/:id', async (c) => {
-  const stageId = c.req.param('id');
-  const ref = await c.env.DB.prepare(
-    'SELECT COUNT(*) as c FROM sequence_plan_stages WHERE stage_id = ?'
-  ).bind(stageId).first() as Record<string, unknown>;
-  if (ref && (ref.c as number) > 0) {
-    return c.json({ error: 'Stage is used by sequence plans, cannot delete' }, 400);
-  }
-  await c.env.DB.prepare('DELETE FROM stages WHERE id = ?').bind(stageId).run();
-  return c.json({ success: true });
-});
-
-// ---- Sequence Plans（加分页） ----
 admin.post('/sequence-plans', async (c) => {
   const { name, description, stages } = await c.req.json<{
     name: string; description?: string;
-    stages: { stage_id: string; stage_order: number }[];
+    stages: InlineStageInput[];
   }>();
-  if (!name || !stages || stages.length === 0) {
-    return c.json({ error: 'Missing fields: name and stages required' }, 400);
-  }
+  if (!name) return c.json({ error: 'Missing field: name' }, 400);
+  const err = validateInlineStages(stages);
+  if (err) return c.json({ error: err }, 400);
 
   const planId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -802,10 +813,11 @@ admin.post('/sequence-plans', async (c) => {
   ).bind(planId, name, description || '', now, now).run();
 
   for (const s of stages) {
-    const linkId = crypto.randomUUID();
+    const stageId = crypto.randomUUID();
     await db.prepare(
-      'INSERT INTO sequence_plan_stages (id, sequence_plan_id, stage_id, stage_order, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind(linkId, planId, s.stage_id, s.stage_order, now).run();
+      `INSERT INTO plan_stages (id, sequence_plan_id, stage_order, name, length, probabilities, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(stageId, planId, s.stage_order, s.name, s.length, JSON.stringify(s.probabilities), now, now).run();
   }
 
   return c.json({ id: planId, name, description: description || '', stages });
@@ -826,11 +838,10 @@ admin.get('/sequence-plans', async (c) => {
   const result = [];
   for (const plan of plans.results) {
     const stagesResult = await db.prepare(
-      `SELECT sps.stage_order, s.id, s.name, s.length, s.probabilities
-       FROM sequence_plan_stages sps
-       JOIN stages s ON sps.stage_id = s.id
-       WHERE sps.sequence_plan_id = ?
-       ORDER BY sps.stage_order`
+      `SELECT id, stage_order, name, length, probabilities
+       FROM plan_stages
+       WHERE sequence_plan_id = ?
+       ORDER BY stage_order`
     ).bind(plan.id as string).all();
 
     result.push({
@@ -859,11 +870,10 @@ admin.get('/sequence-plans/:id', async (c) => {
   if (!plan) return c.json({ error: 'Plan not found' }, 404);
 
   const stagesResult = await db.prepare(
-    `SELECT sps.stage_order, s.id, s.name, s.length, s.probabilities
-     FROM sequence_plan_stages sps
-     JOIN stages s ON sps.stage_id = s.id
-     WHERE sps.sequence_plan_id = ?
-     ORDER BY sps.stage_order`
+    `SELECT id, stage_order, name, length, probabilities
+     FROM plan_stages
+     WHERE sequence_plan_id = ?
+     ORDER BY stage_order`
   ).bind(planId).all();
 
   return c.json({
@@ -880,12 +890,17 @@ admin.put('/sequence-plans/:id', async (c) => {
   const planId = c.req.param('id');
   const { name, description, stages } = await c.req.json<{
     name?: string; description?: string;
-    stages?: { stage_id: string; stage_order: number }[];
+    stages?: InlineStageInput[];
   }>();
   const db = c.env.DB;
 
   const existing = await db.prepare('SELECT * FROM sequence_plans WHERE id = ?').bind(planId).first();
   if (!existing) return c.json({ error: 'Plan not found' }, 404);
+
+  if (stages !== undefined) {
+    const err = validateInlineStages(stages);
+    if (err) return c.json({ error: err }, 400);
+  }
 
   const now = new Date().toISOString();
   await db.prepare(
@@ -897,12 +912,13 @@ admin.put('/sequence-plans/:id', async (c) => {
   ).run();
 
   if (stages && stages.length > 0) {
-    await db.prepare('DELETE FROM sequence_plan_stages WHERE sequence_plan_id = ?').bind(planId).run();
+    await db.prepare('DELETE FROM plan_stages WHERE sequence_plan_id = ?').bind(planId).run();
     for (const s of stages) {
-      const linkId = crypto.randomUUID();
+      const stageId = crypto.randomUUID();
       await db.prepare(
-        'INSERT INTO sequence_plan_stages (id, sequence_plan_id, stage_id, stage_order, created_at) VALUES (?, ?, ?, ?, ?)'
-      ).bind(linkId, planId, s.stage_id, s.stage_order, now).run();
+        `INSERT INTO plan_stages (id, sequence_plan_id, stage_order, name, length, probabilities, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(stageId, planId, s.stage_order, s.name, s.length, JSON.stringify(s.probabilities), now, now).run();
     }
   }
 
@@ -918,7 +934,7 @@ admin.delete('/sequence-plans/:id', async (c) => {
   if (ref && (ref.c as number) > 0) {
     return c.json({ error: 'Plan has generated sequences, cannot delete' }, 400);
   }
-  await db.prepare('DELETE FROM sequence_plan_stages WHERE sequence_plan_id = ?').bind(planId).run();
+  // ON DELETE CASCADE 会自动删 plan_stages
   await db.prepare('DELETE FROM sequence_plans WHERE id = ?').bind(planId).run();
   return c.json({ success: true });
 });
@@ -932,11 +948,10 @@ admin.post('/generate-sequence', async (c) => {
 
   const db = c.env.DB;
   const stagesResult = await db.prepare(
-    `SELECT sps.stage_order, sps.stage_id, s.name, s.length, s.probabilities
-     FROM sequence_plan_stages sps
-     JOIN stages s ON sps.stage_id = s.id
-     WHERE sps.sequence_plan_id = ?
-     ORDER BY sps.stage_order`
+    `SELECT id, stage_order, name, length, probabilities
+     FROM plan_stages
+     WHERE sequence_plan_id = ?
+     ORDER BY stage_order`
   ).bind(sequence_plan_id).all();
 
   if (stagesResult.results.length === 0) {
@@ -944,7 +959,7 @@ admin.post('/generate-sequence', async (c) => {
   }
 
   const planStages: PlanStageRow[] = stagesResult.results.map((s: Record<string, unknown>) => ({
-    stage_id: s.stage_id as string,
+    id: s.id as string,
     stage_order: s.stage_order as number,
     name: s.name as string,
     length: s.length as number,

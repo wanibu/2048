@@ -2,27 +2,25 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   ChevronRight, ChevronDown, Plus, Pencil, Trash2, Layers, ListOrdered,
-  LayoutGrid, Sparkles, Play, Pause, RefreshCw, FileText,
+  Sparkles, Play, Pause, RefreshCw, FileText,
 } from 'lucide-react';
 import { api } from '@/api/client';
-import type { Plan, PlansResp, Stage, StagesResp, GeneratedSequence, SequencesResp } from '@/api/types';
+import type { Plan, PlansResp, GeneratedSequence, SequencesResp } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/utils';
 import { PlanDialog } from '@/pages/PlansPage';
-import { StageDialog } from '@/pages/StagesPage';
 import { GenerateSequenceDialog, DeleteSequenceDialog } from '@/pages/SequencesPage';
+import { ProbabilityTimeline } from '@/components/ui/probability-timeline';
 
 type Selection =
   | { type: 'plan'; id: string }
-  | { type: 'stage'; id: string }
   | { type: 'sequence'; id: string }
   | null;
 
 export function ConfigPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [stages, setStages] = useState<Stage[]>([]);
   const [sequences, setSequences] = useState<GeneratedSequence[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Selection>(null);
@@ -31,21 +29,17 @@ export function ConfigPage() {
   // Dialog states
   const [planEditOpen, setPlanEditOpen] = useState(false);
   const [planEditing, setPlanEditing] = useState<Plan | null>(null);
-  const [stageEditOpen, setStageEditOpen] = useState(false);
-  const [stageEditing, setStageEditing] = useState<Stage | null>(null);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [seqDelete, setSeqDelete] = useState<GeneratedSequence | null>(null);
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [p, s, gs] = await Promise.all([
+      const [p, gs] = await Promise.all([
         api<PlansResp>('/api/admin/sequence-plans?page=1&limit=500'),
-        api<StagesResp>('/api/admin/stages?page=1&limit=500'),
         api<SequencesResp>('/api/admin/generated-sequences?page=1&limit=1000'),
       ]);
       setPlans(p.plans);
-      setStages(s.stages);
       setSequences(gs.sequences);
     } catch (err) {
       toast.error((err as { error?: string })?.error || '加载失败');
@@ -72,23 +66,11 @@ export function ConfigPage() {
   }
 
   async function deletePlan(p: Plan) {
-    if (!confirm(`删除 Plan "${p.name}"？`)) return;
+    if (!confirm(`删除 Plan "${p.name}"？（其 stages 也会一起删除）`)) return;
     try {
       await api(`/api/admin/sequence-plans/${p.id}`, { method: 'DELETE' });
       toast.success('已删除');
       if (selected?.type === 'plan' && selected.id === p.id) setSelected(null);
-      loadAll();
-    } catch (err) {
-      toast.error((err as { error?: string })?.error || '删除失败');
-    }
-  }
-
-  async function deleteStage(s: Stage) {
-    if (!confirm(`删除 Stage "${s.name}"？`)) return;
-    try {
-      await api(`/api/admin/stages/${s.id}`, { method: 'DELETE' });
-      toast.success('已删除');
-      if (selected?.type === 'stage' && selected.id === s.id) setSelected(null);
       loadAll();
     } catch (err) {
       toast.error((err as { error?: string })?.error || '删除失败');
@@ -107,7 +89,6 @@ export function ConfigPage() {
   }
 
   const selectedPlan = selected?.type === 'plan' ? plans.find(p => p.id === selected.id) : null;
-  const selectedStage = selected?.type === 'stage' ? stages.find(s => s.id === selected.id) : null;
   const selectedSequence = selected?.type === 'sequence' ? sequences.find(s => s.id === selected.id) : null;
 
   return (
@@ -131,7 +112,6 @@ export function ConfigPage() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* ---- Plans 区 ---- */}
           <SidebarSection
             icon={<Layers className="h-3.5 w-3.5" />}
             title="Plans"
@@ -207,45 +187,6 @@ export function ConfigPage() {
             )}
           </SidebarSection>
 
-          {/* ---- Stages 区 ---- */}
-          <SidebarSection
-            icon={<LayoutGrid className="h-3.5 w-3.5" />}
-            title="Stages"
-            count={stages.length}
-            action={
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setStageEditing(null);
-                  setStageEditOpen(true);
-                }}
-                className="p-0.5 rounded hover:bg-[var(--color-surface-2)] cursor-pointer"
-                title="新增 Stage"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            }
-          >
-            {stages.length === 0 ? (
-              <EmptyHint>暂无 Stage — 点 + 新建</EmptyHint>
-            ) : stages.map(s => {
-              const isSel = selected?.type === 'stage' && selected.id === s.id;
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => setSelected({ type: 'stage', id: s.id })}
-                  className={`flex items-center gap-1.5 pl-7 pr-2 py-1.5 cursor-pointer text-sm ${
-                    isSel ? 'bg-[var(--color-primary)]/15' : 'hover:bg-[var(--color-surface-2)]'
-                  }`}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-                  <span className="flex-1 truncate">{s.name}</span>
-                  <span className="text-[10px] text-[var(--color-text-muted)]">长 {s.length}</span>
-                </div>
-              );
-            })}
-          </SidebarSection>
-
           {/* ---- Orphan Sequences（无 plan 的 Sequence，罕见）---- */}
           {(() => {
             const orphans = sequencesByPlan.get('__none__') || [];
@@ -280,10 +221,7 @@ export function ConfigPage() {
       {/* ======== RIGHT CONTENT ======== */}
       <div className="min-h-0 overflow-y-auto">
         {!selected && (
-          <EmptyState
-            onNewPlan={() => { setPlanEditing(null); setPlanEditOpen(true); }}
-            onNewStage={() => { setStageEditing(null); setStageEditOpen(true); }}
-          />
+          <EmptyState onNewPlan={() => { setPlanEditing(null); setPlanEditOpen(true); }} />
         )}
 
         {selectedPlan && (
@@ -296,16 +234,6 @@ export function ConfigPage() {
             onSequenceClick={(s) => setSelected({ type: 'sequence', id: s.id })}
             onSequenceToggle={toggleSequence}
             onSequenceDelete={(s) => setSeqDelete(s)}
-          />
-        )}
-
-        {selectedStage && (
-          <StageDetailView
-            stage={selectedStage}
-            usedByPlans={plans.filter(p => p.stages.some(ps => ps.id === selectedStage.id))}
-            onEdit={() => { setStageEditing(selectedStage); setStageEditOpen(true); }}
-            onDelete={() => deleteStage(selectedStage)}
-            onPlanClick={(p) => setSelected({ type: 'plan', id: p.id })}
           />
         )}
 
@@ -325,12 +253,6 @@ export function ConfigPage() {
         open={planEditOpen}
         onOpenChange={setPlanEditOpen}
         plan={planEditing}
-        onDone={loadAll}
-      />
-      <StageDialog
-        open={stageEditOpen}
-        onOpenChange={setStageEditOpen}
-        stage={stageEditing}
         onDone={loadAll}
       />
       <GenerateSequenceDialog
@@ -383,25 +305,22 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 
 // ============= Right Pane Views =============
 
-function EmptyState({ onNewPlan, onNewStage }: { onNewPlan: () => void; onNewStage: () => void }) {
+function EmptyState({ onNewPlan }: { onNewPlan: () => void }) {
   return (
     <Card>
       <CardContent className="py-16 text-center space-y-4">
         <Sparkles className="h-8 w-8 mx-auto text-[var(--color-text-muted)]" />
         <div className="text-sm text-[var(--color-text-muted)]">
-          从左侧选择 Plan / Stage / Sequence 查看详情
+          从左侧选择 Plan / Sequence 查看详情
         </div>
         <div className="flex gap-2 justify-center">
-          <Button variant="outline" size="sm" onClick={onNewStage}>
-            <Plus className="h-3.5 w-3.5" />新建 Stage
-          </Button>
           <Button size="sm" onClick={onNewPlan}>
             <Plus className="h-3.5 w-3.5" />新建 Plan
           </Button>
         </div>
         <div className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto pt-4 leading-relaxed">
-          <strong>Stage</strong>：概率原子块（定义某段内各 token 出现的概率）<br />
-          <strong>Plan</strong>：按顺序组合多个 Stage，定义一场游戏的难度曲线<br />
+          <strong>Plan</strong>：多个 Stage 按顺序组成，每个 Stage 定义一段糖果分布<br />
+          <strong>Stage</strong>：Plan 私有，含 length + 概率时间轴<br />
           <strong>Sequence</strong>：Plan 实例化产出的具体 token 序列，分配给玩家使用
         </div>
       </CardContent>
@@ -460,22 +379,25 @@ function PlanDetailView({
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold mb-3">阶段顺序（{plan.stages.length}）</h3>
           {plan.stages.length === 0 ? (
-            <div className="text-sm text-[var(--color-text-muted)]">该 Plan 未关联任何 Stage</div>
+            <div className="text-sm text-[var(--color-text-muted)]">该 Plan 未添加任何 Stage</div>
           ) : (
-            <div className="space-y-2">
-              {plan.stages
+            <div className="space-y-3">
+              {[...plan.stages]
                 .sort((a, b) => a.stage_order - b.stage_order)
                 .map((s, i) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-3 p-2 bg-[var(--color-surface-2)] rounded border border-[var(--color-border)]"
+                    className="p-3 bg-[var(--color-surface-2)] rounded border border-[var(--color-border)] space-y-2"
                   >
-                    <span className="font-mono text-xs text-[var(--color-text-muted)] w-8">#{i + 1}</span>
-                    <span className="flex-1 text-sm font-medium">{s.name}</span>
-                    <span className="text-xs text-[var(--color-text-muted)]">长 {s.length}</span>
-                    <span className="text-xs font-mono text-[var(--color-text-muted)] max-w-sm truncate">
-                      {Object.entries(s.probabilities || {}).map(([k, v]) => `${k}:${v}%`).join(' · ')}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs text-[var(--color-text-muted)] w-8">#{i + 1}</span>
+                      <span className="flex-1 text-sm font-medium">{s.name}</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">长 {s.length}</span>
+                    </div>
+                    <ProbabilityTimeline
+                      value={s.probabilities || {}}
+                      onChange={() => { /* 只读：详情页不编辑 */ }}
+                    />
                   </div>
                 ))}
             </div>
@@ -529,107 +451,6 @@ function PlanDetailView({
   );
 }
 
-function StageDetailView({
-  stage, usedByPlans, onEdit, onDelete, onPlanClick,
-}: {
-  stage: Stage;
-  usedByPlans: Plan[];
-  onEdit: () => void;
-  onDelete: () => void;
-  onPlanClick: (p: Plan) => void;
-}) {
-  const entries = Object.entries(stage.probabilities || {}).sort((a, b) => {
-    const na = a[0] === 'stone' ? Infinity : parseInt(a[0]);
-    const nb = b[0] === 'stone' ? Infinity : parseInt(b[0]);
-    return na - nb;
-  });
-  const total = entries.reduce((s, [, v]) => s + v, 0);
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="h-5 w-5 text-[var(--color-primary)]" />
-                <h2 className="text-lg font-semibold">{stage.name}</h2>
-                <Badge variant="outline">Stage</Badge>
-              </div>
-            </div>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={onEdit}>
-                <Pencil className="h-3.5 w-3.5" />编辑
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onDelete}
-                disabled={usedByPlans.length > 0}
-                title={usedByPlans.length > 0 ? '被 Plan 引用中，无法删除' : '删除'}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-[var(--color-danger)]" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <KV label="ID" value={stage.id} mono />
-            <KV label="长度" value={String(stage.length)} />
-            <KV label="创建" value={formatDateTime(stage.created_at)} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">概率分布</h3>
-            <span className={`text-xs font-mono ${Math.abs(total - 100) < 0.01 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              合计 {total}%
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {entries.map(([k, v]) => (
-              <div key={k} className="flex items-center gap-2 text-xs">
-                <span className="w-14 font-mono text-[var(--color-text-muted)]">{k}</span>
-                <div className="flex-1 h-2 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
-                  <div
-                    className={`h-full ${k === 'stone' ? 'bg-orange-400' : 'bg-[var(--color-primary)]'}`}
-                    style={{ width: `${v}%` }}
-                  />
-                </div>
-                <span className="w-12 text-right font-mono">{v}%</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3">被引用（{usedByPlans.length} 个 Plan）</h3>
-          {usedByPlans.length === 0 ? (
-            <div className="text-sm text-[var(--color-text-muted)]">该 Stage 尚未被任何 Plan 引用</div>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {usedByPlans.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => onPlanClick(p)}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--color-surface-2)] hover:bg-[var(--color-primary)]/20 cursor-pointer"
-                >
-                  <Layers className="h-3 w-3" />{p.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function SequenceDetailView({
   sequence, plan, onPlanClick, onToggle, onDelete,
 }: {
@@ -645,7 +466,6 @@ function SequenceDetailView({
         ? (() => { try { return JSON.parse(sequence.sequence_data as unknown as string); } catch { return []; } })()
         : []);
 
-  // token 频次统计
   const freq: Record<string, number> = {};
   for (const t of data) {
     const k = String(t);

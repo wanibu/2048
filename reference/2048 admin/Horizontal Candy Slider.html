@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>Horizontal Candy Slider — 2048 values</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; overflow: hidden; }
+  body { font-family: Inter, system-ui, sans-serif; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="sliders.jsx"></script>
+
+<script type="text/babel">
+// V1 is now the allocation bar — give it more room for the labels.
+// Other variants stay as single-value sliders in a second section.
+const WBIG = 980, HBIG = 220;
+const W = 820, H = 240;
+
+function Frame({ children }) {
+  return <div style={{ width: '100%', height: '100%', background: '#fff' }}>{children}</div>;
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="v1-main" title="V1 · 百分比分配条"
+        subtitle="13 段总和 100% · 拖拽任意分隔线调整相邻两段">
+        <DCArtboard id="v1" label="Allocation bar" width={WBIG} height={HBIG}>
+          <Frame><V1_Segmented /></Frame>
+        </DCArtboard>
+      </DCSection>
+      <DCSection id="others" title="其他方案（单值滑块）"
+        subtitle="原先的 5 个单值拖拽方案 — 点击刻度或拖拽手柄选值">
+        <DCArtboard id="v2" label="V2 · Beads on a rail" width={W} height={H}>
+          <Frame><V2_BeadsOnRail /></Frame>
+        </DCArtboard>
+        <DCArtboard id="v3" label="V3 · Thermometer tube" width={W} height={H}>
+          <Frame><V3_Thermometer /></Frame>
+        </DCArtboard>
+        <DCArtboard id="v4" label="V4 · Wrapped candy" width={W} height={H}>
+          <Frame><V4_WrappedCandy /></Frame>
+        </DCArtboard>
+        <DCArtboard id="v5" label="V5 · Stepped ladder" width={W} height={H}>
+          <Frame><V5_SteppedBars /></Frame>
+        </DCArtboard>
+        <DCArtboard id="v6" label="V6 · Candy-cane stripes" width={W} height={H}>
+          <Frame><V6_CandyCane /></Frame>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

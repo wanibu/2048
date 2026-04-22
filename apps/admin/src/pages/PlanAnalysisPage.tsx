@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { RefreshCw, HelpCircle } from 'lucide-react';
+import { RefreshCw, HelpCircle, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { api } from '@/api/client';
-import type { PlanStat, PlanStatsResp } from '@/api/types';
+import type { PlanStat, PlanStatsResp, SequenceStat, PlanSequenceStatsResp } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -66,6 +66,9 @@ const RANGES = {
 export function PlanAnalysisPage() {
   const [data, setData] = useState<PlanStatsResp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [seqData, setSeqData] = useState<Record<string, SequenceStat[]>>({});
+  const [seqLoading, setSeqLoading] = useState<Set<string>>(new Set());
 
   async function load() {
     setLoading(true);
@@ -79,15 +82,44 @@ export function PlanAnalysisPage() {
     }
   }
 
+  async function toggleExpand(planId: string | null) {
+    if (!planId) return;
+    const next = new Set(expanded);
+    if (next.has(planId)) {
+      next.delete(planId);
+      setExpanded(next);
+      return;
+    }
+    next.add(planId);
+    setExpanded(next);
+    if (!seqData[planId]) {
+      setSeqLoading((s) => new Set(s).add(planId));
+      try {
+        const r = await api<PlanSequenceStatsResp>(
+          `/api/admin/plan-sequence-stats?plan_id=${encodeURIComponent(planId)}`,
+        );
+        setSeqData((d) => ({ ...d, [planId]: r.sequences }));
+      } catch (err) {
+        toast.error((err as { error?: string })?.error || '加载序列统计失败');
+      } finally {
+        setSeqLoading((s) => {
+          const n = new Set(s);
+          n.delete(planId);
+          return n;
+        });
+      }
+    }
+  }
+
   useEffect(() => { load(); }, []);
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div>
-          <h2 className="text-lg font-semibold">Plan 分析</h2>
+          <h2 className="text-lg font-semibold">样本分析</h2>
           <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-            多维度对比每个 Plan 的实战数据。
+            多维度对比每个 Plan 的实战数据，点击展开查看各序列明细。
             <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 mx-1">绿</span>理想
             <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mx-1">黄</span>边缘
             <span className="inline-block px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 mx-1">红</span>异常
@@ -143,10 +175,28 @@ export function PlanAnalysisPage() {
                     {loading ? '加载中...' : '暂无数据'}
                   </TableCell>
                 </TableRow>
-              ) : data.plans.map((p: PlanStat, i) => (
-                <TableRow key={p.plan_id || `__none__${i}`}>
+              ) : data.plans.flatMap((p: PlanStat, i) => {
+                const rowKey = p.plan_id || `__none__${i}`;
+                const isExpanded = p.plan_id ? expanded.has(p.plan_id) : false;
+                const isSeqLoading = p.plan_id ? seqLoading.has(p.plan_id) : false;
+                const sequences = p.plan_id ? seqData[p.plan_id] : undefined;
+                return [
+                <TableRow key={rowKey}>
                   <TableCell className="sticky left-0 bg-[var(--color-surface)] font-medium">
-                    {p.plan_name || <span className="text-[var(--color-text-muted)] italic">（无 Plan）</span>}
+                    {p.plan_id ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(p.plan_id)}
+                        className="inline-flex items-center gap-1 hover:text-[var(--color-accent)] cursor-pointer"
+                      >
+                        {isExpanded
+                          ? <ChevronDown className="h-3.5 w-3.5" />
+                          : <ChevronRight className="h-3.5 w-3.5" />}
+                        <span>{p.plan_name || <span className="italic">（未命名）</span>}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[var(--color-text-muted)] italic">（无 Plan）</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs">
                     <div className="font-mono">{p.games_finished} / {p.games_total}</div>
@@ -191,8 +241,62 @@ export function PlanAnalysisPage() {
                       <span className="text-xs text-[var(--color-text-muted)]">样本不足</span>
                     )}
                   </TableCell>
-                </TableRow>
-              ))}
+                </TableRow>,
+                isExpanded && (
+                  <TableRow key={`${rowKey}_seq`} className="bg-[var(--color-surface-alt,#f7f8fb)] hover:bg-[var(--color-surface-alt,#f7f8fb)]">
+                    <TableCell colSpan={13} className="p-0">
+                      <div className="px-6 py-3">
+                        <div className="text-xs font-semibold mb-2 text-[var(--color-text-muted)]">
+                          序列明细 · {p.plan_name}
+                        </div>
+                        {isSeqLoading ? (
+                          <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] py-3">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> 加载中...
+                          </div>
+                        ) : !sequences || sequences.length === 0 ? (
+                          <div className="text-xs text-[var(--color-text-muted)] py-3">暂无游戏局关联任何序列</div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>序列</TableHead>
+                                <TableHead>局数</TableHead>
+                                <TableHead>独立玩家</TableHead>
+                                <TableHead>最小得分</TableHead>
+                                <TableHead>最大得分</TableHead>
+                                <TableHead>平均得分</TableHead>
+                                <TableHead>中位数得分</TableHead>
+                                <TableHead>平均时长</TableHead>
+                                <TableHead>中位数时长</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sequences.map((s: SequenceStat) => (
+                                <TableRow key={s.sequence_id}>
+                                  <TableCell className="font-mono text-xs">
+                                    {s.sequence_id.slice(0, 8)}…
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    <div className="font-mono">{s.games_finished} / {s.games_total}</div>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs">{s.unique_players}</TableCell>
+                                  <TableCell><Cell value={s.score_min} format={fmt0} /></TableCell>
+                                  <TableCell><Cell value={s.score_max} format={fmt0} /></TableCell>
+                                  <TableCell><Cell value={s.score_avg} format={fmt0} /></TableCell>
+                                  <TableCell><Cell value={s.score_median} format={fmt0} /></TableCell>
+                                  <TableCell><Cell value={s.duration_avg} format={fmtSec} /></TableCell>
+                                  <TableCell><Cell value={s.duration_median} format={fmtSec} /></TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ),
+              ];
+              })}
             </TableBody>
           </Table>
         </CardContent>

@@ -54,18 +54,7 @@ export interface GamesResp extends PaginatedResponse {
   games: Game[];
 }
 
-export interface Stage {
-  id: string;
-  name: string;
-  length: number;
-  probabilities: Record<string, number>;
-  created_at: string;
-  updated_at: string;
-}
-export interface StagesResp extends PaginatedResponse {
-  stages: Stage[];
-}
-
+// Plan 内联 stage（每个 stage 只属于一个 plan）
 export interface PlanStage {
   id: string;
   name: string;
@@ -84,6 +73,14 @@ export interface Plan {
 }
 export interface PlansResp extends PaginatedResponse {
   plans: Plan[];
+}
+
+// 创建/更新 Plan 时提交的 inline stage
+export interface InlineStageInput {
+  name: string;
+  length: number;
+  probabilities: Record<string, number>;
+  stage_order: number;
 }
 
 export interface GeneratedSequence {
@@ -139,4 +136,22 @@ export interface PlanStat {
 
 export interface PlanStatsResp {
   plans: PlanStat[];
+}
+
+export interface SequenceStat {
+  sequence_id: string;
+  games_total: number;
+  games_finished: number;
+  unique_players: number;
+  score_min: number | null;
+  score_max: number | null;
+  score_avg: number | null;
+  score_median: number | null;
+  duration_avg: number | null;
+  duration_median: number | null;
+}
+
+export interface PlanSequenceStatsResp {
+  plan_id: string;
+  sequences: SequenceStat[];
 }

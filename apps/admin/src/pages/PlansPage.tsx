@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { RefreshCw, Plus, Pencil, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { RefreshCw, Plus, Pencil } from 'lucide-react';
 import { api } from '@/api/client';
-import type { Plan, PlansResp, Stage, StagesResp } from '@/api/types';
+import type { Plan, PlansResp, InlineStageInput } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetBody } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProbabilityGrid, type StageDraft } from '@/components/ui/probability-grid';
 import { formatDateTime } from '@/lib/utils';
+
+// 新增 Stage 时默认均分 5 档
+function defaultProbabilities(): Record<string, number> {
+  return { '2': 20, '4': 20, '8': 20, '16': 20, '32': 20 };
+}
 
 export function PlansPage() {
   const [page, setPage] = useState(1);
@@ -36,7 +40,7 @@ export function PlansPage() {
   useEffect(() => { load(1); }, []);
 
   async function onDelete(p: Plan) {
-    if (!confirm(`删除 Plan "${p.name}"？`)) return;
+    if (!confirm(`删除 Plan "${p.name}"？（其 stages 也会一起删除）`)) return;
     try {
       await api(`/api/admin/sequence-plans/${p.id}`, { method: 'DELETE' });
       toast.success('已删除');
@@ -120,8 +124,6 @@ export function PlansPage() {
   );
 }
 
-interface StageRef { stage_id: string; stage_order: number }
-
 export function PlanDialog({
   open, onOpenChange, plan, onDone,
 }: {
@@ -132,85 +134,63 @@ export function PlanDialog({
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [allStages, setAllStages] = useState<Stage[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [pickStageId, setPickStageId] = useState<string>('');
+  const [stages, setStages] = useState<StageDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      try {
-        const r = await api<StagesResp>('/api/admin/stages?page=1&limit=200');
-        setAllStages(r.stages);
-      } catch {
-        toast.error('加载 Stages 失败');
-      }
-    })();
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     if (plan) {
       setName(plan.name);
       setDescription(plan.description || '');
-      setSelectedIds(plan.stages.sort((a, b) => a.stage_order - b.stage_order).map(s => s.id));
+      const ordered = [...plan.stages].sort((a, b) => a.stage_order - b.stage_order);
+      setStages(ordered.map(s => ({
+        name: s.name,
+        length: s.length,
+        probabilities: { ...s.probabilities },
+      })));
     } else {
       setName('');
       setDescription('');
-      setSelectedIds([]);
-      setPickStageId('');
+      setStages([]);
     }
   }, [open, plan]);
 
-  function add() {
-    if (!pickStageId) {
-      toast.warn('先从下拉里选一个 Stage');
-      return;
-    }
-    if (selectedIds.includes(pickStageId)) {
-      toast.info('已添加过该 Stage');
-      return;
-    }
-    setSelectedIds(arr => [...arr, pickStageId]);
-    setPickStageId('');
+  function addStage() {
+    setStages(arr => [
+      ...arr,
+      {
+        name: `Stage ${arr.length + 1}`,
+        length: 30,
+        probabilities: defaultProbabilities(),
+      },
+    ]);
   }
 
-  function remove(id: string) {
-    setSelectedIds(arr => arr.filter(x => x !== id));
-  }
-  function moveUp(idx: number) {
-    if (idx <= 0) return;
-    setSelectedIds(arr => {
-      const copy = [...arr];
-      [copy[idx - 1], copy[idx]] = [copy[idx], copy[idx - 1]];
-      return copy;
-    });
-  }
-  function moveDown(idx: number) {
-    setSelectedIds(arr => {
-      if (idx >= arr.length - 1) return arr;
-      const copy = [...arr];
-      [copy[idx], copy[idx + 1]] = [copy[idx + 1], copy[idx]];
-      return copy;
-    });
-  }
-
-  const stageMap = new Map(allStages.map(s => [s.id, s]));
-  const totalLength = selectedIds.reduce((sum, id) => sum + (stageMap.get(id)?.length || 0), 0);
+  const totalLength = stages.reduce((sum, s) => sum + (s.length || 0), 0);
+  const allStagesValid = stages.every(s => {
+    if (!s.name.trim() || !s.length || s.length <= 0) return false;
+    if (Object.keys(s.probabilities).length === 0) return false;
+    const sum = Object.values(s.probabilities).reduce((a: number, b: number) => a + b, 0);
+    return Math.abs(sum - 100) < 0.01;
+  });
 
   async function submit() {
     if (!name.trim()) {
       toast.warn('请输入 Plan 名称');
       return;
     }
-    if (selectedIds.length === 0) {
-      toast.warn('请至少选一个 Stage');
+    if (stages.length === 0) {
+      toast.warn('请至少添加一个 Stage');
       return;
     }
-    // stage_order 从 1 开始（数据库有 CHECK constraint: stage_order > 0）
-    const stages: StageRef[] = selectedIds.map((stage_id, idx) => ({
-      stage_id,
+    if (!allStagesValid) {
+      toast.warn('有 stage 名称/长度/概率不合法（概率总和需为 100）');
+      return;
+    }
+    const payload: InlineStageInput[] = stages.map((s, idx) => ({
+      name: s.name.trim(),
+      length: s.length,
+      probabilities: s.probabilities,
       stage_order: idx + 1,
     }));
     setSubmitting(true);
@@ -218,13 +198,13 @@ export function PlanDialog({
       if (plan) {
         await api(`/api/admin/sequence-plans/${plan.id}`, {
           method: 'PUT',
-          body: { name: name.trim(), description: description.trim(), stages },
+          body: { name: name.trim(), description: description.trim(), stages: payload },
         });
         toast.success('已更新');
       } else {
         await api('/api/admin/sequence-plans', {
           method: 'POST',
-          body: { name: name.trim(), description: description.trim(), stages },
+          body: { name: name.trim(), description: description.trim(), stages: payload },
         });
         toast.success('已创建');
       }
@@ -237,98 +217,42 @@ export function PlanDialog({
     }
   }
 
-  const availableStages = allStages.filter(s => !selectedIds.includes(s.id));
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{plan ? `编辑 Plan：${plan.name}` : '新增 Plan'}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>名称</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="如 normal-game" />
-          </div>
-          <div className="space-y-2">
-            <Label>描述</Label>
-            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="（可选）" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>组合 Stages（按顺序）</Label>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                总长度 <span className="font-mono text-[var(--color-text)]">{totalLength}</span>
-              </span>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <div className="flex items-center justify-between pr-10">
+            <div className="flex items-center gap-3 flex-1">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">PLAN</span>
+              <Input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Plan 名称"
+                className="h-8 max-w-sm"
+              />
+              <Input
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="描述（可选）"
+                className="h-8 flex-1 max-w-md"
+              />
             </div>
-
-            {/* 已选列表 */}
-            {selectedIds.length === 0 ? (
-              <div className="text-xs text-[var(--color-text-muted)] border border-dashed border-[var(--color-border)] rounded p-3 text-center">
-                尚未添加 Stage
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {selectedIds.map((id, idx) => {
-                  const s = stageMap.get(id);
-                  return (
-                    <div
-                      key={id}
-                      className="flex items-center gap-2 p-2 bg-[var(--color-surface-2)] rounded border border-[var(--color-border)]"
-                    >
-                      <span className="text-xs text-[var(--color-text-muted)] w-6 font-mono">#{idx + 1}</span>
-                      <span className="flex-1 text-sm">{s ? s.name : <span className="text-[var(--color-text-muted)]">[已删除]</span>}</span>
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        长 {s?.length ?? '?'}
-                      </span>
-                      <Button variant="ghost" size="icon" onClick={() => moveUp(idx)} disabled={idx === 0}>
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => moveDown(idx)} disabled={idx === selectedIds.length - 1}>
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(id)}>
-                        <X className="h-4 w-4 text-[var(--color-danger)]" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* 添加下拉 */}
-            {availableStages.length > 0 && (
-              <div className="flex gap-2 pt-1">
-                <div className="flex-1">
-                  <Select value={pickStageId} onValueChange={setPickStageId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="选一个 Stage 加入" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableStages.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}（长 {s.length}）
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button variant="outline" onClick={add} disabled={!pickStageId}>
-                  <Plus className="h-4 w-4" />
-                  添加
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+              总长度 <span className="font-mono text-[var(--color-text)]">{totalLength}</span>
+            </div>
           </div>
-        </div>
-        <DialogFooter>
+          <SheetTitle className="sr-only">{plan ? `编辑 Plan：${plan.name}` : '新增 Plan'}</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <ProbabilityGrid stages={stages} onStagesChange={setStages} onAdd={addStage} />
+        </SheetBody>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-          <Button onClick={submit} disabled={submitting || selectedIds.length === 0 || !name.trim()}>
+          <Button onClick={submit} disabled={submitting || stages.length === 0 || !name.trim() || !allStagesValid}>
             {submitting ? '提交中…' : plan ? '保存' : '创建'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

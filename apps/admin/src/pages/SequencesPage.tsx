@@ -311,8 +311,6 @@ export function GenerateSequenceDialog({
             <Label>生成数量</Label>
             <Input
               type="number"
-              min={1}
-              max={100}
               value={count}
               onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
             />

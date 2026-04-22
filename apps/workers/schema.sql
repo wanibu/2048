@@ -1,14 +1,5 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS stages (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  length INTEGER NOT NULL CHECK (length > 0),
-  probabilities TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS sequence_plans (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -17,16 +8,22 @@ CREATE TABLE IF NOT EXISTS sequence_plans (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS sequence_plan_stages (
+-- Plan 内联 stage：每个 stage 只属于一个 plan，删 plan 级联删
+CREATE TABLE IF NOT EXISTS plan_stages (
   id TEXT PRIMARY KEY,
   sequence_plan_id TEXT NOT NULL,
-  stage_id TEXT NOT NULL,
   stage_order INTEGER NOT NULL CHECK (stage_order > 0),
+  name TEXT NOT NULL,
+  length INTEGER NOT NULL CHECK (length > 0),
+  probabilities TEXT NOT NULL, -- JSON: {"2":10,"4":10,...,"stone":10}
   created_at TEXT NOT NULL,
-  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id),
-  FOREIGN KEY (stage_id) REFERENCES stages(id),
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id) ON DELETE CASCADE,
   UNIQUE (sequence_plan_id, stage_order)
 );
+
+CREATE INDEX IF NOT EXISTS idx_plan_stages_plan
+  ON plan_stages(sequence_plan_id);
 
 CREATE TABLE IF NOT EXISTS generated_sequences (
   id TEXT PRIMARY KEY,

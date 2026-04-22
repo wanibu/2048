@@ -5,15 +5,8 @@ export interface StageProbabilities {
   [key: string]: number; // { "2": 25, "4": 25, "stone": 5, ... } 百分比，总和=100
 }
 
-export interface StageRow {
-  id: string;
-  name: string;
-  length: number;
-  probabilities: string; // JSON string
-}
-
 export interface PlanStageRow {
-  stage_id: string;
+  id: string; // plan_stages.id
   stage_order: number;
   name: string;
   length: number;
@@ -176,7 +169,7 @@ export async function generateSequenceFromPlan(
     if (stonePercent <= 0) {
       // 没有石头，纯糖果
       for (let i = 0; i < stage.length; i++) {
-        const hash = await sha256(`${stage.stage_id}_${stage.stage_order}_pos_${i}_${crypto.randomUUID()}`);
+        const hash = await sha256(`${stage.id}_${stage.stage_order}_pos_${i}_${crypto.randomUUID()}`);
         const hashValue = parseInt(hash.slice(0, 8), 16);
         sequence.push(weightedSelect(normalizedProbs, hashValue));
       }
@@ -188,7 +181,7 @@ export async function generateSequenceFromPlan(
       // 生成纯糖果序列
       const candies: string[] = [];
       for (let i = 0; i < candyCount; i++) {
-        const hash = await sha256(`${stage.stage_id}_${stage.stage_order}_candy_${i}_${crypto.randomUUID()}`);
+        const hash = await sha256(`${stage.id}_${stage.stage_order}_candy_${i}_${crypto.randomUUID()}`);
         const hashValue = parseInt(hash.slice(0, 8), 16);
         candies.push(weightedSelect(normalizedProbs, hashValue));
       }
