@@ -38,6 +38,115 @@ const PLAN_SEQ_STATS = {
   ],
 };
 
+const SEQUENCE_ANALYSIS_DETAILS = {
+  '34025f32-a2c1-4da8': {
+    headline: '主分发版本，在线玩家最多，整体表现稳定。',
+    summary: '这是 planA 当前覆盖面最大的序列 ID。平均得分和中位数都比较稳，当前在线玩家也最多，适合作为默认分发版本持续观察。',
+    focus: '重点看在线玩家规模和 GAMEOVER 占比，确认它是否仍然是最稳的基线版本。',
+    playingPlayers: 28,
+    playingGames: 36,
+    todayPlayers: 64,
+    hourGames: 12,
+    finishedGames: 1384,
+    avgStep: 72,
+    medStep: 68,
+    status: 'enabled',
+    createdAt: '2026-04-21 18:22:08',
+    endReasons: [
+      { key: 'gameover', label: 'GAMEOVER', count: 1020, color: '#c83a3a' },
+      { key: 'timeout', label: 'TIMEOUT', count: 214, color: '#ffb93c' },
+      { key: 'user_quit', label: 'USER_QUIT', count: 126, color: '#8a8a94' },
+      { key: 'force_deleted', label: 'FORCE_DELETED', count: 42, color: '#c14dff' },
+      { key: 'unknown', label: 'UNKNOWN', count: 18, color: '#c6c6cc' },
+    ],
+    recentGames: [
+      { gameId: 'g_a1f0_3921', fp: 'fp_91a72…', status: 'playing', score: 1840, step: 56, dur: '136s', updatedAt: '18:24:17' },
+      { gameId: 'g_a1f0_38fd', fp: 'fp_18c02…', status: 'playing', score: 1260, step: 41, dur: '92s', updatedAt: '18:23:50' },
+      { gameId: 'g_a1f0_38da', fp: 'fp_11f9a…', status: 'finished', score: 2480, step: 74, dur: '148s', updatedAt: '18:22:44' },
+      { gameId: 'g_a1f0_38b1', fp: 'fp_04ac8…', status: 'finished', score: 1720, step: 62, dur: '131s', updatedAt: '18:21:20' },
+    ],
+  },
+  '92e9a3d4-b018-4c22': {
+    headline: '高表现版本，平均分和时长都更高。',
+    summary: '这条序列的整体成绩优于版本1，平均分、中位数和平均时长都更高，说明它更可能把玩家送进更深的局面。',
+    focus: '重点观察它是否值得继续放量，以及高分表现是否来自更长的有效对局。',
+    playingPlayers: 19,
+    playingGames: 24,
+    todayPlayers: 51,
+    hourGames: 8,
+    finishedGames: 1156,
+    avgStep: 78,
+    medStep: 74,
+    status: 'enabled',
+    createdAt: '2026-04-21 18:25:14',
+    endReasons: [
+      { key: 'gameover', label: 'GAMEOVER', count: 812, color: '#c83a3a' },
+      { key: 'timeout', label: 'TIMEOUT', count: 196, color: '#ffb93c' },
+      { key: 'user_quit', label: 'USER_QUIT', count: 112, color: '#8a8a94' },
+      { key: 'force_deleted', label: 'FORCE_DELETED', count: 36, color: '#c14dff' },
+      { key: 'unknown', label: 'UNKNOWN', count: 24, color: '#c6c6cc' },
+    ],
+    recentGames: [
+      { gameId: 'g_9e21_3321', fp: 'fp_43de1…', status: 'playing', score: 2120, step: 63, dur: '144s', updatedAt: '18:24:02' },
+      { gameId: 'g_9e21_3308', fp: 'fp_72fb2…', status: 'playing', score: 980, step: 36, dur: '84s', updatedAt: '18:23:18' },
+      { gameId: 'g_9e21_32fa', fp: 'fp_6bc10…', status: 'finished', score: 3240, step: 82, dur: '166s', updatedAt: '18:22:16' },
+      { gameId: 'g_9e21_32d4', fp: 'fp_992ac…', status: 'finished', score: 1880, step: 58, dur: '134s', updatedAt: '18:20:48' },
+    ],
+  },
+  '31d10fb0-c410-4e88': {
+    headline: '偏弱版本，得分和步数都明显落后。',
+    summary: '这条序列是 planA 四个版本里表现最弱的一条。平均得分、平均步数和在线规模都偏低，更像需要复盘的对照样本。',
+    focus: '重点看它是否过早 gameover，或者是否需要直接下线停止继续分发。',
+    playingPlayers: 11,
+    playingGames: 15,
+    todayPlayers: 28,
+    hourGames: 4,
+    finishedGames: 805,
+    avgStep: 61,
+    medStep: 56,
+    status: 'disabled',
+    createdAt: '2026-04-21 18:28:40',
+    endReasons: [
+      { key: 'gameover', label: 'GAMEOVER', count: 614, color: '#c83a3a' },
+      { key: 'timeout', label: 'TIMEOUT', count: 92, color: '#ffb93c' },
+      { key: 'user_quit', label: 'USER_QUIT', count: 74, color: '#8a8a94' },
+      { key: 'force_deleted', label: 'FORCE_DELETED', count: 24, color: '#c14dff' },
+      { key: 'unknown', label: 'UNKNOWN', count: 16, color: '#c6c6cc' },
+    ],
+    recentGames: [
+      { gameId: 'g_7c4d_2810', fp: 'fp_84cc1…', status: 'playing', score: 820, step: 29, dur: '68s', updatedAt: '18:23:10' },
+      { gameId: 'g_7c4d_27fd', fp: 'fp_4a211…', status: 'finished', score: 1560, step: 54, dur: '118s', updatedAt: '18:21:42' },
+      { gameId: 'g_7c4d_27c8', fp: 'fp_31be0…', status: 'finished', score: 2040, step: 63, dur: '126s', updatedAt: '18:19:57' },
+    ],
+  },
+  '8640e23a-4a20-4c00': {
+    headline: '尾部分发版本，样本较小，表现中等。',
+    summary: '这条序列的总体表现介于版本2和版本3之间，但样本规模更小，因此当前结论的稳定性相对弱一些。',
+    focus: '重点看样本是否足够，以及它是否适合作为补充流量的备选版本。',
+    playingPlayers: 7,
+    playingGames: 9,
+    todayPlayers: 16,
+    hourGames: 3,
+    finishedGames: 411,
+    avgStep: 66,
+    medStep: 62,
+    status: 'disabled',
+    createdAt: '2026-04-21 18:31:02',
+    endReasons: [
+      { key: 'gameover', label: 'GAMEOVER', count: 296, color: '#c83a3a' },
+      { key: 'timeout', label: 'TIMEOUT', count: 71, color: '#ffb93c' },
+      { key: 'user_quit', label: 'USER_QUIT', count: 38, color: '#8a8a94' },
+      { key: 'force_deleted', label: 'FORCE_DELETED', count: 10, color: '#c14dff' },
+      { key: 'unknown', label: 'UNKNOWN', count: 5, color: '#c6c6cc' },
+    ],
+    recentGames: [
+      { gameId: 'g_2f06_1c22', fp: 'fp_a93cd…', status: 'playing', score: 960, step: 32, dur: '74s', updatedAt: '18:22:06' },
+      { gameId: 'g_2f06_1c0f', fp: 'fp_0a712…', status: 'finished', score: 1840, step: 60, dur: '139s', updatedAt: '18:20:24' },
+      { gameId: 'g_2f06_1bfc', fp: 'fp_44dc9…', status: 'finished', score: 1420, step: 52, dur: '121s', updatedAt: '18:18:54' },
+    ],
+  },
+};
+
 const END_REASONS = {
   overall: [
     { key: 'gameover', label: 'GAMEOVER', count: 9840, color: '#c83a3a' },
@@ -203,6 +312,7 @@ function Spark({ label, value, delta, positive, data, color }) {
 // ════════════════════════════════════════════════════════════════
 function PlanAnalysisPage() {
   const [expanded, setExpanded] = React.useState(new Set([PLAN_STATS[0].id]));
+  const [seqSheet, setSeqSheet] = React.useState(null);
   const totalEnd = END_REASONS.overall.reduce((a, e) => a + e.count, 0);
 
   const toggle = (id) => {
@@ -291,7 +401,17 @@ function PlanAnalysisPage() {
                                   </thead>
                                   <tbody>
                                     {PLAN_SEQ_STATS[p.id].map((s) => (
-                                      <tr key={s.id}>
+                                      <tr key={s.id}
+                                        onClick={() => setSeqSheet({ plan: p, sequence: s })}
+                                        style={{ cursor: 'pointer' }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = '#fff3ea';
+                                          e.currentTarget.style.boxShadow = 'inset 2px 0 0 #c87a3a';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = '#fff';
+                                          e.currentTarget.style.boxShadow = 'none';
+                                        }}>
                                         <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{s.id}</td>
                                         <td style={{ ...seqTd, fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 500 }}>{s.name}</td>
                                         <td style={{ ...seqTd, color: '#2a2a33' }}>{s.displayName || '—'}</td>
@@ -302,7 +422,12 @@ function PlanAnalysisPage() {
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600 }}>{s.score_avg.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif' }}>{s.score_med.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>{s.dur_avg}s</td>
-                                        <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>{s.dur_med}s</td>
+                                        <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>
+                                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                            <span>{s.dur_med}s</span>
+                                            <span style={{ color: '#c6c6cc', display: 'inline-flex' }}><Icon name="ChevronRight" size={12} /></span>
+                                          </div>
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -353,6 +478,12 @@ function PlanAnalysisPage() {
           </div>
         </div>
       </div>
+      <SequenceAnalysisSheet
+        open={!!seqSheet}
+        onClose={() => setSeqSheet(null)}
+        plan={seqSheet && seqSheet.plan}
+        sequence={seqSheet && seqSheet.sequence}
+      />
     </div>
   );
 }
@@ -372,6 +503,223 @@ const seqTh = {
   borderBottom: '1px solid #ececf2',
 };
 const seqTd = { padding: '7px 10px', borderBottom: '1px solid #f8f8fa' };
+
+function SequenceAnalysisSheet({ open, onClose, plan, sequence }) {
+  const [tab, setTab] = React.useState('overview');
+  React.useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+  React.useEffect(() => {
+    if (open) setTab('overview');
+  }, [open, sequence && sequence.id]);
+
+  if (!open || !sequence) return null;
+
+  const detail = SEQUENCE_ANALYSIS_DETAILS[sequence.id] || {
+    headline: '当前序列详情',
+    summary: '这是该序列 ID 的基础分析视图。',
+    focus: '优先查看在线玩家数、累计样本和结束原因分布。',
+    playingPlayers: 0,
+    playingGames: 0,
+    todayPlayers: 0,
+    hourGames: 0,
+    finishedGames: Math.max(0, sequence.games),
+    avgStep: null,
+    medStep: null,
+    status: 'disabled',
+    createdAt: '—',
+    endReasons: [],
+    recentGames: [],
+  };
+  const totalGames = sequence.games;
+  const totalPlayers = sequence.unique;
+  const totalEnd = detail.endReasons.reduce((sum, item) => sum + item.count, 0) || 1;
+  const statusEnabled = detail.status === 'enabled';
+  const kpis = [
+    { label: '当前在玩玩家数', value: detail.playingPlayers, hint: '按 fingerprint 去重', accent: '#5a7cff' },
+    { label: '当前在玩局数', value: detail.playingGames, hint: 'status = playing', accent: '#ffb93c' },
+    { label: '累计独立玩家数', value: totalPlayers, hint: '历史累计', accent: '#4ecd7a' },
+    { label: '累计游玩次数', value: totalGames, hint: '全部游戏局', accent: '#c14dff' },
+  ];
+  const perfCards = [
+    { label: '平均得分', value: sequence.score_avg.toLocaleString(), sub: `中位数 ${sequence.score_med.toLocaleString()}` },
+    { label: '平均时长', value: `${sequence.dur_avg}s`, sub: `中位时长 ${sequence.dur_med}s` },
+    { label: '平均步数', value: detail.avgStep == null ? '—' : String(detail.avgStep), sub: detail.medStep == null ? '中位步数 —' : `中位步数 ${detail.medStep}` },
+    { label: '今日新增玩家', value: detail.todayPlayers.toLocaleString(), sub: `近 1 小时新增局 ${detail.hourGames}` },
+  ];
+
+  return (
+    <React.Fragment>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(16, 16, 24, 0.35)',
+        zIndex: 60, animation: 'planSheetOverlayIn 200ms ease-out',
+      }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '72vw', maxWidth: 1080,
+        background: '#f7f7fa', zIndex: 70,
+        boxShadow: '-12px 0 32px rgba(0, 0, 0, 0.15)',
+        animation: 'planSheetSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <button onClick={onClose} aria-label="关闭"
+          style={{
+            position: 'absolute', top: 14, right: '100%',
+            width: 40, height: 40,
+            background: '#fff', border: '1px solid #ececf2', borderRadius: 4,
+            color: '#6a6a74', fontSize: '1.375rem', lineHeight: 1, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0, fontFamily: 'inherit',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          }}><Icon name="X" size={18} /></button>
+        <div style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '18px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>序列 ID</div>
+                <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '1.25rem', color: '#2a2a33' }}>{sequence.name}</div>
+              </div>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '2px 8px', borderRadius: 10, fontSize: '0.6562rem', fontWeight: 500,
+                background: statusEnabled ? '#e6f5ec' : '#f4f4f8',
+                color: statusEnabled ? '#1fa85a' : '#9b9ba6',
+                border: `1px solid ${statusEnabled ? '#c8e6d3' : '#ececf2'}`,
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusEnabled ? '#1fa85a' : '#b0b0b8' }} />
+                {statusEnabled ? 'enabled' : 'disabled'}
+              </span>
+              <div style={{ flex: 1 }} />
+              <div style={{ textAlign: 'right', fontSize: '0.7188rem', color: '#8a8a94' }}>
+                <div>所属 Plan <span style={{ color: '#2a2a33', fontWeight: 600, marginLeft: 6 }}>{plan ? plan.name : '—'}</span></div>
+                <div style={{ marginTop: 4 }}>创建时间 <span style={{ color: '#2a2a33', fontFamily: 'Menlo, monospace', marginLeft: 6 }}>{detail.createdAt}</span></div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '92px 1fr', columnGap: 20, rowGap: 10, fontSize: '0.7812rem' }}>
+              <div style={{ color: '#8a8a94' }}>内部记录 ID</div>
+              <div style={{ fontFamily: 'Menlo, monospace', color: '#2a2a33' }}>{sequence.id}</div>
+              <div style={{ color: '#8a8a94' }}>序列名称</div>
+              <div style={{ color: '#2a2a33' }}>{sequence.displayName || '—'}</div>
+              <div style={{ color: '#8a8a94' }}>摘要</div>
+              <div style={{ color: '#2a2a33', fontWeight: 500 }}>{detail.headline}</div>
+              <div style={{ color: '#8a8a94' }}>分析结论</div>
+              <div style={{ color: '#6a6a74', lineHeight: 1.7 }}>{detail.summary}</div>
+              <div style={{ color: '#8a8a94' }}>当前关注点</div>
+              <div style={{ color: '#6a6a74', lineHeight: 1.7 }}>{detail.focus}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'inline-flex', alignSelf: 'flex-start', background: '#fff', border: '1px solid #ececf2', borderRadius: 8, padding: 3 }}>
+            {[
+              { k: 'overview', label: '概览' },
+              { k: 'all-games', label: `全部游戏 (${detail.recentGames.length})` },
+            ].map((item) => (
+              <button key={item.k} onClick={() => setTab(item.k)} style={{
+                padding: '5px 14px', fontSize: '0.75rem', border: 'none', borderRadius: 6,
+                background: tab === item.k ? '#2a2a33' : 'transparent',
+                color: tab === item.k ? '#fff' : '#6a6a74',
+                cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
+              }}>{item.label}</button>
+            ))}
+          </div>
+
+          {tab === 'overview' && (
+            <React.Fragment>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                {kpis.map((kpi) => (
+                  <div key={kpi.label} style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '16px 18px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: kpi.accent, opacity: 0.7 }} />
+                    <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>{kpi.label}</div>
+                    <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '1.75rem', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums', marginBottom: 6 }}>{kpi.value.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.6875rem', color: '#9b9ba6' }}>{kpi.hint}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14 }}>
+                <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '16px 18px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 12 }}>表现指标</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                    {perfCards.map((item) => (
+                      <div key={item.label} style={{ border: '1px solid #f0f0f4', borderRadius: 8, padding: '12px 14px' }}>
+                        <div style={{ fontSize: '0.6875rem', color: '#8a8a94', marginBottom: 8 }}>{item.label}</div>
+                        <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: '1.125rem', marginBottom: 4 }}>{item.value}</div>
+                        <div style={{ fontSize: '0.6875rem', color: '#9b9ba6' }}>{item.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, padding: '16px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 12 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>结束原因分布</div>
+                    <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#9b9ba6' }}>已结束 {detail.finishedGames.toLocaleString()} 局</div>
+                  </div>
+                  <div style={{ display: 'flex', height: 22, borderRadius: 6, overflow: 'hidden', background: '#f4f4f8', marginBottom: 12 }}>
+                    {detail.endReasons.map((e) => (
+                      <div key={e.key} title={`${e.label} · ${e.count.toLocaleString()}`}
+                        style={{ flex: `0 0 ${(e.count / totalEnd) * 100}%`, background: e.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', color: '#fff', fontWeight: 500 }}>
+                        {((e.count / totalEnd) * 100) >= 14 ? `${((e.count / totalEnd) * 100).toFixed(0)}%` : ''}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {detail.endReasons.map((e) => (
+                      <div key={e.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.7188rem' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: e.color, flexShrink: 0 }} />
+                        <span style={{ color: '#6a6a74', minWidth: 92 }}>{e.label}</span>
+                        <span style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#2a2a33', minWidth: 44 }}>{e.count.toLocaleString()}</span>
+                        <span style={{ color: '#9b9ba6' }}>{((e.count / totalEnd) * 100).toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          )}
+
+          {tab === 'all-games' && (
+            <div style={{ background: '#fff', border: '1px solid #ececf2', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', padding: '16px 18px 12px', borderBottom: '1px solid #f0f0f4' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>全部游戏</div>
+                <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#9b9ba6' }}>围绕当前序列 ID 的全部游戏列表</div>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7188rem' }}>
+                <thead>
+                  <tr style={{ background: '#fafafc' }}>
+                    <th style={seqTh}>Game ID</th>
+                    <th style={seqTh}>Fingerprint</th>
+                    <th style={seqTh}>状态</th>
+                    <th style={{ ...seqTh, textAlign: 'right' }}>得分</th>
+                    <th style={{ ...seqTh, textAlign: 'right' }}>步数</th>
+                    <th style={{ ...seqTh, textAlign: 'right' }}>时长</th>
+                    <th style={{ ...seqTh, textAlign: 'right' }}>最后更新</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.recentGames.map((game) => (
+                    <tr key={game.gameId}>
+                      <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#2a2a33' }}>{game.gameId}</td>
+                      <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{game.fp}</td>
+                      <td style={seqTd}><StatusPill status={game.status} /></td>
+                      <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600 }}>{game.score.toLocaleString()}</td>
+                      <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>{game.step}</td>
+                      <td style={{ ...seqTd, textAlign: 'right', color: '#6a6a74' }}>{game.dur}</td>
+                      <td style={{ ...seqTd, textAlign: 'right', color: '#9b9ba6', fontFamily: 'Menlo, monospace' }}>{game.updatedAt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
 
 // ════════════════════════════════════════════════════════════════
 // 游戏局 Games — paginated list + filters + bulk
