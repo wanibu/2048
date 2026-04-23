@@ -336,6 +336,40 @@ export class GameScene extends Phaser.Scene {
     keyD.setDisplaySize(keySize, keySize);
     keyD.setDepth(85);
 
+    // ===== 11. StarUI（data.json 源帧：shared-0-sheet3.png @ (1, 193, 50, 50), pivot (0.5, 0.5)）=====
+    // 分数旁边的装饰星图标。Game layout 里观察到的 50×50 候选位置：(44, 38)、(44, 98)。
+    const starXOffset = 0;        // 水平偏移
+    const starYOffset = -213;        // 垂直偏移
+    const starScale = 1;          // 缩放（1 = 源帧 50×50）
+    const starSize = 50 * starScale;
+    const starTex = this.textures.get('shared3');
+    if (!starTex.has('star-ui')) {
+      starTex.add('star-ui', 0, 1, 193, 50, 50);
+    }
+    const starBaseX = 44;         // 左上分数区基准 x
+    const starBaseY = 38;         // 左上分数区基准 y
+    const starUI = this.add.image(starBaseX + starXOffset, starBaseY + starYOffset, 'shared3', 'star-ui');
+    starUI.setOrigin(0.5, 0.5);
+    starUI.setDisplaySize(starSize, starSize);
+    starUI.setDepth(90);
+
+    // ===== 12. CrownUI（data.json 源帧：shared-0-sheet3.png @ (65, 193, 50, 50), pivot (0.5, 0.5)）=====
+    // 王冠图标，通常标识 top score（最高分）。基准位置 (44, 98) —— StarUI 下方 60px。
+    const crownXOffset = 0;       // 水平偏移
+    const crownYOffset = -213;       // 垂直偏移
+    const crownScale = 1;         // 缩放（1 = 源帧 50×50）
+    const crownSize = 50 * crownScale;
+    const crownTex = this.textures.get('shared3');
+    if (!crownTex.has('crown-ui')) {
+      crownTex.add('crown-ui', 0, 65, 193, 50, 50);
+    }
+    const crownBaseX = 44;        // 左上最高分区 x
+    const crownBaseY = 98;        // 左上最高分区 y（= StarUI y 38 + 60）
+    const crownUI = this.add.image(crownBaseX + crownXOffset, crownBaseY + crownYOffset, 'shared3', 'crown-ui');
+    crownUI.setOrigin(0.5, 0.5);
+    crownUI.setDisplaySize(crownSize, crownSize);
+    crownUI.setDepth(90);
+
     if (this.debugBackgroundOnly) {
       return;
     }
