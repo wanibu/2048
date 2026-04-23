@@ -310,6 +310,32 @@ export class GameScene extends Phaser.Scene {
     selLine.setDepth(110);   // 放最上层（比 Grid 的 100 更高）
     // selLine.setAlpha(0.6);   // 原版带 Fade，给点透明度更接近运行时手感
 
+    // ===== 10. keyA 键盘提示（data.json 源帧：A=(131,769,122,122) pivot(0.5,0.4508)，D=(385,257,122,122) pivot(0.4713,0.4508)，shared2）=====
+    // 原版由 event sheet Pin 到左右旋转按钮上，Game layout 里没有静态实例。
+    // 这里两个按钮各放一个做视觉占位。
+    const keyXOffset = -19;         // 左右共用：对称（左减右加）
+    const keyYOffset = 240;         // 垂直偏移
+    const keyScale = 0.25;         // 整体缩放（1 = 源帧 122×122）
+    const keySize = 122 * keyScale;
+    const keyLeftBaseX = 100;     // 跟 rotLeftBaseX 对齐
+    const keyRightBaseX = 540;    // 跟 rotRightBaseX 对齐
+    const keyBaseY = 870;         // 跟 rotBaseY 对齐
+    const keyTex = this.textures.get('shared2');
+    if (!keyTex.has('key-a')) {
+      keyTex.add('key-a', 0, 131, 769, 122, 122);
+    }
+    if (!keyTex.has('key-d')) {
+      keyTex.add('key-d', 0, 385, 257, 122, 122);
+    }
+    const keyA = this.add.image(keyLeftBaseX - keyXOffset, keyBaseY + keyYOffset, 'shared2', 'key-a');
+    keyA.setOrigin(0.5, 0.4508);
+    keyA.setDisplaySize(keySize, keySize);
+    keyA.setDepth(85);  // 在 RotateArrow(80) 之上
+    const keyD = this.add.image(keyRightBaseX + keyXOffset, keyBaseY + keyYOffset, 'shared2', 'key-d');
+    keyD.setOrigin(0.4713, 0.4508);
+    keyD.setDisplaySize(keySize, keySize);
+    keyD.setDepth(85);
+
     if (this.debugBackgroundOnly) {
       return;
     }
