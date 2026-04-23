@@ -188,28 +188,77 @@ export class GameScene extends Phaser.Scene {
     tray.setDisplaySize(trayWidth, trayHeight);
     tray.setDepth(70);
 
-    if (this.debugBackgroundOnly) {
-      return;
+    // ===== 3. RotateArrow（data.json 源帧：shared-0-sheet2.png @ (257, 769, 128, 115), pivot (0.5, 0.504348)）=====
+    // data.json Game 实例：display 256×141, origin (0.504132, 0.458015)。左右各一个（右边 flipX）。
+    const rotXOffset = 0;       // 水平偏移（对左右按钮对称：左减右加）
+    const rotYOffset = 230;       // 垂直偏移
+    const rotWidth = 96;        // 显示宽（128 × 0.75）
+    const rotHeight = 96;       // 显示高（128 × 0.75）
+    const rotLeftBaseX = 100;   // 左按钮基准 x
+    const rotRightBaseX = 540;  // 右按钮基准 x（对称 640-100）
+    const rotBaseY = 870;       // 两个按钮共用 y
+    const rotTex = this.textures.get('shared2');
+    if (!rotTex.has('rotate-arrow')) {
+      rotTex.add('rotate-arrow', 0, 257, 769, 128, 115);
     }
+    const rotArrowL = this.add.image(rotLeftBaseX - rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
+    rotArrowL.setOrigin(0.504132, 0.458015);
+    rotArrowL.setDisplaySize(rotWidth, rotHeight);
+    rotArrowL.setDepth(80);
+    const rotArrowR = this.add.image(rotRightBaseX + rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
+    rotArrowR.setOrigin(0.504132, 0.458015);
+    rotArrowR.setDisplaySize(rotWidth, rotHeight);
+    rotArrowR.setFlipX(true);
+    rotArrowR.setDepth(80);
 
-    // ===== 3. Girl（data.json Girl 对象，Default 动画首帧：sheet0 @ (769,769,204,244), origin=(0.4167, 0.9959)）=====
-    // 源自 sprite-debug-combo-chain-preview.html：640×960 design 里 Girl 占右下角，scale 0.75。
-    // 以下 offset 为手动微调用：改偏移即可，基准值保留。
-    const girlXOffset = 0;   // 水平偏移：负往左、正往右
-    const girlYOffset = 0;   // 垂直偏移：负往上、正往下
-    const girlScale = 0.75;  // 缩放：0.75 跟预览页一致
+    // ===== 4. BgSquare（data.json 源帧：shared-0-sheet2.png @ (255, 257, 128, 128), pivot (0.5, 0.5)）=====
+    // 原版由 event sheet 动态 spawn，先放 1 个做定位基准。后续要变 5×5 阵列再说。
+    const bgSqX = 320;        // 基准 x（design 水平中心）
+    const bgSqY = 1115;        // 基准 y（design 垂直中心）
+    const bgSqSize = 96;      // 显示边长（= 128 × 0.75）
+    const bgSqTex = this.textures.get('shared2');
+    if (!bgSqTex.has('bg-square')) {
+      bgSqTex.add('bg-square', 0, 255, 257, 128, 128);
+    }
+    const bgSquare = this.add.image(bgSqX, bgSqY, 'shared2', 'bg-square');
+    bgSquare.setOrigin(0.5, 0.5);
+    bgSquare.setDisplaySize(bgSqSize, bgSqSize);
+    bgSquare.setDepth(75);
+
+    // ===== 5. Sling（data.json 源帧：shared-0-sheet1.png @ (1, 1281, 256, 160), pivot (0.5, 1)）=====
+    // 弹弓底座 —— pivot (0.5, 1) 表示底部中央是锚点，(slingX, slingY) 是"弹弓底"的位置。
+    const slingX = 320;       // 水平位置（design 中心）
+    const slingY = 1050;       // 弹弓底的 y（略高于 tray 顶部 ≈ 726）
+    const slingWidth = 256;   // 源帧宽
+    const slingHeight = 160;  // 源帧高
+    const slingTex = this.textures.get('shared1');
+    if (!slingTex.has('sling-default')) {
+      slingTex.add('sling-default', 0, 1, 1281, 256, 160);
+    }
+    const sling = this.add.image(slingX, slingY, 'shared1', 'sling-default');
+    sling.setOrigin(0.5, 1);
+    sling.setDisplaySize(slingWidth, slingHeight);
+    sling.setDepth(65);
+
+    // ===== 6. Girl（data.json Default 帧：girl-sheet0 @ (769, 769, 204, 244), pivot (0.4167, 0.9959)）=====
+    // 3 组动画（Default / Blink / Surprise）先只摆 Default 静态帧。
+    const girlXOffset = 0;     // 水平偏移
+    const girlYOffset = 0;     // 垂直偏移
+    const girlScale = 0.8;    // 缩放
     const girlTex = this.textures.get('girl-full');
     if (!girlTex.has('girl-default')) {
       girlTex.add('girl-default', 0, 769, 769, 204, 244);
     }
-    // Girl 右下角位置（CSS: right:30 bottom:10 → design x=610 y=950 为 sprite 右下）
-    // 用 origin (0.4167, 0.9959) 把 pivot 点放到 (girlX, girlY)
-    const girlBaseX = 491;  // pivot 世界 X 基准（= design 610 - 204*(1-0.4167)*0.75 ≈ 491）
-    const girlBaseY = 950;  // pivot 世界 Y 基准（Girl 脚底贴 design 底部附近）
+    const girlBaseX = 555;     // pivot 世界 X 基准
+    const girlBaseY = 1065;     // pivot 世界 Y 基准（Girl 脚底贴 design 底部附近）
     const girl = this.add.image(girlBaseX + girlXOffset, girlBaseY + girlYOffset, 'girl-full', 'girl-default');
     girl.setOrigin(0.4167, 0.9959);
     girl.setScale(girlScale);
     girl.setDepth(50);
+
+    if (this.debugBackgroundOnly) {
+      return;
+    }
 
     // （原 tray 块已迁移到 debug return 之前，改为 data.json Panel 实例坐标）
     const tex = this.textures.get('shared0');
