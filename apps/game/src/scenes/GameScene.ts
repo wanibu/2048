@@ -256,6 +256,40 @@ export class GameScene extends Phaser.Scene {
     girl.setScale(girlScale);
     girl.setDepth(50);
 
+    // ===== 7. Giant 头像（data.json Game 实例：x=311, y=116, size=421×610, angle=6.161 rad≈-7°, origin=(0.5059, 0.5016)）=====
+    // Default 帧源：shared-0-sheet0.png @ (1619, 1025, 421, 610)。先摆 Default 静态帧，Blink/Scream 后续再连动画。
+    const giantXOffset = 10;      // 水平偏移
+    const giantYOffset = 0;      // 垂直偏移
+    const giantScale = 1;        // 缩放倍率（data.json 显示尺寸 = 源帧，所以 1）
+    // data.json 原值 6.161 rad ≈ -7° 会让头像往左歪；原游戏看起来往右歪，所以取 +7°。
+    const giantAngleDeg = 7;  // 正 = 顺时针往右歪（Menu 场景同样用正值 +10°）
+    const giantTex = this.textures.get('shared0-orig');
+    if (!giantTex.has('giant-default')) {
+      giantTex.add('giant-default', 0, 1619, 1025, 421, 610);
+    }
+    const giantBaseX = 311;
+    const giantBaseY = 116;
+    const giant = this.add.image(giantBaseX + giantXOffset, giantBaseY + giantYOffset, 'shared0-orig', 'giant-default');
+    giant.setOrigin(0.505938, 0.501639);
+    giant.setDisplaySize(421 * giantScale, 610 * giantScale);
+    giant.setAngle(giantAngleDeg);
+    giant.setDepth(55);
+
+    // ===== 8. Grid 棋盘背景（data.json Game 实例：x=320, y=420, size=630×586, origin=(0.5038, 0.4898)）=====
+    // 源帧：shared-0-sheet0.png @ (770, 1, 788, 733)。display 尺寸 630×586 比源帧略小。
+    const gridXOffset = 0;    // 水平偏移
+    const gridYOffset = 0;    // 垂直偏移
+    const gridWidth = 630;    // data.json 实例宽
+    const gridHeight = 586;   // data.json 实例高
+    const gridTex = this.textures.get('shared0-orig');
+    if (!gridTex.has('grid-default')) {
+      gridTex.add('grid-default', 0, 770, 1, 788, 733);
+    }
+    const gridObj = this.add.image(320 + gridXOffset, 420 + gridYOffset, 'shared0-orig', 'grid-default');
+    gridObj.setOrigin(0.503807, 0.489768);
+    gridObj.setDisplaySize(gridWidth, gridHeight);
+    gridObj.setDepth(100);  // 放最上层，其他所有 debug 元素都在它下面
+
     if (this.debugBackgroundOnly) {
       return;
     }
