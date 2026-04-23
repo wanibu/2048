@@ -4,18 +4,13 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
 
-// 模拟 C3 fullscreen "scale-outer"（project[12]=3）：
-//  - 窄屏（设备 aspect < 设计 aspect）保持 width=GAME_WIDTH，往上下扩高；
-//  - 宽屏保持 height=GAME_HEIGHT，往左右扩宽。
-// 这样画布覆盖的 world 区域 ≥ 设计 640×960，背景等放在设计视窗外的元素也能显出来。
+const DESKTOP_SIM_HEIGHT = 1280;
 const deviceAspect = window.innerWidth / window.innerHeight;
 const designAspect = GAME_WIDTH / GAME_HEIGHT;
-const internalW = deviceAspect < designAspect
-  ? GAME_WIDTH
-  : Math.round(GAME_HEIGHT * deviceAspect);
-const internalH = deviceAspect < designAspect
-  ? Math.round(GAME_WIDTH / deviceAspect)
-  : GAME_HEIGHT;
+const isDesktopWide = deviceAspect > designAspect;
+// 桌面宽屏模拟手机竖屏视口；移动端/窄屏仍按 C3 fullscreen scale-outer 扩展高度。
+const internalW = GAME_WIDTH;
+const internalH = isDesktopWide ? DESKTOP_SIM_HEIGHT : Math.round(GAME_WIDTH / deviceAspect);
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -48,23 +43,31 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 /**
- * Canvas 全屏显示，同时让内部画布比例匹配 viewport。
- * 这样 CSS 全屏不会产生 X/Y 非等比拉伸，视觉上不变形。
+ * 移动端 canvas 全屏；桌面宽屏时用 640:960 的手机窗口居中显示。
  */
 function updateCanvasSize(game: Phaser.Game): void {
   const canvas = game.canvas;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const desktopWide = vw / vh > GAME_WIDTH / GAME_HEIGHT;
+  const displayW = desktopWide ? Math.round(vh * GAME_WIDTH / DESKTOP_SIM_HEIGHT) : vw;
+  const displayH = desktopWide ? vh : Math.round(vw * internalH / internalW);
+
+  document.documentElement.style.margin = '0';
+  document.documentElement.style.padding = '0';
+  document.body.style.margin = '0';
+  document.body.style.padding = '0';
+  document.body.style.background = '#000000';
 
   canvas.style.display = 'block';
-  canvas.style.width = vw + 'px';
-  canvas.style.height = vh + 'px';
-  canvas.style.marginLeft = '0px';
-  canvas.style.marginTop = '0px';
+  canvas.style.width = displayW + 'px';
+  canvas.style.height = displayH + 'px';
+  canvas.style.marginLeft = Math.round((vw - displayW) / 2) + 'px';
+  canvas.style.marginTop = Math.round((vh - displayH) / 2) + 'px';
 
   // 告诉Phaser input系统CSS缩放比例，修正点击坐标映射
-  const scaleX = internalW / vw;
-  const scaleY = internalH / vh;
+  const scaleX = internalW / displayW;
+  const scaleY = internalH / displayH;
   game.input.scaleManager.displayScale.set(scaleX, scaleY);
 }
 
