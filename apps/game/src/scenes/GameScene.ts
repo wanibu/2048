@@ -190,8 +190,8 @@ export class GameScene extends Phaser.Scene {
 
     // ===== 3. RotateArrow（data.json 源帧：shared-0-sheet2.png @ (257, 769, 128, 115), pivot (0.5, 0.504348)）=====
     // data.json Game 实例：display 256×141, origin (0.504132, 0.458015)。左右各一个（右边 flipX）。
-    const rotXOffset = 0;       // 水平偏移（对左右按钮对称：左减右加）
-    const rotYOffset = 230;       // 垂直偏移
+    const rotXOffset = -10;       // 水平偏移（对左右按钮对称：左减右加）
+    const rotYOffset = 240;       // 垂直偏移
     const rotWidth = 96;        // 显示宽（128 × 0.75）
     const rotHeight = 96;       // 显示高（128 × 0.75）
     const rotLeftBaseX = 100;   // 左按钮基准 x
@@ -294,7 +294,7 @@ export class GameScene extends Phaser.Scene {
     // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
     // 这里先放 1 个做定位基准。
     const selLineXOffset = 0;   // 水平偏移
-    const selLineYOffset = 35;   // 垂直偏移
+    const selLineYOffset = 28;   // 垂直偏移
     const selLineScale = 0.78;                    // 整体等比缩放（1 = 源帧 128×808）
     const selLineWidth = 128 * selLineScale;   // 显示宽
     const selLineHeight = 808 * selLineScale;  // 显示高
