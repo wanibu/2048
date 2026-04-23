@@ -15,7 +15,7 @@ import {
 
 export class MenuScene extends Phaser.Scene {
   private headImages: Phaser.GameObjects.Image[] = [];
-  private readonly debugBackgroundOnly = true;
+  private readonly debugBackgroundOnly = false;
 
   constructor() {
     super({ key: 'MenuScene' });

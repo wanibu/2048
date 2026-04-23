@@ -4,10 +4,12 @@ export const GAME_HEIGHT = 960;
 
 export const PLAY_BACKGROUND_DISPLAY_WIDTH = 958;
 export const PLAY_BACKGROUND_DISPLAY_HEIGHT = 1630;
+// Menu & Game 两个场景视觉一致：共用同一组背景坐标。
+// data.json 原始值：Menu (-158, -314), Game (-158, -402)；这里是手动 tune 后的值。
 export const PLAY_BACKGROUND_MENU_X = 0;
 export const PLAY_BACKGROUND_MENU_Y = -310;
-export const PLAY_BACKGROUND_GAME_X = -158;
-export const PLAY_BACKGROUND_GAME_Y = -402;
+export const PLAY_BACKGROUND_GAME_X = PLAY_BACKGROUND_MENU_X;
+export const PLAY_BACKGROUND_GAME_Y = PLAY_BACKGROUND_MENU_Y;
 
 // Grid configuration
 export const GRID_COLS = 5;

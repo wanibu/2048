@@ -47,6 +47,8 @@ export class GameScene extends Phaser.Scene {
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
   private readonly debugDisableButtonActions = false;
   private readonly showButtonHitAreaDebug = false;
+  // 分阶段调试：只渲染 PlayBackground，跳过 Girl / 棋盘 / 分数 / 按钮 / tray 等所有其他 UI
+  private readonly debugBackgroundOnly = true;
   // Scene 是 Phaser 的主要工作单元。
   // 一个 Scene 往往对应一个页面状态，例如菜单、战斗、暂停后的主场景等。
   private grid!: Grid;
@@ -155,34 +157,64 @@ export class GameScene extends Phaser.Scene {
     this.isPauseOpen = false;
     this.ensureBackgroundMusic();
 
-    // camera.main.width/height 是当前 Scene 的可见尺寸。
-    // 这里先取当前画面大小，再计算整个 UI 的布局。
+    // 模拟 C3 fullscreen scale-outer：把 640×960 的 design layout 居中到被拉大的视窗里。
+    this.cameras.main.setScroll(
+      (GAME_WIDTH - this.cameras.main.width) / 2,
+      (GAME_HEIGHT - this.cameras.main.height) / 2,
+    );
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
 
-    // 背景：data.json Game/Play layer instance x=-158, y=-402, size=958x1630.
-    const bgY = Math.max(PLAY_BACKGROUND_GAME_Y, h - PLAY_BACKGROUND_DISPLAY_HEIGHT);
-    const bg = this.add.image(PLAY_BACKGROUND_GAME_X, bgY, 'playbackground');
+    // ===== 1. PlayBackground（data.json Game 实例：x=-158, y=-402, size=958×1630, origin=(0,0)）=====
+    const bg = this.add.image(PLAY_BACKGROUND_GAME_X, PLAY_BACKGROUND_GAME_Y, 'playbackground');
     bg.setOrigin(0, 0);
     bg.setDisplaySize(PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_DISPLAY_HEIGHT);
     bg.setDepth(-1000);
 
-    // 底座背景 mobile-tray（原尺寸781×260，居中贴底）
-    // textures.get() 取得已经 preload 的整张图。
-    // tex.add(...) 则是在这张图里“切”出一个 frame，后面可以像独立素材一样引用。
-    const tex = this.textures.get('shared0');
-    if (!tex.has('mobile-tray')) {
-      tex.add('mobile-tray', 0, 893, 752, 781, 260);
+    // ===== 2. 底座 Panel（data.json Game 实例：x=320, y=960, size=837×234, origin=(0.5, 1)）=====
+    // 源帧：shared-0-sheet0.png @ (770, 736, 1024, 273)，pivot (0.5, 1)。
+    // data.json 实例的 display size 837×234 和源帧 1024×273 不是等比（1024→837 = 0.817，273→234 = 0.857）。
+    const trayXOffset = 0;   // 水平偏移
+    const trayYOffset = 211;   // 垂直偏移：负往上、正往下
+    const trayWidth = 837;   // data.json 实例宽
+    const trayHeight = 234;  // data.json 实例高
+    const trayTex = this.textures.get('shared0-orig');
+    if (!trayTex.has('panel-default')) {
+      trayTex.add('panel-default', 0, 770, 736, 1024, 273);
     }
-    const trayScale = w / 781; // 宽度铺满
-    const trayH = 260 * trayScale;
-    const tray = this.add.image(0, h - trayH - 82, 'shared0', 'mobile-tray');
-    tray.setOrigin(0, 0); // 左上角对齐
-    tray.setScale(trayScale, trayScale * 1.39);
+    const tray = this.add.image(320 + trayXOffset, 960 + trayYOffset, 'shared0-orig', 'panel-default');
+    tray.setOrigin(0.5, 1);
+    tray.setDisplaySize(trayWidth, trayHeight);
     tray.setDepth(70);
 
+    if (this.debugBackgroundOnly) {
+      return;
+    }
+
+    // ===== 3. Girl（data.json Girl 对象，Default 动画首帧：sheet0 @ (769,769,204,244), origin=(0.4167, 0.9959)）=====
+    // 源自 sprite-debug-combo-chain-preview.html：640×960 design 里 Girl 占右下角，scale 0.75。
+    // 以下 offset 为手动微调用：改偏移即可，基准值保留。
+    const girlXOffset = 0;   // 水平偏移：负往左、正往右
+    const girlYOffset = 0;   // 垂直偏移：负往上、正往下
+    const girlScale = 0.75;  // 缩放：0.75 跟预览页一致
+    const girlTex = this.textures.get('girl-full');
+    if (!girlTex.has('girl-default')) {
+      girlTex.add('girl-default', 0, 769, 769, 204, 244);
+    }
+    // Girl 右下角位置（CSS: right:30 bottom:10 → design x=610 y=950 为 sprite 右下）
+    // 用 origin (0.4167, 0.9959) 把 pivot 点放到 (girlX, girlY)
+    const girlBaseX = 491;  // pivot 世界 X 基准（= design 610 - 204*(1-0.4167)*0.75 ≈ 491）
+    const girlBaseY = 950;  // pivot 世界 Y 基准（Girl 脚底贴 design 底部附近）
+    const girl = this.add.image(girlBaseX + girlXOffset, girlBaseY + girlYOffset, 'girl-full', 'girl-default');
+    girl.setOrigin(0.4167, 0.9959);
+    girl.setScale(girlScale);
+    girl.setDepth(50);
+
+    // （原 tray 块已迁移到 debug return 之前，改为 data.json Panel 实例坐标）
+    const tex = this.textures.get('shared0');
     // 坑（candy-hole）原尺寸120×120，底部居中，在tray上一层
+    const trayH = trayHeight;
     const tex2 = this.textures.get('shared2');
     if (!tex2.has('candy-hole')) {
       tex2.add('candy-hole', 0, 260, 263, 120, 120);

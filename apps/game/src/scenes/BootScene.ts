@@ -48,6 +48,10 @@ export class BootScene extends Phaser.Scene {
 
     // Background
     this.load.image('playbackground', 'assets/images/playbackground-sheet0.png');
+    // Girl 角色 sheet（Game 场景用，1024×1024，含 Default/Blink/Surprise 三组动画）
+    this.load.image('girl-full', 'assets/images/girl-sheet0.png');
+    // 原版 shared-0-sheet0.png（未重排的原图，给 Panel 等用 data.json 原坐标的对象）
+    this.load.image('shared0-orig', 'assets/images/shared-0-sheet0.png');
 
     // Audio
     this.load.audio('slingshot1', 'assets/audio/slingshot1.webm');
@@ -70,6 +74,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start('MenuScene');
+    // 调试 GameScene 时跳过菜单直接进游戏。要恢复走菜单，把下行改回 'MenuScene'。
+    this.scene.start('GameScene');
   }
 }
