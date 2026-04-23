@@ -72,20 +72,21 @@ export class MenuScene extends Phaser.Scene {
     }
     this.startBlinkLoop();
 
-    if (this.debugBackgroundOnly) {
-      return;
-    }
-
-    // ===== 4. Play 按钮（原版 Menu 实例位置）=====
+    // ===== 4. Play 按钮（data.json Menu 实例：x=320, y=490, size=270×253.125, origin=(0.5,0.5)）=====
+    // 源帧 256×240，按 data.json 实例尺寸显示，取代 setScale(1.054)。
     this.registerFrame('shared1', 'play-btn', { x: 515, y: 769, w: 256, h: 240 });
     const playBtn = this.add.image(w / 2, 490, 'shared1', 'play-btn');
-    playBtn.setScale(1.054);
+    playBtn.setDisplaySize(270, 253.125);
     playBtn.setDepth(20);
     playBtn.setInteractive({ useHandCursor: true });
     playBtn.on('pointerdown', () => this.scene.start('GameScene'));
 
     // ===== 5. "2048" 标题进场：4 数字依次飞入 + BorderExplodeAnimation =====
     this.createTitleDigits();
+
+    if (this.debugBackgroundOnly) {
+      return;
+    }
 
     // // 4. 糖果球拼"2048"（depth 15）——旧代码
     // const candyValues = [2, 0, 4, 8];
@@ -135,11 +136,13 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createTitleDigits(): void {
+    // 整体 Y 偏移：负数往上、正数往下，不碰 x 关系
+    const titleYOffset = -185;
     const digits = [
-      { value: 2, x: 94, y: 584 },
-      { value: 0, x: 254, y: 504 },
-      { value: 4, x: 408, y: 504 },
-      { value: 8, x: 546, y: 584 },
+      { value: 2, x: 94, y: 584 + titleYOffset },
+      { value: 0, x: 254, y: 504 + titleYOffset },
+      { value: 4, x: 408, y: 504 + titleYOffset },
+      { value: 8, x: 546, y: 584 + titleYOffset },
     ];
     const firstDelay = 500;
     const stagger = 250;
