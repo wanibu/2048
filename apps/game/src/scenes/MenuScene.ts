@@ -74,9 +74,13 @@ export class MenuScene extends Phaser.Scene {
 
     // ===== 4. Play 按钮（data.json Menu 实例：x=320, y=490, size=270×253.125, origin=(0.5,0.5)）=====
     // 源帧 256×240，按 data.json 实例尺寸显示，取代 setScale(1.054)。
+    // 以下三个 offset 为手动微调用：改偏移即可，基准值保留 data.json 原值。
+    const playBtnXOffset = 0;     // ← 水平偏移：负往左、正往右
+    const playBtnYOffset = 69;     // ← 垂直偏移：负往上、正往下
+    const playBtnScale = 1;       // ← 整体放大倍率：1 = data.json 原尺寸
     this.registerFrame('shared1', 'play-btn', { x: 515, y: 769, w: 256, h: 240 });
-    const playBtn = this.add.image(w / 2, 490, 'shared1', 'play-btn');
-    playBtn.setDisplaySize(270, 253.125);
+    const playBtn = this.add.image(w / 2 + playBtnXOffset, 490 + playBtnYOffset, 'shared1', 'play-btn');
+    playBtn.setDisplaySize(270 * playBtnScale, 253.125 * playBtnScale);
     playBtn.setDepth(20);
     playBtn.setInteractive({ useHandCursor: true });
     playBtn.on('pointerdown', () => this.scene.start('GameScene'));
