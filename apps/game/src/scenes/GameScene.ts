@@ -279,22 +279,10 @@ export class GameScene extends Phaser.Scene {
     giant.setOrigin(0.505938, 0.501639);
     giant.setDisplaySize(421 * giantScale, 610 * giantScale);
     giant.setAngle(giantAngleDeg);
-    giant.setDepth(-10);  // Giant 在棋盘 gridObj(-5) 后面、PlayBackground(-1000) 前面（原版手抱板子，板子盖住身体）
+    giant.setDepth(-10);  // Giant 在棋盘 Grid.boardBg(depth -1) 后面（原版手抱板子，板子盖住身体）
 
-    // ===== 8. Grid 棋盘背景（data.json Game 实例：x=320, y=420, size=630×586, origin=(0.5038, 0.4898)）=====
-    // 源帧：shared-0-sheet0.png @ (770, 1, 788, 733)。display 尺寸 630×586 比源帧略小。
-    const gridXOffset = 0;    // 水平偏移
-    const gridYOffset = 0;    // 垂直偏移
-    const gridWidth = 630;    // data.json 实例宽
-    const gridHeight = 586;   // data.json 实例高
-    const gridTex = this.textures.get('shared0-orig');
-    if (!gridTex.has('grid-default')) {
-      gridTex.add('grid-default', 0, 770, 1, 788, 733);
-    }
-    const gridObj = this.add.image(320 + gridXOffset, 420 + gridYOffset, 'shared0-orig', 'grid-default');
-    gridObj.setOrigin(0.503807, 0.489768);
-    gridObj.setDisplaySize(gridWidth, gridHeight);
-    gridObj.setDepth(-5);   // 棋盘背景放在糖果（depth 0）下面、PlayBackground(-1000) 上面
+    // 棋盘背景 Grid 由 Grid 类统一创建（config.ts: BOARD_BG_REGION 已对齐 data.json (770,1,788,733)）
+    // debug 段不再重复。
 
     // ===== 9. SelectedLineO 列高亮条（data.json 源帧：shared-0-sheet1.png @ (847, 1, 128, 808), pivot (0.5, 0.5)）=====
     // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
@@ -659,8 +647,6 @@ export class GameScene extends Phaser.Scene {
     this.hud = new HUD(this, w, false);
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
     this.grid = new Grid(this, layout);
-    // 隐藏 Grid 类自己画的棋盘背景 —— 棋盘视觉已由 debug 段的 gridObj (data.json 参数) 负责
-    this.grid.boardBg.setVisible(false);
     // 合并系统：BFS扫描相邻同值方块，执行合并
     this.mergeSystem = new MergeSystem(this.grid);
     // 旋转系统：数据层矩阵转置 + 视觉Tween动画

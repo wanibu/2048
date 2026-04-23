@@ -26,22 +26,22 @@ export interface LayoutConfig {
   height: number;
 }
 
-// 棋盘背景固定按 771×771 的原始尺寸缩放到 0.8
+// 棋盘背景缩放：data.json Grid 实例 630/788 ≈ 0.8（788 × 0.8 = 630.4 ≈ 630）
 export const BOARD_SCALE = 0.8;
 export const BOARD_OFFSET_X = 0;
-export const BOARD_OFFSET_Y = -55;
-// 网格在棋盘背景内部的比例（网格区域 / 棋盘背景）
-// 调试中略微放大一点，便于和底图格槽对齐
-export const GRID_INSIDE_RATIO = 0.78;
+export const BOARD_OFFSET_Y = 0;
+// 网格在棋盘背景内部的比例：
+// C3 全局变量 CellSize=93.5，5 格总宽 = 467.5；棋盘显示宽 630 → 467.5/630 ≈ 0.742
+export const GRID_INSIDE_RATIO = 0.742;
 
 export function calcLayout(w: number, h: number): LayoutConfig {
-  // 以棋盘背景的真实显示尺寸为准，而不是按视口宽度估算
+  // 棋盘显示尺寸 = data.json Grid 实例 630×586（源 788×733 × 0.8）
   const boardDisplaySize = BOARD_BG_REGION.w * BOARD_SCALE;
   const gridWidth = boardDisplaySize * GRID_INSIDE_RATIO;
   const cellSize = gridWidth / GRID_COLS;
-  const boardCenterX = w / 2 + BOARD_OFFSET_X;
-  const boardCenterY = h / 2 + BOARD_OFFSET_Y;
-  // 网格中心 = 页面中心，反推 offset
+  // 棋盘中心 = data.json Game 实例硬编码 (320, 420)，不随 canvas 尺寸浮动
+  const boardCenterX = 320 + BOARD_OFFSET_X;
+  const boardCenterY = 420 + BOARD_OFFSET_Y;
   const gridOffsetX = boardCenterX - gridWidth / 2;
   const gridOffsetY = boardCenterY - (GRID_ROWS * cellSize) / 2;
   return { cellSize, gridOffsetX, gridOffsetY, boardCenterX, boardCenterY, width: w, height: h };
@@ -147,7 +147,8 @@ export const STONE_REGION: SpriteRegion = { x: 0, y: 0, w: 128, h: 128 };
 
 // 棋盘背景素材：shared-0-sheet0.png 771×771
 // CSS: background-position: -781px 24px（x=-781px, y=24px 固定不变）
-export const BOARD_BG_REGION: SpriteRegion = { x: 781, y: -24, w: 771, h: 771 };
+// 棋盘背景（data.json Grid Default 帧：shared-0-sheet0.png @ (770, 1, 788, 733)）
+export const BOARD_BG_REGION: SpriteRegion = { x: 770, y: 1, w: 788, h: 733 };
 
 // 底座背景素材：shared-0-sheet0.png (1026×261)
 export const BASE_BG_REGION: SpriteRegion = { x: 768, y: 752, w: 1026, h: 261 };

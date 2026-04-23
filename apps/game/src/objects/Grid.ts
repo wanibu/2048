@@ -47,12 +47,13 @@ export class Grid {
   }
 
   private drawGrid(): void {
-    // 棋盘背景 771×771，固定裁切坐标(x=-786px, y=21px)，居中页面，等比缩放
-    const tex = this.scene.textures.get('shared0');
+    // 棋盘背景（data.json Grid Default 帧：shared-0-sheet0.png @ (770, 1, 788, 733)，origin=(0.5038, 0.4898)）
+    const tex = this.scene.textures.get('shared0-orig');
     if (!tex.has('board_bg')) {
       tex.add('board_bg', 0, BOARD_BG_REGION.x, BOARD_BG_REGION.y, BOARD_BG_REGION.w, BOARD_BG_REGION.h);
     }
-    this.boardBg = this.scene.add.image(0, 0, 'shared0', 'board_bg');
+    this.boardBg = this.scene.add.image(0, 0, 'shared0-orig', 'board_bg');
+    this.boardBg.setOrigin(0.503807, 0.489768);
     this.boardBg.setScale(BOARD_SCALE);
     this.boardBg.setDepth(-1);
     this.backgroundLayer.add(this.boardBg);
