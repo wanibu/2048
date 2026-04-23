@@ -370,6 +370,26 @@ export class GameScene extends Phaser.Scene {
     crownUI.setDisplaySize(crownSize, crownSize);
     crownUI.setDepth(90);
 
+    // ===== 13. SoundB（data.json 源帧：shared2，帧 0=(131,513,128,128) 开启，帧 1=(1,513,128,128) 静音，pivot (0.5, 0.5)）=====
+    // 音效开关按钮。Game layout 里无静态实例。默认显示"开启"帧。
+    const soundXOffset = -10;       // 水平偏移
+    const soundYOffset = -200;       // 垂直偏移
+    const soundScale = 0.66;       // 缩放（0.5 = 64×64）
+    const soundSize = 128 * soundScale;
+    const soundTex = this.textures.get('shared2');
+    if (!soundTex.has('sound-on')) {
+      soundTex.add('sound-on', 0, 131, 513, 128, 128);
+    }
+    if (!soundTex.has('sound-off')) {
+      soundTex.add('sound-off', 0, 1, 513, 128, 128);
+    }
+    const soundBaseX = 596;       // 右上基准 x（= 640 - 44，跟左侧 StarUI 对称）
+    const soundBaseY = 38;        // 跟 StarUI 同高
+    const soundB = this.add.image(soundBaseX + soundXOffset, soundBaseY + soundYOffset, 'shared2', 'sound-on');
+    soundB.setOrigin(0.5, 0.5);
+    soundB.setDisplaySize(soundSize, soundSize);
+    soundB.setDepth(90);
+
     if (this.debugBackgroundOnly) {
       return;
     }
