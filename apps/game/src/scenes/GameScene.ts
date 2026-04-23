@@ -294,8 +294,8 @@ export class GameScene extends Phaser.Scene {
     // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
     // 这里先放 1 个做定位基准。
     const selLineXOffset = 0;   // 水平偏移
-    const selLineYOffset = 110;   // 垂直偏移
-    const selLineScale = 1;                    // 整体等比缩放（1 = 源帧 128×808）
+    const selLineYOffset = 35;   // 垂直偏移
+    const selLineScale = 0.78;                    // 整体等比缩放（1 = 源帧 128×808）
     const selLineWidth = 128 * selLineScale;   // 显示宽
     const selLineHeight = 808 * selLineScale;  // 显示高
     const selLineTex = this.textures.get('shared1');
