@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — MergeEffect 原版 14 帧 Twinkle 动画</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #2b2f3d; color: #eee; padding: 20px; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 20px; }
+h2 { color: #ff9800; margin: 20px 0 8px; font-size: 16px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 20px; line-height: 1.6; }
+.info code { color: #ffd54a; background: rgba(255, 213, 74, 0.1); padding: 1px 6px; border-radius: 3px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+.back:hover { text-decoration: underline; }
+
+.stage-wrap { display: flex; gap: 30px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage {
+  position: relative; width: 400px; height: 400px;
+  background: #1a1d27; border: 2px solid #444; overflow: hidden;
+}
+/* 石头底图参考，确认闪烁是否对准 */
+.stone-base {
+  position: absolute; left: 50%; top: 50%;
+  width: 128px; height: 128px;
+  background: url('/assets/images/border-sheet0.png') no-repeat -2px -1px;
+  transform: translate(-50%, -50%);
+  border: 1px dashed rgba(255, 229, 127, 0.8);
+  opacity: 0.85;
+  z-index: 1;
+  pointer-events: none;
+}
+.anchor-marker {
+  position: absolute; left: 50%; top: 50%;
+  width: 10px; height: 10px;
+  background: #ff3355; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+.frame-sprite { position: absolute; z-index: 2; }
+
+.side-panel { flex: 1; min-width: 260px; }
+.speed-ctl { margin-bottom: 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.speed-ctl input[type=number] {
+  width: 80px; padding: 4px 6px; background: #1a1d27; color: #eee;
+  border: 1px solid #555; border-radius: 3px; font-family: inherit;
+}
+.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.controls button {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: bold;
+}
+.controls button.secondary { background: #6c7280; }
+.controls button.tertiary { background: #10b981; }
+#frameInfo { font-size: 12px; color: #a5adc1; padding: 8px; background: #1a1d27; border-radius: 3px; min-height: 40px; }
+
+.frame-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.frame-card {
+  padding: 10px; background: #1a1d27; border: 1px solid #444;
+  border-radius: 4px; text-align: center;
+}
+.frame-card .cropped {
+  display: inline-block; background-repeat: no-repeat; margin-bottom: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.frame-card .label { font-size: 10px; color: #a5adc1; line-height: 1.5; }
+.frame-card .label strong { color: #ffd54a; }
+.frame-card .label .sheet { color: #4caf50; }
+</style>
+</head>
+<body>
+<a class="back" href="/sprite-debug-index.html">← 返回索引</a>
+<h1>MergeEffect — 原版 14 帧 Twinkle 动画</h1>
+<div class="info">
+从 Construct 3 原版 <code>data.json</code> 反推的真实参数。<br>
+<b>14 帧</b>，变尺寸（50×64 至 162×168），每帧独立 pivot，用了 3 张 sheet：<br>
+<code>mergeeffect-sheet0.png</code> / <code>-sheet1.png</code> / <code>-sheet2.png</code><br>
+播放速度 <b>25 fps</b>（40ms/帧），一次性（不循环）
+</div>
+
+<h2>播放区域</h2>
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="stone-base" title="石头底图参考"></div>
+    <div class="anchor-marker" title="动画锚点（所有帧的 pivot 都会对到这里）"></div>
+  </div>
+  <div class="side-panel">
+    <div class="speed-ctl">
+      <label>每帧时长(ms):</label>
+      <input type="number" id="frameDur" value="40" min="10" max="500">
+      <span style="color:#555">(25fps = 40ms)</span>
+    </div>
+    <div class="controls">
+      <button id="playBtn">▶ 播放一次</button>
+      <button id="loopBtn">↻ 循环播放</button>
+      <button class="secondary" id="stopBtn">■ 停止</button>
+    </div>
+    <div id="frameInfo">点击"播放"开始</div>
+    <div style="margin-top:12px;font-size:12px;color:#8d97ad;line-height:1.5">
+      红点 = 动画锚点；黄色虚线框 = 石头底图参考位置（128×128）<br>
+      所有帧的 pivot 点都会对准红点，由 C3 控制"膨胀"视觉
+    </div>
+  </div>
+</div>
+
+<h2>14 帧拆解（单独查看每一帧贴图 + 尺寸 + pivot）</h2>
+<div class="frame-list" id="frameList"></div>
+
+<script>
+// 14 帧真实参数（从 game/1988901048489435138/data.json 抓取）
+const FRAMES = [
+  { sheet: 1, x: 0,   y: 0,   w: 50,  h: 64,  pivotX: 0.320, pivotY: 0.391 },
+  { sheet: 0, x: 385, y: 897, w: 70,  h: 90,  pivotX: 0.314, pivotY: 0.344 },
+  { sheet: 0, x: 129, y: 897, w: 83,  h: 106, pivotX: 0.313, pivotY: 0.330 },
+  { sheet: 0, x: 385, y: 769, w: 111, h: 125, pivotX: 0.423, pivotY: 0.384 },
+  { sheet: 0, x: 1,   y: 769, w: 125, h: 154, pivotX: 0.448, pivotY: 0.481 },
+  { sheet: 0, x: 159, y: 513, w: 136, h: 185, pivotX: 0.463, pivotY: 0.514 },
+  { sheet: 0, x: 257, y: 1,   w: 143, h: 207, pivotX: 0.469, pivotY: 0.541 },
+  { sheet: 0, x: 156, y: 257, w: 148, h: 226, pivotX: 0.473, pivotY: 0.566 },
+  { sheet: 0, x: 1,   y: 257, w: 153, h: 227, pivotX: 0.477, pivotY: 0.568 },
+  { sheet: 0, x: 297, y: 513, w: 153, h: 164, pivotX: 0.484, pivotY: 0.409 },
+  { sheet: 0, x: 1,   y: 513, w: 156, h: 167, pivotX: 0.481, pivotY: 0.431 },
+  { sheet: 0, x: 306, y: 257, w: 162, h: 168, pivotX: 0.463, pivotY: 0.458 },
+  { sheet: 0, x: 257, y: 961, w: 124, h: 62,  pivotX: 0.250, pivotY: 1.306 },
+  { sheet: 2, x: 0,   y: 0,   w: 13,  h: 13,  pivotX: -6.462, pivotY: 3.077 },
+];
+
+const SHEETS = [
+  '/assets/images/mergeeffect-sheet0.png',
+  '/assets/images/mergeeffect-sheet1.png',
+  '/assets/images/mergeeffect-sheet2.png',
+];
+
+// Stage 是 400×400，锚点在正中央
+const ANCHOR_X = 200;
+const ANCHOR_Y = 200;
+
+const stage = document.getElementById('stage');
+const frameInfoEl = document.getElementById('frameInfo');
+let currentSprite = null;
+let animInterval = null;
+
+function showFrame(idx) {
+  if (currentSprite) currentSprite.remove();
+  const f = FRAMES[idx];
+  const el = document.createElement('div');
+  el.className = 'frame-sprite';
+  el.style.width = f.w + 'px';
+  el.style.height = f.h + 'px';
+  el.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+  el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  // sprite top-left = anchor - pivot*size（让 pivot 点落在 anchor）
+  el.style.left = (ANCHOR_X - f.pivotX * f.w) + 'px';
+  el.style.top = (ANCHOR_Y - f.pivotY * f.h) + 'px';
+  stage.appendChild(el);
+  currentSprite = el;
+  frameInfoEl.innerHTML =
+    `<b>frame ${idx}</b> / ${FRAMES.length - 1}<br>` +
+    `sheet${f.sheet}.png · 源 (${f.x},${f.y}) · 尺寸 ${f.w}×${f.h}<br>` +
+    `pivot = (${f.pivotX.toFixed(3)}, ${f.pivotY.toFixed(3)})`;
+}
+
+function play(loop) {
+  stopAnim();
+  let idx = 0;
+  const dur = Math.max(10, parseInt(document.getElementById('frameDur').value) || 40);
+  showFrame(idx);
+  animInterval = setInterval(() => {
+    idx++;
+    if (idx >= FRAMES.length) {
+      if (loop) {
+        idx = 0;
+      } else {
+        stopAnim();
+        frameInfoEl.innerHTML += '<br><span style="color:#10b981">✓ 播放结束</span>';
+        return;
+      }
+    }
+    showFrame(idx);
+  }, dur);
+}
+
+function stopAnim() {
+  if (animInterval) {
+    clearInterval(animInterval);
+    animInterval = null;
+  }
+}
+
+document.getElementById('playBtn').addEventListener('click', () => play(false));
+document.getElementById('loopBtn').addEventListener('click', () => play(true));
+document.getElementById('stopBtn').addEventListener('click', stopAnim);
+
+// 初始显示第 0 帧
+showFrame(0);
+
+// 构建 14 帧缩略图列表
+const frameList = document.getElementById('frameList');
+FRAMES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'frame-card';
+  const img = document.createElement('div');
+  img.className = 'cropped';
+  img.style.width = f.w + 'px';
+  img.style.height = f.h + 'px';
+  img.style.background = `url('${SHEETS[f.sheet]}') no-repeat`;
+  img.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+  card.appendChild(img);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.innerHTML =
+    `<strong>帧${i}</strong> · <span class="sheet">sheet${f.sheet}</span><br>` +
+    `${f.w}×${f.h}<br>` +
+    `pivot (${f.pivotX.toFixed(2)}, ${f.pivotY.toFixed(2)})`;
+  card.appendChild(label);
+  card.addEventListener('click', () => {
+    stopAnim();
+    showFrame(i);
+  });
+  card.style.cursor = 'pointer';
+  card.title = '点击查看此帧单独效果';
+  frameList.appendChild(card);
+});
+</script>
+</body>
+</html>

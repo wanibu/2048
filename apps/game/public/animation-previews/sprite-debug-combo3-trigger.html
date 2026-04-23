@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combo x3 触发链条完整描述</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #1e212d; color: #eee; padding: 20px; line-height: 1.6; }
+h1 { color: #ffd54a; margin-bottom: 6px; font-size: 24px; }
+h2 { color: #ff9800; margin: 28px 0 8px; font-size: 18px; border-bottom: 2px solid #ff9800; padding-bottom: 4px; }
+h3 { color: #ffe57f; margin: 20px 0 8px; font-size: 15px; }
+.sub { color: #8d97ad; font-size: 12px; margin-bottom: 20px; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+.back:hover { text-decoration: underline; }
+
+code { color: #ffd54a; background: rgba(255,213,74,0.10); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+b { color: #fff; }
+
+.trigger-card {
+  background: linear-gradient(135deg, #d6336c 0%, #e67700 100%);
+  color: #fff; padding: 20px; border-radius: 8px;
+  margin-bottom: 24px; text-align: center;
+  box-shadow: 0 4px 16px rgba(230,119,0,0.3);
+}
+.trigger-card .tt { font-size: 14px; opacity: 0.9; letter-spacing: 2px; margin-bottom: 8px; }
+.trigger-card .tc { font-size: 28px; font-weight: bold; }
+.trigger-card .td { font-size: 12px; margin-top: 8px; opacity: 0.85; }
+
+/* 时间轴 */
+.timeline {
+  position: relative; padding-left: 24px; margin-top: 16px;
+}
+.timeline::before {
+  content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+  width: 2px; background: linear-gradient(#ffd54a 0%, #ff9800 50%, #d6336c 100%);
+}
+.tl-item {
+  position: relative; margin-bottom: 20px; padding: 12px 16px;
+  background: #262a38; border-radius: 6px; border-left: 3px solid #ffd54a;
+}
+.tl-item::before {
+  content: ''; position: absolute; left: -24px; top: 16px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #ffd54a; border: 3px solid #1e212d;
+}
+.tl-time {
+  display: inline-block; padding: 2px 10px; border-radius: 10px;
+  background: #1e212d; color: #ffd54a; font-size: 11px; font-weight: bold;
+  margin-bottom: 6px;
+}
+.tl-title { color: #ffd54a; font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+.tl-desc { color: #a5adc1; font-size: 12px; }
+.tl-detail {
+  margin-top: 8px; padding: 8px 10px; background: #1a1d27;
+  border-radius: 4px; font-size: 11px; color: #8d97ad;
+  border-left: 2px solid #4caf50;
+}
+.tl-detail .label { color: #4caf50; font-weight: bold; }
+
+/* concurrent 区分 */
+.tl-item.concurrent { border-left-color: #4caf50; }
+.tl-item.concurrent::before { background: #4caf50; }
+.tl-item.delayed { border-left-color: #1971c2; }
+.tl-item.delayed::before { background: #1971c2; }
+.tl-item.final { border-left-color: #d6336c; }
+.tl-item.final::before { background: #d6336c; }
+
+/* 对比表 */
+table {
+  width: 100%; border-collapse: collapse; margin-top: 10px;
+  background: #262a38; border-radius: 6px; overflow: hidden;
+}
+th, td {
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid #333; font-size: 12px;
+}
+th { background: #1a1d27; color: #ffd54a; font-size: 11px; }
+tr:last-child td { border-bottom: none; }
+td code { font-size: 11px; }
+
+.evidence {
+  background: #262a38; padding: 14px; border-radius: 6px;
+  margin: 12px 0; border-left: 3px solid #6741d9;
+}
+.evidence pre {
+  color: #a5adc1; background: #1a1d27; padding: 10px;
+  border-radius: 4px; font-size: 11px; line-height: 1.5;
+  overflow-x: auto; margin-top: 6px;
+}
+.evidence .tag {
+  display: inline-block; padding: 1px 8px; border-radius: 3px;
+  background: #6741d9; color: #fff; font-size: 10px;
+  font-weight: bold; margin-right: 6px;
+}
+
+.nav-btns {
+  display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 24px;
+}
+.nav-btns a {
+  padding: 8px 14px; background: #2f7ed8; color: #fff;
+  border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;
+}
+.nav-btns a.alt { background: #6c7280; }
+</style>
+</head>
+<body>
+<a class="back" href="/sprite-debug-index.html">← 返回索引</a>
+<h1>Combo x3 触发链条 — 完整描述</h1>
+<div class="sub">从 C3 原版 data.json 反推。本页描述"连续 3 次合并"触发的完整视觉+逻辑链条。</div>
+
+<div class="trigger-card">
+  <div class="tt">TRIGGER CONDITION</div>
+  <div class="tc">🔥 连续 3 次合并</div>
+  <div class="td">一次出手后棋盘上发生 3 次（或更多）连锁合并</div>
+</div>
+
+<div class="nav-btns">
+  <a href="/sprite-debug-combo-chain-preview.html">▶ 交互式预览页</a>
+  <a href="/sprite-debug-all-animations.html" class="alt">全部动画综合</a>
+  <a href="/sprite-debug-giant-preview.html" class="alt">Giant 动画</a>
+  <a href="/sprite-debug-girl-preview.html" class="alt">Girl 动画</a>
+  <a href="/sprite-debug-coinfly-preview.html" class="alt">CoinFly 动画</a>
+</div>
+
+<h2>1. 触发条件</h2>
+<p style="font-size:13px;color:#a5adc1;line-height:1.7">
+玩家射出一颗糖果，落地后引发 <b>合并链</b>：当一次出手产生 <b>≥3 次连续合并</b>（第 1 次合并产出的新糖果再触发第 2 次，第 2 次又触发第 3 次），系统判定为"Combo x3"，启动完整爽点链条。
+</p>
+<div class="evidence">
+  <span class="tag">Data 证据</span> <b>C3 事件 3 的条件</b>（pos 168500~169000）
+  <pre>[-1, 33, null, 0, true, false, false, ...,  null, [[1, [264]], [0, [4]], [0, [31]]]]
+   action id 33 = 条件 "On merge chain count ≥ 3"（推测）
+   参数 [264] = combo 阈值 3
+   参数 [4]   = 对象引用（Shape 链）
+   参数 [31]  = MergeEffect（作为动作对象）</pre>
+</div>
+
+<h2>2. 并发时间轴（修正版：多动画并发启动）</h2>
+<p style="font-size:13px;color:#a5adc1;line-height:1.7">
+代码层：多个动画在触发瞬间<b>同时启动</b>。<br>
+视觉层：玩家感觉 ComboSprite 最先出现，是因为它是<b>瞬时 pop</b>（100ms 内 scale 0→1.3），而其他动画是渐变过程（10帧 / 3帧 / Tween）。
+</p>
+
+<div class="timeline">
+
+<div class="tl-item concurrent">
+  <div class="tl-time">T = 0ms</div>
+  <div class="tl-title">① ComboSprite 弹出（立即出现）</div>
+  <div class="tl-desc">"COMBO!" 文字横幅在屏幕中间 scale 0 → 1.3 → 1.0 弹性弹出 + 音效 <code>combo.webm</code></div>
+  <div class="tl-detail">
+    <span class="label">对象:</span> <code>ComboSprite</code> (id 76) · 静态 512×305 · sheet0 @ (938, 1625)<br>
+    <span class="label">行为:</span> Tween（scale 0 → 1.3 → 1，约 200ms）<br>
+    <span class="label">生命周期:</span> 约 600ms（弹出 200 + 保持 300 + 淡出 100）
+  </div>
+</div>
+
+<div class="tl-item concurrent">
+  <div class="tl-time">T = 0ms</div>
+  <div class="tl-title">② Girl.Surprise 动画开始（右下角女孩）</div>
+  <div class="tl-desc">右下角女孩从 Default 切到 Surprise 动画（10 帧循环一次，13fps，770ms）</div>
+  <div class="tl-detail">
+    <span class="label">对象:</span> <code>Girl</code> (id 69) · girl-sheet0.png · pivot 脚底 (0.4~0.5, 0.996)<br>
+    <span class="label">动画:</span> Surprise · 10 帧 · 13fps · ~770ms<br>
+    <span class="label">触发:</span> <code>girl.setAnimation("Surprise")</code>（推测）
+  </div>
+</div>
+
+<div class="tl-item concurrent">
+  <div class="tl-time">T = 0ms</div>
+  <div class="tl-title">③ Giant 动画 + 位移开始（顶部红发巨人）</div>
+  <div class="tl-desc">Tween Y 向上位移（~50px） + 切 Scream 动画（3 帧张嘴咆哮）；张嘴后保持最后一帧等糖</div>
+  <div class="tl-detail">
+    <span class="label">对象:</span> <code>Giant</code> (id 23) · 行为 <code>Tween</code><br>
+    <span class="label">动画:</span> Scream · 3 帧 · 20fps · 150ms（然后 hold 在末帧）<br>
+    <span class="label">Tween:</span> Y 上移约 300ms cubic easing<br>
+    <span class="label">事件证据:</span> C3 event 5 "Giant" scope（pos 169537）<br>
+    <pre>[3, [true, "Giant"], ..., [
+  event 6: [10,119 检查动画="Default"] → [10,118 start Tween "Scream"],
+  event 7: [10,120 On anim ended] → [10,118 start Tween "Default"],
+  event 8: [10,47 Compare ...] → [10,118 start Tween ...]
+]]</pre>
+  </div>
+</div>
+
+<div class="tl-item concurrent">
+  <div class="tl-time">T = 0ms</div>
+  <div class="tl-title">④ 糖果生成（隐藏在 Girl 手中）</div>
+  <div class="tl-desc">Create N 颗 Shape 实例（N ≈ 3~8，与 combo 连击数相关），位置固定在右下 Girl 手部</div>
+  <div class="tl-detail">
+    <span class="label">对象:</span> 新建 <code>Shape</code> 实例（动态创建）<br>
+    <span class="label">事件证据:</span> C3 event 9 "Falling Shapes" scope（pos 170395）<br>
+    <pre>[3, [true, "Falling Shapes"], ..., [
+  event 10: [0,56 Set Bullet angle] + [0,57 Set Bullet speed] + [-1,34 Create Shape]
+  event 11~13: 不同 combo 等级的不同糖果数量 / 角度
+]]</pre>
+  </div>
+</div>
+
+<div class="tl-item delayed">
+  <div class="tl-time">T ≈ 100~200ms</div>
+  <div class="tl-title">⑤ 糖果逐颗从 Girl 手飞向 Giant 嘴</div>
+  <div class="tl-desc">每颗糖果被赋予 Bullet 初速度 + 重力，沿抛物线从右下飞向左上（Giant 嘴部）；糖果之间错开起飞 50~80ms</div>
+  <div class="tl-detail">
+    <span class="label">行为:</span> Bullet（初速 + 重力）+ 可能 Tween（飞入末端缩放）<br>
+    <span class="label">路径:</span> 右下 (≈400, 730) → 左上 (≈240, 320) 抛物线<br>
+    <span class="label">单颗时长:</span> 约 600~800ms<br>
+    <span class="label">事件证据:</span>
+    <pre>[0,56,"Bullet",...] / [0,57,"Bullet",...]  ← Falling Shapes event 10~13 里
+  56 = Set angle of motion
+  57 = Set speed</pre>
+  </div>
+</div>
+
+<div class="tl-item delayed">
+  <div class="tl-time">T ≈ 600~1200ms</div>
+  <div class="tl-title">⑥ 糖果被 Giant "吃掉"（逐颗到达）</div>
+  <div class="tl-desc">每颗糖果到达 Giant 嘴部坐标时淡出 + 销毁；Giant 嘴部有轻微 scale 脉冲反馈"接到"</div>
+  <div class="tl-detail">
+    <span class="label">逻辑:</span> Bullet.destroy on collision with Giant 或 到达目标 Y<br>
+    <span class="label">Giant 状态:</span> 保持 Scream 最后一帧（张嘴），等最后一颗被吃
+  </div>
+</div>
+
+<div class="tl-item final">
+  <div class="tl-time">T ≈ 1200ms</div>
+  <div class="tl-title">⑦ 加积分 + Giant 闭嘴回 Default</div>
+  <div class="tl-desc">
+    所有糖果吃完 → 触发分数累加 + Giant 切回 Default（闭嘴）<br>
+    Girl 也切回 Default（Surprise 播完自然回 Default）<br>
+    ComboSprite 已淡出销毁
+  </div>
+  <div class="tl-detail">
+    <span class="label">分数动作:</span> <code>[10, 108, null, ..., [[0, [129, [1, 10, 123, false]]]]]</code><br>
+    action 108 推测 = "Add to instance variable"（score += combo_bonus）<br>
+    <span class="label">Giant 回 Default:</span> <code>giant.setAnimation("Default")</code>
+  </div>
+</div>
+
+</div>
+
+<h2>3. 代码触发 vs 玩家感知对照</h2>
+<table>
+<tr><th>步骤</th><th>代码触发时间</th><th>玩家感知时刻</th><th>原因</th></tr>
+<tr><td>ComboSprite 横幅</td><td>T=0（并发）</td><td>最早看见</td><td>瞬时 pop（100ms 内 scale 0→1.3）比渐变动画抢眼</td></tr>
+<tr><td>Girl.Surprise</td><td>T=0（并发）</td><td>中段察觉</td><td>10 帧慢变化，需要几百 ms 才视觉明显</td></tr>
+<tr><td>Giant Tween Y + Scream</td><td>T=0（并发）</td><td>中段察觉</td><td>Tween 300ms + 3帧张嘴</td></tr>
+<tr><td>糖果飞行</td><td>T≈100~200（稍延）</td><td>中后段</td><td>需要在糖果被 Create 后</td></tr>
+<tr><td>加分</td><td>T≈1200（最后）</td><td>最后</td><td>等全部糖果吃完</td></tr>
+</table>
+
+<h2>4. 并发 vs 串联 —— 哪种更准？</h2>
+<p style="font-size:13px;color:#a5adc1;line-height:1.7">
+<b>并发（本文档推荐）</b>：所有视觉元素在触发瞬间同时启动。依赖的不是"一步一步等"而是<b>每个元素自身的动画时长</b>自然错开视觉焦点。C3 event sheet 的典型写法就是在一个父事件里并列多条 action，它们在同一 tick 内执行。<br><br>
+<b>串联</b>：上一个动画播完再起下一个。需要显式 Wait 或回调链。在 C3 event sheet 里用 <code>System → Wait</code> action 实现，但本次 data.json 里没有找到显式 Wait，所以<b>并发模型更吻合代码结构</b>。
+</p>
+
+<h2>5. 证据总结：data.json 里的关键块</h2>
+<div class="evidence">
+  <span class="tag">Event 3 触发</span> pos ~168500
+  <pre>[-1, 33, null, ...]  ← "On merge chain ≥ 3" 条件（action id 33）
+  ← 父事件，以下都是它的子事件</pre>
+</div>
+<div class="evidence">
+  <span class="tag">Event 5 Giant scope</span> pos 169537
+  <pre>[3, [true, "Giant"], ..., 5, [...conditions...], [], [sub-events...]]
+  Giant 有 Tween 行为 + 3 个动画（Default/Blink/Scream）</pre>
+</div>
+<div class="evidence">
+  <span class="tag">Event 9 Falling Shapes scope</span> pos 170395
+  <pre>[3, [true, "Falling Shapes"], ..., 9, ...]
+  内含 event 10~13，分别对应不同 combo 等级：
+    - event 10: combo=3 （基础档）
+    - event 11: combo=4
+    - event 12: combo=5
+    - event 13: combo=6+（末尾有 [10,108 加分] 动作）
+  每个 event 内：Create Shape + Set Bullet + ComboSprite action</pre>
+</div>
+<div class="evidence">
+  <span class="tag">Group "SpawnCandieX"</span> pos 109498
+  <pre>[1, "SpawnCandieX", 0, 0, false, ...]  ← 专门的糖果生成事件组
+  说明开发者把"combo 生糖"的逻辑抽象成独立 group</pre>
+</div>
+
+<h2>6. 实现到 Phaser 的要点</h2>
+<div style="background:#262a38;padding:14px;border-radius:6px;font-size:12px;color:#a5adc1;line-height:1.7">
+<b>1. 检测 3 连击</b>：<br>
+在 <code>checkMerges()</code> 里维护一个 <code>comboCount</code>，每次链式合并 +1；合并停止时判断 combo 阈值。<br><br>
+<b>2. 并发触发 3 个视觉事件</b>：<br>
+<pre style="background:#1a1d27;padding:8px;border-radius:3px;font-size:11px;color:#ffd54a;margin-top:6px">
+if (comboCount >= 3) {
+  // ① ComboSprite 弹出
+  this.showComboBanner();
+  // ② Girl.Surprise
+  this.girl.play('Surprise');
+  // ③ Giant Tween + Scream
+  this.tweens.add({ targets: giant, y: giant.y - 50, duration: 300, yoyo: true, ease: 'Cubic' });
+  giant.play('Scream');
+  // ④ 生成糖果 + Bullet
+  this.spawnCandiesToGiant(comboCount);
+}
+</pre>
+<b>3. 糖果飞行</b>：每颗用 Phaser Tween（path）从 Girl 手到 Giant 嘴，错开 60ms 起飞。<br><br>
+<b>4. 全部到达后</b>：<code>addScore(comboBonus)</code> + <code>giant.play('Default')</code>
+</div>
+
+<div style="margin-top:40px;padding:16px;background:rgba(255,213,74,0.08);border-left:3px solid #ffd54a;font-size:12px;color:#a5adc1;line-height:1.7">
+<b>本页是描述/文档页</b>，不含可播放预览。要看动画实际效果请打开：<br>
+• <a href="/sprite-debug-combo-chain-preview.html" style="color:#4caf50">组合预览（可调参数播放完整链条）</a><br>
+• <a href="/sprite-debug-girl-preview.html" style="color:#4caf50">Girl 动画预览</a><br>
+• <a href="/sprite-debug-giant-preview.html" style="color:#4caf50">Giant 动画预览</a>
+</div>
+
+</body>
+</html>

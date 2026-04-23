@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Animation Previews — data.json 驱动动画集</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 60px;
+    background: #ffffff;
+    color: #1a1a1a;
+    font-family: -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    letter-spacing: 0.3px;
+    color: #111;
+  }
+  p.sub {
+    margin: 0 0 28px;
+    color: #666;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  p.sub code {
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #0f6;
+    color: #047857;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  a.card {
+    display: block;
+    padding: 16px 18px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #1a1a1a;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  a.card:hover {
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+    transform: translateY(-2px);
+  }
+  a.card .name {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  a.card .title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #111;
+  }
+  .foot {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.7;
+  }
+  .foot a { color: #047857; }
+  .foot code {
+    background: #f3f4f6;
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #047857;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Animation Previews</h1>
+  <p class="sub">
+    从 C3 原版 <code>data.json</code> 反推坐标/帧参数的动画演示页合集。共 7 个页面，数据已硬编码进 HTML，独立静态页。
+  </p>
+
+  <div class="grid">
+    <a class="card" href="sprite-debug-all-animations.html">
+      <div class="name">sprite-debug-all-animations.html</div>
+      <div class="title">原版全部动画综合分析</div>
+    </a>
+    <a class="card" href="sprite-debug-combo3-trigger.html">
+      <div class="name">sprite-debug-combo3-trigger.html</div>
+      <div class="title">Combo × 3 触发链条完整描述</div>
+    </a>
+    <a class="card" href="sprite-debug-combo-chain-preview.html">
+      <div class="name">sprite-debug-combo-chain-preview.html</div>
+      <div class="title">Combo 爽点链条（Girl + Giant + CoinPlay Fly）</div>
+    </a>
+    <a class="card" href="sprite-debug-mergeeffect-preview.html">
+      <div class="name">sprite-debug-mergeeffect-preview.html</div>
+      <div class="title">MergeEffect 原版 14 帧 Twinkle 动画</div>
+    </a>
+    <a class="card" href="sprite-debug-borderexplode-preview.html">
+      <div class="name">sprite-debug-borderexplode-preview.html</div>
+      <div class="title">"2048" 标题进场动画（4 数字依次蹦 + 爆裂）</div>
+    </a>
+    <a class="card" href="sprite-debug-stonedestroy-preview.html">
+      <div class="name">sprite-debug-stonedestroy-preview.html</div>
+      <div class="title">StoneDestroy 原版 8 帧石头爆炸动画</div>
+    </a>
+    <a class="card" href="sprite-debug-sling-preview.html">
+      <div class="name">sprite-debug-sling-preview.html</div>
+      <div class="title">Sling 弹弓 4 帧</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    数据出处：<code>apps/game/public/data.json</code>（来自 <a href="https://mini-game.pwtk.cc/game/1988901048489435138/index.html" target="_blank">mini-game.pwtk.cc 线上版</a>）。<br>
+    本目录是原 <code>public/</code> 下 7 个页面的整理副本，资源引用已改为绝对路径以适配子目录部署。
+  </div>
+</div>
+</body>
+</html>

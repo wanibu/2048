@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, PLAY_BACKGROUND_DISPLAY_HEIGHT, PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_GAME_X, PLAY_BACKGROUND_GAME_Y, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -161,11 +161,11 @@ export class GameScene extends Phaser.Scene {
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
 
-    // 背景：高度100%铺满，宽度auto按比例，从左侧开始（和首页一致）
-    const bg = this.add.image(0, 0, 'playbackground');
+    // 背景：data.json Game/Play layer instance x=-158, y=-402, size=958x1630.
+    const bgY = Math.max(PLAY_BACKGROUND_GAME_Y, h - PLAY_BACKGROUND_DISPLAY_HEIGHT);
+    const bg = this.add.image(PLAY_BACKGROUND_GAME_X, bgY, 'playbackground');
     bg.setOrigin(0, 0);
-    const bgScale = h / bg.height;
-    bg.setScale(bgScale);
+    bg.setDisplaySize(PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_DISPLAY_HEIGHT);
     bg.setDepth(-1000);
 
     // 底座背景 mobile-tray（原尺寸781×260，居中贴底）

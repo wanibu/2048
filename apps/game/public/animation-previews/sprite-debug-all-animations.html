@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite Debug — 原版全部动画综合分析</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; background: #1e212d; color: #eee; padding: 20px; line-height: 1.5; }
+h1 { color: #ffd54a; margin-bottom: 10px; font-size: 22px; }
+h2 { color: #ff9800; margin: 28px 0 10px; font-size: 18px; border-bottom: 2px solid #ff9800; padding-bottom: 4px; }
+h3 { color: #ffe57f; margin: 16px 0 6px; font-size: 14px; }
+.info { color: #8d97ad; font-size: 12px; margin-bottom: 16px; line-height: 1.7; }
+.info code { color: #ffd54a; background: rgba(255,213,74,0.12); padding: 1px 6px; border-radius: 3px; }
+.info b { color: #fff; }
+.back { color: #4caf50; text-decoration: none; font-size: 13px; margin-bottom: 16px; display: inline-block; }
+.back:hover { text-decoration: underline; }
+
+.summary {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;
+  padding: 14px; background: rgba(255,213,74,0.08); border-left: 3px solid #ffd54a;
+  margin: 16px 0; border-radius: 4px;
+}
+.summary .stat { font-size: 12px; color: #a5adc1; }
+.summary .stat b { color: #ffd54a; font-size: 18px; display: block; }
+
+.legend {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+  padding: 12px; background: #262a38; border-radius: 4px;
+}
+.legend .key { font-size: 12px; }
+.legend .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-right: 4px; }
+.b-Tween { background: #d6336c; color: #fff; }
+.b-Fade { background: #6741d9; color: #fff; }
+.b-Bullet { background: #e67700; color: #fff; }
+.b-Pin { background: #2b8a3e; color: #fff; }
+.b-Anchor { background: #1971c2; color: #fff; }
+
+.obj-card {
+  background: #262a38; padding: 14px; border-radius: 6px;
+  margin-bottom: 14px; border-left: 3px solid #4caf50;
+}
+.obj-card.time { border-left-color: #ffd54a; }
+.obj-card.state { border-left-color: #2f7ed8; }
+.obj-card.static { border-left-color: #55596b; }
+
+.obj-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 10px;
+}
+.obj-name { font-size: 16px; font-weight: bold; color: #ffd54a; }
+.obj-meta { font-size: 11px; color: #8d97ad; }
+.obj-meta .badge { margin-left: 2px; margin-right: 2px; }
+
+.anim-block {
+  margin: 8px 0; padding: 10px; background: #1a1d27; border-radius: 4px;
+}
+.anim-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.anim-name { color: #ffd54a; font-weight: bold; font-size: 13px; }
+.anim-meta { font-size: 11px; color: #a5adc1; }
+.anim-meta code { color: #ffd54a; }
+.anim-ctrls { display: flex; gap: 6px; }
+.anim-ctrls button {
+  padding: 4px 10px; background: #2f7ed8; color: #fff;
+  border: none; border-radius: 3px; cursor: pointer;
+  font-family: inherit; font-size: 11px; font-weight: bold;
+}
+.anim-ctrls button.secondary { background: #6c7280; }
+
+.anim-stage {
+  position: relative; width: 240px; height: 280px;
+  background: rgba(255,255,255,0.03); border: 1px solid #333;
+  border-radius: 3px; overflow: hidden;
+  display: inline-block; vertical-align: top; margin-right: 10px;
+}
+.anim-anchor {
+  position: absolute; width: 6px; height: 6px;
+  background: #ff3355; border-radius: 50%;
+  z-index: 3; pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.anim-sprite { position: absolute; z-index: 2; transform-origin: top left; }
+
+.frames-strip {
+  display: inline-block; vertical-align: top;
+  max-width: calc(100% - 260px);
+}
+.frames-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px; max-width: 100%;
+}
+.frame-tile {
+  padding: 6px; background: #1a1d27; border: 1px solid #333;
+  border-radius: 3px; text-align: center;
+}
+.frame-tile .fthumb {
+  display: inline-block; background-repeat: no-repeat;
+  transform-origin: top left; margin-bottom: 4px;
+  border: 1px dashed rgba(255,255,255,0.1);
+}
+.frame-tile .fmeta { font-size: 9px; color: #a5adc1; line-height: 1.4; }
+.frame-tile .fmeta b { color: #ffd54a; }
+.frame-tile .fmeta .sheet { color: #4caf50; font-size: 8px; }
+
+.sheet-list { font-size: 10px; color: #8d97ad; margin-top: 4px; }
+.sheet-list code { color: #4caf50; padding: 0 4px; }
+</style>
+</head>
+<body>
+<a class="back" href="/sprite-debug-index.html">← 返回索引</a>
+<h1>原版全部动画 — 综合分析</h1>
+<div class="info">
+从 Construct 3 <code>data.json</code>（与 <code>mini-game.pwtk.cc</code> 线上版一致）反推。<br>
+本页展示所有带帧素材的对象，按类型分类：<b>真动画</b>（时间自动播）、<b>状态帧</b>（代码手动切）、<b>静态图标</b>（单帧）<br>
+并列出每个对象的 <b>行为</b>（Tween/Fade/Bullet/Pin/Anchor）、<b>container 伙伴</b>、<b>所用 sprite sheet</b>。
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="legend">
+  <div class="key"><span class="badge b-Tween">Tween</span> 属性平滑过渡（x/y/scale/rotate/alpha）</div>
+  <div class="key"><span class="badge b-Fade">Fade</span> 淡入淡出（alpha）</div>
+  <div class="key"><span class="badge b-Bullet">Bullet</span> 弹道运动（初速+重力）</div>
+  <div class="key"><span class="badge b-Pin">Pin</span> 钉在另一对象上</div>
+  <div class="key"><span class="badge b-Anchor">Anchor</span> 屏幕锚定（UI 对齐边缘）</div>
+</div>
+
+<div id="root"></div>
+
+<script>
+const DATA = [{"name":"Shape","behaviors":["Bullet","Fade","Pin","Tween"],"containers":["Number","CoinUID","SlingShape","balloonMark"],"sheets":["shape-sheet0"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shape-sheet0","x":131,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":1,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":261,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":131,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":1,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":261,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":131,"y":261,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":1,"y":261,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":261,"y":257,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":131,"y":131,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":1,"y":131,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":261,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":131,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shape-sheet0","x":1,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Border","behaviors":["Fade","Bullet","Pin","Tween"],"containers":["Number","CoinUID","mLeftBorder","mRightBorder","mUpBorder","MergeResult","NextBorderBlock"],"sheets":["border-sheet0"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"border-sheet0","x":261,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":131,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":1,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":261,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":131,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":1,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":261,"y":261,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":131,"y":261,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":1,"y":261,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":261,"y":131,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":131,"y":131,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":1,"y":131,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":261,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":131,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"border-sheet0","x":1,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Collider","behaviors":[],"containers":[],"sheets":["shared-0-sheet4"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet4","x":1,"y":17,"w":10,"h":10,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Grid","behaviors":[],"containers":[],"sheets":["shared-0-sheet0"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":770,"y":1,"w":788,"h":733,"pivotX":0.5038,"pivotY":0.4898}]}]},{"name":"DisplayShape","behaviors":["Fade"],"containers":[],"sheets":["displayshape-sheet0"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"displayshape-sheet0","x":1,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":261,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":131,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":1,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":261,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":131,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":1,"y":257,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":261,"y":257,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":131,"y":257,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"displayshape-sheet0","x":257,"y":1,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Giant","behaviors":["Tween"],"containers":[],"sheets":["shared-0-sheet0","shared-0-sheet1"],"animations":[{"name":"Blink","speed":28,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":1,"y":1,"w":421,"h":610,"pivotX":0.5059,"pivotY":0.5016},{"sheet":"shared-0-sheet1","x":424,"y":1,"w":421,"h":610,"pivotX":0.5059,"pivotY":0.5016},{"sheet":"shared-0-sheet0","x":1,"y":1027,"w":421,"h":610,"pivotX":0.5059,"pivotY":0.5016}]},{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":1619,"y":1025,"w":421,"h":610,"pivotX":0.5059,"pivotY":0.5016}]},{"name":"Scream","speed":20,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":1560,"y":1,"w":424,"h":612,"pivotX":0.5047,"pivotY":0.5},{"sheet":"shared-0-sheet0","x":1195,"y":1011,"w":422,"h":612,"pivotX":0.5071,"pivotY":0.5},{"sheet":"shared-0-sheet0","x":770,"y":1011,"w":423,"h":612,"pivotX":0.5035,"pivotY":0.5}]}]},{"name":"GameUIPauseB","behaviors":[],"containers":["Offset"],"sheets":["shared-0-sheet2"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet2","x":1,"y":769,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shared-0-sheet2","x":261,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Panel","behaviors":[],"containers":[],"sheets":["shared-0-sheet0"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":770,"y":736,"w":1024,"h":273,"pivotX":0.5,"pivotY":1}]}]},{"name":"RotateArrow","behaviors":[],"containers":["type"],"sheets":["shared-0-sheet2"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet2","x":257,"y":769,"w":128,"h":115,"pivotX":0.5,"pivotY":0.5043}]}]},{"name":"Sling","behaviors":[],"containers":["Offset"],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":1,"y":1281,"w":256,"h":160,"pivotX":0.5,"pivotY":1},{"sheet":"shared-0-sheet1","x":1,"y":1025,"w":256,"h":160,"pivotX":0.5,"pivotY":1},{"sheet":"shared-0-sheet1","x":513,"y":1025,"w":256,"h":160,"pivotX":0.5,"pivotY":1},{"sheet":"shared-0-sheet1","x":1,"y":1537,"w":256,"h":160,"pivotX":0.5,"pivotY":1}]}]},{"name":"MergeEffect","behaviors":["Pin"],"containers":[],"sheets":["mergeeffect-sheet0","mergeeffect-sheet1","mergeeffect-sheet2"],"animations":[{"name":"Default","speed":25,"loop":false,"frames":[{"sheet":"mergeeffect-sheet1","x":0,"y":0,"w":50,"h":64,"pivotX":0.32,"pivotY":0.3906},{"sheet":"mergeeffect-sheet0","x":385,"y":897,"w":70,"h":90,"pivotX":0.3143,"pivotY":0.3444},{"sheet":"mergeeffect-sheet0","x":129,"y":897,"w":83,"h":106,"pivotX":0.3133,"pivotY":0.3302},{"sheet":"mergeeffect-sheet0","x":385,"y":769,"w":111,"h":125,"pivotX":0.4234,"pivotY":0.384},{"sheet":"mergeeffect-sheet0","x":1,"y":769,"w":125,"h":154,"pivotX":0.448,"pivotY":0.4805},{"sheet":"mergeeffect-sheet0","x":159,"y":513,"w":136,"h":185,"pivotX":0.4632,"pivotY":0.5135},{"sheet":"mergeeffect-sheet0","x":257,"y":1,"w":143,"h":207,"pivotX":0.4685,"pivotY":0.5411},{"sheet":"mergeeffect-sheet0","x":156,"y":257,"w":148,"h":226,"pivotX":0.473,"pivotY":0.5664},{"sheet":"mergeeffect-sheet0","x":1,"y":257,"w":153,"h":227,"pivotX":0.4771,"pivotY":0.5683},{"sheet":"mergeeffect-sheet0","x":297,"y":513,"w":153,"h":164,"pivotX":0.4837,"pivotY":0.4085},{"sheet":"mergeeffect-sheet0","x":1,"y":513,"w":156,"h":167,"pivotX":0.4808,"pivotY":0.4311},{"sheet":"mergeeffect-sheet0","x":306,"y":257,"w":162,"h":168,"pivotX":0.463,"pivotY":0.4583},{"sheet":"mergeeffect-sheet0","x":257,"y":961,"w":124,"h":62,"pivotX":0.25,"pivotY":1.3065},{"sheet":"mergeeffect-sheet2","x":0,"y":0,"w":13,"h":13,"pivotX":-6.4615,"pivotY":3.0769}]}]},{"name":"StarUI","behaviors":[],"containers":["Offset"],"sheets":["shared-0-sheet3"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet3","x":1,"y":193,"w":50,"h":50,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"CrownUI","behaviors":[],"containers":["Offset"],"sheets":["shared-0-sheet3"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet3","x":65,"y":193,"w":50,"h":50,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"SelectedLineO","behaviors":["Fade"],"containers":[],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":847,"y":1,"w":128,"h":808,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"BorderExplodeAnimation","behaviors":["Fade"],"containers":["ShapeNumber"],"sheets":["borderexplodeanimation-sheet0","borderexplodeanimation-sheet1","borderexplodeanimation-sheet2"],"animations":[{"name":"Default","speed":20,"loop":false,"frames":[{"sheet":"borderexplodeanimation-sheet2","x":257,"y":1,"w":221,"h":221,"pivotX":0.5023,"pivotY":0.5023},{"sheet":"borderexplodeanimation-sheet0","x":1,"y":1,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"borderexplodeanimation-sheet1","x":257,"y":257,"w":221,"h":236,"pivotX":0.5023,"pivotY":0.5},{"sheet":"borderexplodeanimation-sheet0","x":1,"y":261,"w":232,"h":245,"pivotX":0.5,"pivotY":0.502},{"sheet":"borderexplodeanimation-sheet2","x":1,"y":257,"w":208,"h":221,"pivotX":0.5,"pivotY":0.5023},{"sheet":"borderexplodeanimation-sheet2","x":257,"y":257,"w":200,"h":230,"pivotX":0.5,"pivotY":0.5},{"sheet":"borderexplodeanimation-sheet1","x":257,"y":1,"w":225,"h":242,"pivotX":0.5022,"pivotY":0.5},{"sheet":"borderexplodeanimation-sheet1","x":1,"y":1,"w":235,"h":233,"pivotX":0.5021,"pivotY":0.5021},{"sheet":"borderexplodeanimation-sheet0","x":261,"y":1,"w":250,"h":245,"pivotX":0.5,"pivotY":0.502},{"sheet":"borderexplodeanimation-sheet0","x":261,"y":257,"w":246,"h":245,"pivotX":0.5,"pivotY":0.502},{"sheet":"borderexplodeanimation-sheet1","x":1,"y":257,"w":227,"h":234,"pivotX":0.5022,"pivotY":0.5}]}]},{"name":"CoinPlay","behaviors":["Pin","Tween"],"containers":["Fly"],"sheets":["shared-0-sheet3"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet3","x":1,"y":129,"w":50,"h":50,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"TextBar","behaviors":[],"containers":["type"],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":513,"y":1921,"w":361,"h":90,"pivotX":0.5014,"pivotY":0.5}]}]},{"name":"PlayButton","behaviors":[],"containers":[],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":515,"y":769,"w":256,"h":240,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"PausePlayB","behaviors":[],"containers":["type"],"sheets":["shared-0-sheet1","shared-0-sheet2"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":775,"y":1281,"w":242,"h":133,"pivotX":0.5041,"pivotY":0.4662},{"sheet":"shared-0-sheet2","x":1,"y":1,"w":242,"h":130,"pivotX":0.5041,"pivotY":0.4538}]}]},{"name":"PauseRestartB","behaviors":[],"containers":[],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":775,"y":1025,"w":242,"h":134,"pivotX":0.5041,"pivotY":0.4701},{"sheet":"shared-0-sheet1","x":1,"y":1793,"w":242,"h":131,"pivotX":0.5041,"pivotY":0.458}]}]},{"name":"GResultRestartB","behaviors":[],"containers":[],"sheets":["shared-0-sheet1"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":259,"y":1281,"w":256,"h":141,"pivotX":0.5,"pivotY":0.5035},{"sheet":"shared-0-sheet1","x":517,"y":1281,"w":256,"h":141,"pivotX":0.5,"pivotY":0.5035}]}]},{"name":"PopupWindow","behaviors":[],"containers":[],"sheets":["shared-0-sheet0"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":1,"y":1,"w":767,"h":1024,"pivotX":0.5007,"pivotY":0.501}]}]},{"name":"PauseHomeB","behaviors":[],"containers":[],"sheets":["shared-0-sheet1","shared-0-sheet2"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet1","x":257,"y":1793,"w":242,"h":131,"pivotX":0.5041,"pivotY":0.458},{"sheet":"shared-0-sheet2","x":257,"y":1,"w":241,"h":130,"pivotX":0.5021,"pivotY":0.4538}]}]},{"name":"GameRBanner","behaviors":["Fade","Tween","Anchor"],"containers":[],"sheets":["shared-0-sheet0","shared-0-sheet1"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":1452,"y":1793,"w":512,"h":254,"pivotX":0.5,"pivotY":0.5039},{"sheet":"shared-0-sheet1","x":1,"y":769,"w":512,"h":240,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"GameRCrown","behaviors":[],"containers":[],"sheets":["shared-0-sheet3"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet3","x":65,"y":129,"w":50,"h":50,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"GameRStar","behaviors":[],"containers":[],"sheets":["shared-0-sheet3"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet3","x":65,"y":65,"w":50,"h":50,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"keyA","behaviors":["Pin"],"containers":[],"sheets":["shared-0-sheet2"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet2","x":131,"y":769,"w":122,"h":122,"pivotX":0.5,"pivotY":0.4508},{"sheet":"shared-0-sheet2","x":385,"y":257,"w":122,"h":122,"pivotX":0.4713,"pivotY":0.4508}]}]},{"name":"SoundB","behaviors":[],"containers":["Offset","Active","MiddleOffset"],"sheets":["shared-0-sheet2"],"animations":[{"name":"Default","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet2","x":131,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5},{"sheet":"shared-0-sheet2","x":1,"y":513,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"LoaderBackgroundBar","behaviors":[],"containers":[],"sheets":["shared-0-sheet4"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet4","x":1,"y":1,"w":10,"h":10,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"Girl","behaviors":[],"containers":["GivingCoins"],"sheets":["girl-sheet0"],"animations":[{"name":"Default","speed":5,"loop":false,"frames":[{"sheet":"girl-sheet0","x":769,"y":769,"w":204,"h":244,"pivotX":0.4167,"pivotY":0.9959}]},{"name":"Blink","speed":20,"loop":false,"frames":[{"sheet":"girl-sheet0","x":513,"y":769,"w":204,"h":244,"pivotX":0.4167,"pivotY":0.9959},{"sheet":"girl-sheet0","x":1,"y":769,"w":204,"h":244,"pivotX":0.4167,"pivotY":0.9959}]},{"name":"Surprise","speed":13,"loop":false,"frames":[{"sheet":"girl-sheet0","x":257,"y":513,"w":205,"h":244,"pivotX":0.439,"pivotY":0.9959},{"sheet":"girl-sheet0","x":1,"y":513,"w":204,"h":247,"pivotX":0.4706,"pivotY":0.996},{"sheet":"girl-sheet0","x":513,"y":513,"w":206,"h":250,"pivotX":0.5194,"pivotY":0.996},{"sheet":"girl-sheet0","x":513,"y":1,"w":212,"h":251,"pivotX":0.5377,"pivotY":0.996},{"sheet":"girl-sheet0","x":769,"y":1,"w":211,"h":251,"pivotX":0.5308,"pivotY":0.996},{"sheet":"girl-sheet0","x":513,"y":257,"w":210,"h":250,"pivotX":0.5238,"pivotY":0.996},{"sheet":"girl-sheet0","x":769,"y":257,"w":208,"h":250,"pivotX":0.5096,"pivotY":0.996},{"sheet":"girl-sheet0","x":769,"y":513,"w":206,"h":249,"pivotX":0.4951,"pivotY":0.996},{"sheet":"girl-sheet0","x":257,"y":257,"w":204,"h":247,"pivotX":0.4706,"pivotY":0.996},{"sheet":"girl-sheet0","x":257,"y":769,"w":205,"h":244,"pivotX":0.439,"pivotY":0.9959}]}]},{"name":"BgSquare","behaviors":["Pin"],"containers":["type"],"sheets":["shared-0-sheet2"],"animations":[{"name":"Animation 1","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet2","x":255,"y":257,"w":128,"h":128,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"TutorialHand","behaviors":["Tween","Pin","Fade"],"containers":["HoldPosition","TutorialState"],"sheets":["shared-0-sheet2"],"animations":[{"name":"Animation 1","speed":0,"loop":true,"frames":[{"sheet":"shared-0-sheet2","x":1,"y":133,"w":127,"h":201,"pivotX":0.5,"pivotY":0},{"sheet":"shared-0-sheet2","x":130,"y":257,"w":123,"h":181,"pivotX":0.5,"pivotY":0}]}]},{"name":"StoneDestroy","behaviors":[],"containers":[],"sheets":["stonedestroy-sheet0"],"animations":[{"name":"Animation 1","speed":20,"loop":false,"frames":[{"sheet":"stonedestroy-sheet0","x":1,"y":769,"w":157,"h":157,"pivotX":0.4968,"pivotY":0.4968},{"sheet":"stonedestroy-sheet0","x":257,"y":769,"w":193,"h":211,"pivotX":0.513,"pivotY":0.5118},{"sheet":"stonedestroy-sheet0","x":769,"y":769,"w":214,"h":244,"pivotX":0.5,"pivotY":0.5246},{"sheet":"stonedestroy-sheet0","x":769,"y":513,"w":244,"h":248,"pivotX":0.5,"pivotY":0.4879},{"sheet":"stonedestroy-sheet0","x":261,"y":1,"w":256,"h":256,"pivotX":0.5,"pivotY":0.5},{"sheet":"stonedestroy-sheet0","x":513,"y":513,"w":253,"h":255,"pivotX":0.4941,"pivotY":0.4941},{"sheet":"stonedestroy-sheet0","x":1,"y":1,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"stonedestroy-sheet0","x":519,"y":1,"w":257,"h":255,"pivotX":0.4981,"pivotY":0.498}]}]},{"name":"HighestNumberMerge","behaviors":["Fade"],"containers":[],"sheets":["highestnumbermerge-sheet0"],"animations":[{"name":"Animation 1","speed":15,"loop":false,"frames":[{"sheet":"highestnumbermerge-sheet0","x":781,"y":513,"w":200,"h":200,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":1,"y":1,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":261,"y":1,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":521,"y":1,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":1,"y":261,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":261,"y":513,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":521,"y":513,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":1,"y":521,"w":258,"h":258,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":781,"y":257,"w":224,"h":224,"pivotX":0.5,"pivotY":0.5},{"sheet":"highestnumbermerge-sheet0","x":781,"y":769,"w":200,"h":187,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"ComboSprite","behaviors":["Tween"],"containers":[],"sheets":["shared-0-sheet0"],"animations":[{"name":"Animation 1","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":938,"y":1625,"w":512,"h":305,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"WowSprite","behaviors":["Tween"],"containers":[],"sheets":["shared-0-sheet0"],"animations":[{"name":"Animation 1","speed":0,"loop":false,"frames":[{"sheet":"shared-0-sheet0","x":424,"y":1625,"w":512,"h":380,"pivotX":0.5,"pivotY":0.5}]}]},{"name":"BrandingButton","behaviors":["Anchor"],"containers":[],"sheets":["shared-0-sheet4"],"animations":[{"name":"Animation 1","speed":5,"loop":false,"frames":[{"sheet":"shared-0-sheet4","x":9,"y":29,"w":5,"h":2,"pivotX":0.5,"pivotY":0.5}]}]}];
+const SHEET_BASE = '/assets/images/';
+
+const TIME_ANIMATED_NAMES = ["Giant", "MergeEffect", "BorderExplodeAnimation", "Girl", "StoneDestroy", "HighestNumberMerge"];
+const STATE_FRAME_NAMES = ["Shape", "Border", "DisplayShape", "GameUIPauseB", "Sling", "PausePlayB", "PauseRestartB", "GResultRestartB", "PauseHomeB", "GameRBanner", "keyA", "SoundB", "TutorialHand"];
+const STATIC_NAMES = ["Collider", "Grid", "Panel", "RotateArrow", "StarUI", "CrownUI", "SelectedLineO", "CoinPlay", "TextBar", "PlayButton", "PopupWindow", "GameRCrown", "GameRStar", "LoaderBackgroundBar", "BgSquare", "ComboSprite", "WowSprite", "BrandingButton"];
+
+function classifyObj(name) {
+  if (TIME_ANIMATED_NAMES.includes(name)) return 'time';
+  if (STATE_FRAME_NAMES.includes(name)) return 'state';
+  return 'static';
+}
+
+function badge(b) { return `<span class="badge b-${b}">${b}</span>`; }
+
+function buildObjCard(obj) {
+  const cls = classifyObj(obj.name);
+  const div = document.createElement('div');
+  div.className = 'obj-card ' + cls;
+  const bhHtml = obj.behaviors.length ? obj.behaviors.map(badge).join('') : '<i style="color:#55596b">无</i>';
+  const cnHtml = obj.containers.length ? obj.containers.map(c => `<code>${c}</code>`).join(' + ') : '<i style="color:#55596b">无</i>';
+  const sheetsHtml = obj.sheets.map(s => `<code>${s}</code>`).join(' ');
+  div.innerHTML = `
+    <div class="obj-head">
+      <div class="obj-name">${obj.name}</div>
+      <div class="obj-meta">
+        behaviors: ${bhHtml} | container: ${cnHtml}
+      </div>
+    </div>
+    <div class="sheet-list">sheets: ${sheetsHtml}</div>
+  `;
+  // 动画块
+  obj.animations.forEach((anim, aIdx) => {
+    const ab = buildAnimBlock(obj, anim, aIdx);
+    div.appendChild(ab);
+  });
+  return div;
+}
+
+function buildAnimBlock(obj, anim, aIdx) {
+  const block = document.createElement('div');
+  block.className = 'anim-block';
+  const isMulti = anim.frames.length > 1;
+  const isTime = anim.speed > 0 && isMulti;
+  const loopTxt = anim.loop ? '循环' : '一次';
+  const speedTxt = anim.speed > 0 ? `${anim.speed}fps (${Math.round(1000/anim.speed)}ms/帧)` : 'speed=0（代码切帧）';
+  block.innerHTML = `
+    <div class="anim-head">
+      <div>
+        <span class="anim-name">${anim.name}</span>
+        <span class="anim-meta"> · ${anim.frames.length}帧 · <code>${speedTxt}</code> · ${loopTxt}</span>
+      </div>
+      <div class="anim-ctrls">
+        ${isMulti ? '<button class="play-btn">▶ 播放</button><button class="loop-btn">↻ 循环</button><button class="stop-btn secondary">■ 停止</button>' : ''}
+      </div>
+    </div>
+  `;
+  
+  // 舞台
+  if (isMulti) {
+    const stage = document.createElement('div');
+    stage.className = 'anim-stage';
+    const anchor = document.createElement('div');
+    anchor.className = 'anim-anchor';
+    anchor.style.left = '120px';
+    anchor.style.top = '140px';
+    stage.appendChild(anchor);
+    block.appendChild(stage);
+    
+    // 渲染逻辑
+    let currentEl = null;
+    let interval = null;
+    const ANCHOR_X = 120, ANCHOR_Y = 140;
+    function showFrame(idx) {
+      if (currentEl) currentEl.remove();
+      const f = anim.frames[idx];
+      const maxDim = Math.max(f.w, f.h);
+      const scale = maxDim > 200 ? (200 / maxDim) : 1;
+      const el = document.createElement('div');
+      el.className = 'anim-sprite';
+      el.style.width = f.w + 'px';
+      el.style.height = f.h + 'px';
+      el.style.background = `url('${SHEET_BASE}${f.sheet}.png') no-repeat`;
+      el.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+      el.style.left = (ANCHOR_X - f.pivotX * f.w * scale) + 'px';
+      el.style.top = (ANCHOR_Y - f.pivotY * f.h * scale) + 'px';
+      el.style.transform = `scale(${scale})`;
+      stage.appendChild(el);
+      currentEl = el;
+    }
+    function play(loop) {
+      stop();
+      let idx = 0;
+      const dur = anim.speed > 0 ? Math.round(1000 / anim.speed) : 150;
+      showFrame(idx);
+      interval = setInterval(() => {
+        idx++;
+        if (idx >= anim.frames.length) {
+          if (loop) idx = 0;
+          else { stop(); return; }
+        }
+        showFrame(idx);
+      }, dur);
+    }
+    function stop() { if (interval) { clearInterval(interval); interval = null; } }
+    showFrame(0);
+    block.querySelector('.play-btn')?.addEventListener('click', () => play(false));
+    block.querySelector('.loop-btn')?.addEventListener('click', () => play(true));
+    block.querySelector('.stop-btn')?.addEventListener('click', stop);
+  }
+  
+  // 帧缩略图
+  const strip = document.createElement('div');
+  strip.className = 'frames-strip';
+  const list = document.createElement('div');
+  list.className = 'frames-list';
+  anim.frames.forEach((f, i) => {
+    const tile = document.createElement('div');
+    tile.className = 'frame-tile';
+    const maxDim = Math.max(f.w, f.h);
+    const scale = 80 / maxDim;
+    const wrap = document.createElement('div');
+    wrap.className = 'fthumb';
+    wrap.style.width = (f.w * scale) + 'px';
+    wrap.style.height = (f.h * scale) + 'px';
+    wrap.style.overflow = 'hidden';
+    const inner = document.createElement('div');
+    inner.style.width = f.w + 'px';
+    inner.style.height = f.h + 'px';
+    inner.style.background = `url('${SHEET_BASE}${f.sheet}.png') no-repeat`;
+    inner.style.backgroundPosition = `-${f.x}px -${f.y}px`;
+    inner.style.transform = `scale(${scale})`;
+    inner.style.transformOrigin = 'top left';
+    wrap.appendChild(inner);
+    tile.appendChild(wrap);
+    const meta = document.createElement('div');
+    meta.className = 'fmeta';
+    meta.innerHTML = `<b>帧${i}</b> · ${f.w}×${f.h}<br><span class="sheet">${f.sheet}</span><br>(${f.x},${f.y}) · pivot(${f.pivotX},${f.pivotY})`;
+    tile.appendChild(meta);
+    list.appendChild(tile);
+  });
+  strip.appendChild(list);
+  block.appendChild(strip);
+  return block;
+}
+
+// 统计
+const totalObjs = DATA.length;
+const totalAnims = DATA.reduce((s, o) => s + o.animations.length, 0);
+const totalFrames = DATA.reduce((s, o) => s + o.animations.reduce((s2, a) => s2 + a.frames.length, 0), 0);
+document.getElementById('summary').innerHTML = `
+  <div class="stat"><b>${totalObjs}</b>对象总数</div>
+  <div class="stat"><b>${TIME_ANIMATED_NAMES.length}</b>真动画对象</div>
+  <div class="stat"><b>${STATE_FRAME_NAMES.length}</b>状态帧对象</div>
+  <div class="stat"><b>${STATIC_NAMES.length}</b>静态图标</div>
+  <div class="stat"><b>${totalAnims}</b>动画定义</div>
+  <div class="stat"><b>${totalFrames}</b>帧总数</div>
+`;
+
+// 建立三个分类
+const root = document.getElementById('root');
+function addSection(title, desc, names) {
+  const h = document.createElement('h2');
+  h.textContent = title;
+  root.appendChild(h);
+  const p = document.createElement('div');
+  p.className = 'info';
+  p.innerHTML = desc;
+  root.appendChild(p);
+  DATA.filter(o => names.includes(o.name)).forEach(obj => {
+    root.appendChild(buildObjCard(obj));
+  });
+}
+
+addSection(
+  '① 真动画（speed > 0，时间自动播帧）',
+  `共 <b>${TIME_ANIMATED_NAMES.length}</b> 个对象。这些是 C3 自动按 fps 播放的序列动画，帧切换由 runtime 控制。`,
+  TIME_ANIMATED_NAMES
+);
+
+addSection(
+  '② 状态帧（speed = 0，代码手动切帧）',
+  `共 <b>${STATE_FRAME_NAMES.length}</b> 个对象。speed=0 意味着不自动播，每一帧代表一种"状态"（按下/未按下、开/关、拉满/松开等），由游戏代码根据条件 <code>setFrame(n)</code>。`,
+  STATE_FRAME_NAMES
+);
+
+addSection(
+  '③ 纯静态图标（只有 1 帧）',
+  `共 <b>${STATIC_NAMES.length}</b> 个对象。单帧 = 永远不换贴图的 UI 元素。带 <code>Tween</code> 行为的（ComboSprite / WowSprite / CoinPlay / GameRBanner）靠<b>位移/缩放/透明度 tween</b> 制造动态效果，而不是帧动画。`,
+  STATIC_NAMES
+);
+</script>
+
+</body>
+</html>

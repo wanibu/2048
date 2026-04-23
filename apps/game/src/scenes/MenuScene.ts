@@ -1,8 +1,21 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GIANT_HEAD_FRAMES, SHAPE_REGIONS, SpriteRegion } from '../config';
+import {
+  BORDER_EXPLODE_FRAMES,
+  GAME_HEIGHT,
+  GAME_WIDTH,
+  GIANT_HEAD_FRAMES,
+  PLAY_BACKGROUND_DISPLAY_HEIGHT,
+  PLAY_BACKGROUND_DISPLAY_WIDTH,
+  PLAY_BACKGROUND_MENU_X,
+  PLAY_BACKGROUND_MENU_Y,
+  SHAPE_REGIONS,
+  SpriteAnimationFrame,
+  SpriteRegion,
+} from '../config';
 
 export class MenuScene extends Phaser.Scene {
   private headImages: Phaser.GameObjects.Image[] = [];
+  private readonly debugBackgroundOnly = true;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -14,36 +27,46 @@ export class MenuScene extends Phaser.Scene {
     // 刷新页面清理旧状态，不恢复游戏
     sessionStorage.removeItem('giant2048_playing');
 
-    const w = this.cameras.main.width;
-    const h = this.cameras.main.height;
+    // 模拟 C3 fullscreen scale-outer：把 640×960 的 design layout 居中到被拉大的视窗里，
+    // 这样窄屏能露出 layout 上/下方约 212px 的"边界外"区域（原游戏左下角那棵树就在这段）。
+    this.cameras.main.setScroll(
+      (GAME_WIDTH - this.cameras.main.width) / 2,
+      (GAME_HEIGHT - this.cameras.main.height) / 2,
+    );
+    const w = GAME_WIDTH;
+    const h = GAME_HEIGHT;
 
-    // ===== 1. 全屏背景 =====
-    // 高度100%铺满，宽度auto按比例，从左侧开始
-    const bg = this.add.image(0, 0, 'playbackground');
-    bg.setOrigin(0, 0); // 左上角对齐
-    const bgScale = h / bg.height; // 高度铺满
-    bg.setScale(bgScale);
+    // ===== 1. PlayBackground =====
+    // data.json Menu instance: x=-158, y=-314, size=958x1630, origin=(0,0).
+    const bg = this.add.image(PLAY_BACKGROUND_MENU_X, PLAY_BACKGROUND_MENU_Y, 'playbackground');
+    bg.setOrigin(0, 0);
+    bg.setDisplaySize(PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_DISPLAY_HEIGHT);
     bg.setDepth(-1000);
 
-    // ===== 2. 小姑娘庆祝（depth 5，底部）=====
-    this.registerFrame('shared0', 'girl-win', { x: 1446, y: 1794, w: 525, h: 237 });
-    const girlScale = w / 525; // 宽度铺满窗口
-    const girlH = 237 * girlScale;
-    const girl = this.add.image(w / 2, h - girlH / 2 - 30, 'shared0', 'girl-win');
-    girl.setScale(girlScale);
-    girl.setDepth(5);
+    // ===== 2. 底部 GameRBanner（原版 Menu 实例：x=320, y=793, size=650×328）=====
+    // Sheet 源帧 512×254，用 setDisplaySize 按 data.json 实例尺寸显示，而不是 setScale(1.27)
+    // —— 后者 height 会算成 322.58，跟 data.json 的 328 差 5px。
+    this.registerFrame('shared0', 'game-r-banner', { x: 1452, y: 1793, w: 512, h: 254 });
+    const banner = this.add.image(w / 2, 1005, 'shared0', 'game-r-banner');
+    banner.setDisplaySize(650, 328);
+    banner.setDepth(5);
 
-    // ===== 3. 圆形播放按钮（depth 20，正中间）=====
-    this.registerFrame('shared1', 'play-btn', { x: 514, y: 757, w: 260, h: 260 });
-    const playBtn = this.add.image(w / 2, h * 0.57, 'shared1', 'play-btn');
+    if (this.debugBackgroundOnly) {
+      return;
+    }
+
+    // ===== 3. Play 按钮（原版 Menu 实例位置）=====
+    this.registerFrame('shared1', 'play-btn', { x: 515, y: 769, w: 256, h: 240 });
+    const playBtn = this.add.image(w / 2, 490, 'shared1', 'play-btn');
+    playBtn.setScale(1.054);
     playBtn.setDepth(20);
     playBtn.setInteractive({ useHandCursor: true });
     playBtn.on('pointerdown', () => this.scene.start('GameScene'));
 
-    // ===== 4. 眨眼头像（depth 10，原尺寸420×611，倾斜7度）=====
+    // ===== 4. 眨眼头像（原版 Menu 实例：pos=(339,139), angle=10°）=====
     this.headImages = []; // 清空旧引用
-    const headX = w / 2;
-    const headY = h * 0.60 - 130 - 611 / 2 - 40; // 播放按钮Y - 按钮半径 - 头像半高，紧挨着
+    const headX = 339;
+    const headY = 139;
     for (let i = 0; i < GIANT_HEAD_FRAMES.length; i++) {
       const f = GIANT_HEAD_FRAMES[i];
       const key = `giant_head_${i}`;
@@ -52,49 +75,15 @@ export class MenuScene extends Phaser.Scene {
         tex.add(key, 0, f.region.x, f.region.y, f.region.w, f.region.h);
       }
       const img = this.add.image(headX, headY, f.texture, key);
-      img.setAngle(7);
+      img.setAngle(10);
       img.setDepth(10);
       img.setVisible(i === 0);
       this.headImages.push(img);
     }
     this.startBlinkLoop();
 
-    // ===== 5. 糖果球 2048 弧形排列（depth 15）=====
-    const candyValues = [2, 0, 4, 8];
-    const btnCenterX = w / 2;
-    const btnCenterY = h * 0.60;
-    const arcRadius = 300; // 弧形半径（加大间距）
-    // 90度弧，从225度到315度
-    const startAngle = 225;
-    const endAngle = 315;
-    const angleStep = (endAngle - startAngle) / (candyValues.length - 1);
-
-    candyValues.forEach((val, i) => {
-      const region = SHAPE_REGIONS[val];
-      if (region) {
-        const frameKey = `menu_candy_${val}`;
-        this.registerFrame('shape-full', frameKey, region);
-        const angleDeg = startAngle + i * angleStep;
-        const angleRad = (angleDeg * Math.PI) / 180;
-        const cx = btnCenterX + Math.cos(angleRad) * arcRadius;
-        const cy = btnCenterY + Math.sin(angleRad) * arcRadius - 20; // 上移20px（原30，下移10）
-        const candy = this.add.image(cx, cy, 'shape-full', frameKey);
-        candy.setDepth(15);
-        // 每隔15秒自动旋转360度，旋转速度1秒
-        const spinCandy = () => {
-          this.tweens.add({
-            targets: candy,
-            angle: candy.angle + 360,
-            duration: 1000,
-            ease: 'Sine.easeInOut',
-            onComplete: () => {
-              this.time.delayedCall(15000, spinCandy);
-            },
-          });
-        };
-        this.time.delayedCall(15000, spinCandy); // 同时启动
-      }
-    });
+    // ===== 5. "2048" 标题进场：4 数字依次飞入 + BorderExplodeAnimation =====
+    this.createTitleDigits();
 
     // // 4. 糖果球拼"2048"（depth 15）——旧代码
     // const candyValues = [2, 0, 4, 8];
@@ -133,8 +122,6 @@ export class MenuScene extends Phaser.Scene {
     //   this.sound.play('bgm', { loop: true, volume: 0.4 });
     // }
 
-    // 临时：点击任意位置进入游戏
-    this.input.on('pointerdown', () => this.scene.start('GameScene'));
   }
 
   // 注册精灵帧（防重复）
@@ -143,6 +130,126 @@ export class MenuScene extends Phaser.Scene {
     if (!tex.has(frameKey)) {
       tex.add(frameKey, 0, region.x, region.y, region.w, region.h);
     }
+  }
+
+  private createTitleDigits(): void {
+    const digits = [
+      { value: 2, x: 94, y: 584 },
+      { value: 0, x: 254, y: 504 },
+      { value: 4, x: 408, y: 504 },
+      { value: 8, x: 546, y: 584 },
+    ];
+    const firstDelay = 500;
+    const stagger = 250;
+    const popDuration = 400;
+    const burstDelay = 380;
+    const startY = GAME_HEIGHT + 280;
+    const titleCandies: Phaser.GameObjects.Image[] = [];
+
+    digits.forEach((digit, index) => {
+      const region = SHAPE_REGIONS[digit.value];
+      if (!region) return;
+
+      const frameKey = `menu_title_${digit.value}`;
+      this.registerFrame('shape-full', frameKey, region);
+      const candy = this.add.image(digit.x, startY, 'shape-full', frameKey);
+      candy.setDepth(15);
+      candy.setDisplaySize(128, 128);
+      candy.setAlpha(0);
+      titleCandies.push(candy);
+
+      this.time.delayedCall(firstDelay + index * stagger, () => {
+        this.animateTitleDigit(candy, digit.x, digit.y, popDuration, burstDelay);
+      });
+    });
+
+    this.time.delayedCall(4000, () => {
+      this.startTitleRotationLoop(titleCandies);
+    });
+  }
+
+  private animateTitleDigit(
+    candy: Phaser.GameObjects.Image,
+    x: number,
+    y: number,
+    popDuration: number,
+    burstDelay: number
+  ): void {
+    this.tweens.add({
+      targets: candy,
+      y: y - 20,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      alpha: 1,
+      duration: popDuration * 0.7,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: candy,
+          y,
+          scaleX: 1,
+          scaleY: 1,
+          duration: popDuration * 0.3,
+          ease: 'Sine.easeOut',
+        });
+      },
+    });
+
+    this.time.delayedCall(burstDelay, () => this.playBorderExplode(x, y));
+  }
+
+  private startTitleRotationLoop(candies: Phaser.GameObjects.Image[]): void {
+    if (candies.length === 0) return;
+
+    const rotateOnce = () => {
+      this.tweens.add({
+        targets: candies,
+        angle: '+=360',
+        duration: 800,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          candies.forEach(candy => candy.setAngle(0));
+          this.time.delayedCall(4000, rotateOnce);
+        },
+      });
+    };
+
+    rotateOnce();
+  }
+
+  private playBorderExplode(x: number, y: number): void {
+    const firstFrame = BORDER_EXPLODE_FRAMES[0];
+    const frameKey = this.ensureAnimationFrame('menu_border_explode_0', firstFrame);
+    const burst = this.add.image(x, y, firstFrame.texture, frameKey);
+    burst.setDepth(16);
+    burst.setOrigin(firstFrame.pivotX, firstFrame.pivotY);
+    burst.setScale(0.4);
+
+    BORDER_EXPLODE_FRAMES.forEach((frame, index) => {
+      this.time.delayedCall(index * 50, () => {
+        const key = this.ensureAnimationFrame(`menu_border_explode_${index}`, frame);
+        burst.setTexture(frame.texture, key);
+        burst.setOrigin(frame.pivotX, frame.pivotY);
+      });
+    });
+
+    this.time.delayedCall(BORDER_EXPLODE_FRAMES.length * 50, () => {
+      this.tweens.add({
+        targets: burst,
+        alpha: 0,
+        duration: 150,
+        ease: 'Sine.easeOut',
+        onComplete: () => burst.destroy(),
+      });
+    });
+  }
+
+  private ensureAnimationFrame(frameKey: string, frame: SpriteAnimationFrame): string {
+    const tex = this.textures.get(frame.texture);
+    if (!tex.has(frameKey)) {
+      tex.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+    }
+    return frameKey;
   }
 
   private ensureBackgroundMusic(): void {

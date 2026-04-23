@@ -2,6 +2,13 @@
 export const GAME_WIDTH = 640;
 export const GAME_HEIGHT = 960;
 
+export const PLAY_BACKGROUND_DISPLAY_WIDTH = 958;
+export const PLAY_BACKGROUND_DISPLAY_HEIGHT = 1630;
+export const PLAY_BACKGROUND_MENU_X = 0;
+export const PLAY_BACKGROUND_MENU_Y = -404;
+export const PLAY_BACKGROUND_GAME_X = -158;
+export const PLAY_BACKGROUND_GAME_Y = -402;
+
 // Grid configuration
 export const GRID_COLS = 5;
 export const GRID_ROWS = 5;
@@ -168,4 +175,25 @@ export const GIANT_HEAD_FRAMES: { texture: string; region: SpriteRegion }[] = [
   { texture: 'shared0', region: { x: 4, y: 2023, w: 420, h: 611 } }, // blink-2
   { texture: 'shared0', region: { x: 427, y: 2023, w: 420, h: 611 } }, // blink-3
   { texture: 'shared0', region: { x: 4, y: 1027, w: 420, h: 611 } }, // blink-4: 闭眼
+];
+
+export interface SpriteAnimationFrame extends SpriteRegion {
+  texture: string;
+  pivotX: number;
+  pivotY: number;
+}
+
+// BorderExplodeAnimation: original 11-frame pink burst used by the menu title digits.
+export const BORDER_EXPLODE_FRAMES: SpriteAnimationFrame[] = [
+  { texture: 'borderexplode-full-2', x: 257, y: 1, w: 221, h: 221, pivotX: 0.5023, pivotY: 0.5023 },
+  { texture: 'borderexplode-full-0', x: 1, y: 1, w: 258, h: 258, pivotX: 0.5, pivotY: 0.5 },
+  { texture: 'borderexplode-full-1', x: 257, y: 257, w: 221, h: 236, pivotX: 0.5023, pivotY: 0.5 },
+  { texture: 'borderexplode-full-0', x: 1, y: 261, w: 232, h: 245, pivotX: 0.5, pivotY: 0.502 },
+  { texture: 'borderexplode-full-2', x: 1, y: 257, w: 208, h: 221, pivotX: 0.5, pivotY: 0.5023 },
+  { texture: 'borderexplode-full-2', x: 257, y: 257, w: 200, h: 230, pivotX: 0.5, pivotY: 0.5 },
+  { texture: 'borderexplode-full-1', x: 257, y: 1, w: 225, h: 242, pivotX: 0.5022, pivotY: 0.5 },
+  { texture: 'borderexplode-full-1', x: 1, y: 1, w: 235, h: 233, pivotX: 0.5021, pivotY: 0.5021 },
+  { texture: 'borderexplode-full-0', x: 261, y: 1, w: 250, h: 245, pivotX: 0.5, pivotY: 0.502 },
+  { texture: 'borderexplode-full-0', x: 261, y: 257, w: 246, h: 245, pivotX: 0.5, pivotY: 0.502 },
+  { texture: 'borderexplode-full-1', x: 1, y: 257, w: 227, h: 234, pivotX: 0.5022, pivotY: 0.5 },
 ];
