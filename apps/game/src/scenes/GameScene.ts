@@ -390,6 +390,26 @@ export class GameScene extends Phaser.Scene {
     soundB.setDisplaySize(soundSize, soundSize);
     soundB.setDepth(90);
 
+    // ===== 14. GameUIPauseB（data.json 源帧：shared2，inactive=(1,769,128,128)，active=(261,513,128,128)，pivot (0.5, 0.5)）=====
+    // 暂停按钮。data.json Game 实例 origin=(0.504132, 0.470149)，不是纯中心。
+    const pauseXOffset = 0;       // 水平偏移
+    const pauseYOffset = -201;       // 垂直偏移
+    const pauseScale = 0.66;       // 缩放（0.5 = 64×64，跟 SoundB 一致）
+    const pauseSize = 128 * pauseScale;
+    const pauseTex = this.textures.get('shared2');
+    if (!pauseTex.has('pause-inactive')) {
+      pauseTex.add('pause-inactive', 0, 1, 769, 128, 128);
+    }
+    if (!pauseTex.has('pause-active')) {
+      pauseTex.add('pause-active', 0, 261, 513, 128, 128);
+    }
+    const pauseBaseX = 508;       // SoundB 左侧（596 - 88）
+    const pauseBaseY = 38;        // 跟 SoundB 同高
+    const pauseB = this.add.image(pauseBaseX + pauseXOffset, pauseBaseY + pauseYOffset, 'shared2', 'pause-inactive');
+    pauseB.setOrigin(0.504132, 0.470149);
+    pauseB.setDisplaySize(pauseSize, pauseSize);
+    pauseB.setDepth(90);
+
     if (this.debugBackgroundOnly) {
       return;
     }
