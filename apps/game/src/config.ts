@@ -5,7 +5,7 @@ export const GAME_HEIGHT = 960;
 export const PLAY_BACKGROUND_DISPLAY_WIDTH = 958;
 export const PLAY_BACKGROUND_DISPLAY_HEIGHT = 1630;
 export const PLAY_BACKGROUND_MENU_X = 0;
-export const PLAY_BACKGROUND_MENU_Y = -404;
+export const PLAY_BACKGROUND_MENU_Y = -310;
 export const PLAY_BACKGROUND_GAME_X = -158;
 export const PLAY_BACKGROUND_GAME_Y = -402;
 

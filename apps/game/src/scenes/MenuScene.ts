@@ -51,20 +51,9 @@ export class MenuScene extends Phaser.Scene {
     banner.setDisplaySize(650, 328);
     banner.setDepth(5);
 
-    if (this.debugBackgroundOnly) {
-      return;
-    }
-
-    // ===== 3. Play 按钮（原版 Menu 实例位置）=====
-    this.registerFrame('shared1', 'play-btn', { x: 515, y: 769, w: 256, h: 240 });
-    const playBtn = this.add.image(w / 2, 490, 'shared1', 'play-btn');
-    playBtn.setScale(1.054);
-    playBtn.setDepth(20);
-    playBtn.setInteractive({ useHandCursor: true });
-    playBtn.on('pointerdown', () => this.scene.start('GameScene'));
-
-    // ===== 4. 眨眼头像（原版 Menu 实例：pos=(339,139), angle=10°）=====
-    this.headImages = []; // 清空旧引用
+    // ===== 3. 眨眼头像（data.json Menu 实例：pos=(339,139), size=421×610, angle=10°）=====
+    // 源帧 420×611（4 帧睁/闭眼循环），按 data.json 实例尺寸 421×610 显示。
+    this.headImages = [];
     const headX = 339;
     const headY = 139;
     for (let i = 0; i < GIANT_HEAD_FRAMES.length; i++) {
@@ -75,12 +64,25 @@ export class MenuScene extends Phaser.Scene {
         tex.add(key, 0, f.region.x, f.region.y, f.region.w, f.region.h);
       }
       const img = this.add.image(headX, headY, f.texture, key);
+      img.setDisplaySize(421, 610);
       img.setAngle(10);
       img.setDepth(10);
       img.setVisible(i === 0);
       this.headImages.push(img);
     }
     this.startBlinkLoop();
+
+    if (this.debugBackgroundOnly) {
+      return;
+    }
+
+    // ===== 4. Play 按钮（原版 Menu 实例位置）=====
+    this.registerFrame('shared1', 'play-btn', { x: 515, y: 769, w: 256, h: 240 });
+    const playBtn = this.add.image(w / 2, 490, 'shared1', 'play-btn');
+    playBtn.setScale(1.054);
+    playBtn.setDepth(20);
+    playBtn.setInteractive({ useHandCursor: true });
+    playBtn.on('pointerdown', () => this.scene.start('GameScene'));
 
     // ===== 5. "2048" 标题进场：4 数字依次飞入 + BorderExplodeAnimation =====
     this.createTitleDigits();
