@@ -48,13 +48,19 @@ export class GameScene extends Phaser.Scene {
   private readonly debugDisableButtonActions = false;
   private readonly showButtonHitAreaDebug = false;
   // 分阶段调试：只渲染 PlayBackground，跳过 Girl / 棋盘 / 分数 / 按钮 / tray 等所有其他 UI
-  private readonly debugBackgroundOnly = true;
+  private readonly debugBackgroundOnly = false;
   // Scene 是 Phaser 的主要工作单元。
   // 一个 Scene 往往对应一个页面状态，例如菜单、战斗、暂停后的主场景等。
   private grid!: Grid;
   private sling!: Sling;
   private mergeSystem!: MergeSystem;
   private rotateSystem!: RotateSystem;
+  // ===== Debug 段创建、debug-after 段复用的可交互 UI sprite =====
+  private giantHead!: Phaser.GameObjects.Image;
+  private pauseBtn!: Phaser.GameObjects.Image;
+  private soundBtn!: Phaser.GameObjects.Image;
+  private rotateArrowL!: Phaser.GameObjects.Image;
+  private rotateArrowR!: Phaser.GameObjects.Image;
   private recorder: ActionRecorder | null = null;
   private hud!: HUD;
   private layout!: LayoutConfig;
@@ -201,11 +207,11 @@ export class GameScene extends Phaser.Scene {
     if (!rotTex.has('rotate-arrow')) {
       rotTex.add('rotate-arrow', 0, 257, 769, 128, 115);
     }
-    const rotArrowL = this.add.image(rotLeftBaseX - rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
+    const rotArrowL = this.rotateArrowL = this.add.image(rotLeftBaseX - rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
     rotArrowL.setOrigin(0.504132, 0.458015);
     rotArrowL.setDisplaySize(rotWidth, rotHeight);
     rotArrowL.setDepth(80);
-    const rotArrowR = this.add.image(rotRightBaseX + rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
+    const rotArrowR = this.rotateArrowR = this.add.image(rotRightBaseX + rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
     rotArrowR.setOrigin(0.504132, 0.458015);
     rotArrowR.setDisplaySize(rotWidth, rotHeight);
     rotArrowR.setFlipX(true);
@@ -269,11 +275,11 @@ export class GameScene extends Phaser.Scene {
     }
     const giantBaseX = 311;
     const giantBaseY = 116;
-    const giant = this.add.image(giantBaseX + giantXOffset, giantBaseY + giantYOffset, 'shared0-orig', 'giant-default');
+    const giant = this.giantHead = this.add.image(giantBaseX + giantXOffset, giantBaseY + giantYOffset, 'shared0-orig', 'giant-default');
     giant.setOrigin(0.505938, 0.501639);
     giant.setDisplaySize(421 * giantScale, 610 * giantScale);
     giant.setAngle(giantAngleDeg);
-    giant.setDepth(55);
+    giant.setDepth(-10);  // Giant 在棋盘 gridObj(-5) 后面、PlayBackground(-1000) 前面（原版手抱板子，板子盖住身体）
 
     // ===== 8. Grid 棋盘背景（data.json Game 实例：x=320, y=420, size=630×586, origin=(0.5038, 0.4898)）=====
     // 源帧：shared-0-sheet0.png @ (770, 1, 788, 733)。display 尺寸 630×586 比源帧略小。
@@ -288,7 +294,7 @@ export class GameScene extends Phaser.Scene {
     const gridObj = this.add.image(320 + gridXOffset, 420 + gridYOffset, 'shared0-orig', 'grid-default');
     gridObj.setOrigin(0.503807, 0.489768);
     gridObj.setDisplaySize(gridWidth, gridHeight);
-    gridObj.setDepth(100);  // 放最上层，其他所有 debug 元素都在它下面
+    gridObj.setDepth(-5);   // 棋盘背景放在糖果（depth 0）下面、PlayBackground(-1000) 上面
 
     // ===== 9. SelectedLineO 列高亮条（data.json 源帧：shared-0-sheet1.png @ (847, 1, 128, 808), pivot (0.5, 0.5)）=====
     // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
@@ -378,14 +384,14 @@ export class GameScene extends Phaser.Scene {
     const soundSize = 128 * soundScale;
     const soundTex = this.textures.get('shared2');
     if (!soundTex.has('sound-on')) {
-      soundTex.add('sound-on', 0, 131, 513, 128, 128);
+      soundTex.add('sound-on', 0, 1, 513, 128, 128);    // 有声 🔊
     }
     if (!soundTex.has('sound-off')) {
-      soundTex.add('sound-off', 0, 1, 513, 128, 128);
+      soundTex.add('sound-off', 0, 131, 513, 128, 128); // 静音 🔇
     }
     const soundBaseX = 596;       // 右上基准 x（= 640 - 44，跟左侧 StarUI 对称）
     const soundBaseY = 38;        // 跟 StarUI 同高
-    const soundB = this.add.image(soundBaseX + soundXOffset, soundBaseY + soundYOffset, 'shared2', 'sound-on');
+    const soundB = this.soundBtn = this.add.image(soundBaseX + soundXOffset, soundBaseY + soundYOffset, 'shared2', 'sound-on');
     soundB.setOrigin(0.5, 0.5);
     soundB.setDisplaySize(soundSize, soundSize);
     soundB.setDepth(90);
@@ -405,7 +411,7 @@ export class GameScene extends Phaser.Scene {
     }
     const pauseBaseX = 508;       // SoundB 左侧（596 - 88）
     const pauseBaseY = 38;        // 跟 SoundB 同高
-    const pauseB = this.add.image(pauseBaseX + pauseXOffset, pauseBaseY + pauseYOffset, 'shared2', 'pause-inactive');
+    const pauseB = this.pauseBtn = this.add.image(pauseBaseX + pauseXOffset, pauseBaseY + pauseYOffset, 'shared2', 'pause-inactive');
     pauseB.setOrigin(0.504132, 0.470149);
     pauseB.setDisplaySize(pauseSize, pauseSize);
     pauseB.setDepth(90);
@@ -426,57 +432,13 @@ export class GameScene extends Phaser.Scene {
     hole.setScale(0.7)
     hole.setDepth(71);
 
-    // 巨人头像睁眼闭眼动画（depth -2，棋盘后面，背景前面）
-    // 在 Phaser 里，depth 决定渲染前后顺序：值越大，越在上层。
-    const blinkFrames = [
-      { x: 1622, y: 1025, w: 420, h: 611 }, // blink-1 睁眼
-      { x: 4, y: 2023, w: 420, h: 611 },    // blink-2
-      { x: 427, y: 2023, w: 420, h: 611 },  // blink-3
-      { x: 4, y: 1027, w: 420, h: 611 },    // blink-4 闭眼
-    ];
-    const headImages: Phaser.GameObjects.Image[] = [];
-    const headX = w / 2;
-    const headY = h * 0.60 - 130 - 611 / 2 - 67; // 和首页一致
-    for (let i = 0; i < blinkFrames.length; i++) {
-      const f = blinkFrames[i];
-      const key = `game_blink_${i}`;
-      if (!tex.has(key)) {
-        tex.add(key, 0, f.x, f.y, f.w, f.h);
-      }
-      const img = this.add.image(headX, headY, 'shared0', key);
-      img.setAngle(7);
-      img.setDepth(-2);
-      img.setVisible(i === 0);
-      headImages.push(img);
-    }
-    // 眨眼循环
-    const doBlink = () => {
-      const showFrame = (idx: number) => {
-        headImages.forEach((img, i) => img.setVisible(i === idx));
-      };
-      showFrame(0);
-      this.time.delayedCall(Phaser.Math.Between(2000, 3500), () => {
-        const seq = [1, 2, 3, 2, 1, 0];
-        seq.forEach((frame, i) => {
-          this.time.delayedCall(i * 48, () => showFrame(frame));
-        });
-        this.time.delayedCall(seq.length * 48, doBlink);
-      });
-    };
-    doBlink();
+    // Giant 头像：debug 段已创建 this.giantHead（data.json 坐标 311,116 + angle 7°）。
+    // 眨眼动画暂时没接入，B 阶段用 C3 的 Blink 定义（3 帧 28fps）回来。
 
     // ===== 右上角：暂停按钮 + 声音按钮 =====
     const tex3 = this.textures.get('shared2');
-    // 暂停按钮（默认状态）
-    if (!tex3.has('pause-btn')) {
-      tex3.add('pause-btn', 0, 7, 775, 120, 120);
-    }
-    if (!tex3.has('pause-btn-active')) {
-      tex3.add('pause-btn-active', 0, 267, 523, 120, 120);
-    }
-    const pauseBtn = this.add.image(w - 140, 58, 'shared2', 'pause-btn');
-    pauseBtn.setDepth(200);
-    pauseBtn.setScale(0.70);
+    // pauseBtn sprite 复用 debug 段创建的 this.pauseBtn（frame 'pause-inactive'/'pause-active'）
+    const pauseBtn = this.pauseBtn;
     const pauseBtnZone = this.createButtonZone(
       pauseBtn.x,
       pauseBtn.y,
@@ -554,7 +516,7 @@ export class GameScene extends Phaser.Scene {
       if (this.debugDisableButtonActions) return;
       this.isPauseOpen = false;
       isPaused = false;
-      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseBtn.setTexture('shared2', 'pause-inactive');
       pauseContainer.setVisible(false);
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
@@ -577,7 +539,7 @@ export class GameScene extends Phaser.Scene {
       if (this.debugDisableButtonActions) return;
       this.isPauseOpen = false;
       isPaused = false;
-      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseBtn.setTexture('shared2', 'pause-inactive');
       pauseContainer.setVisible(false);
     });
     pauseContainer.add(playGreenBtn);
@@ -586,14 +548,14 @@ export class GameScene extends Phaser.Scene {
     const closePause = (): void => {
       this.isPauseOpen = false;
       isPaused = false;
-      pauseBtn.setTexture('shared2', 'pause-btn');
+      pauseBtn.setTexture('shared2', 'pause-inactive');
       pauseContainer.setVisible(false);
     };
 
     const openPause = (): void => {
       this.isPauseOpen = true;
       isPaused = true;
-      pauseBtn.setTexture('shared2', 'pause-btn-active');
+      pauseBtn.setTexture('shared2', 'pause-active');
       pauseContainer.setVisible(true);
     };
 
@@ -625,16 +587,9 @@ export class GameScene extends Phaser.Scene {
       console.log(`[点击] x=${Math.round(pointer.x)} y=${Math.round(pointer.y)} 命中: [${names.join(', ')}]`);
     });
 
-    // 声音按钮（开启状态）
-    if (!tex3.has('sound-on')) {
-      tex3.add('sound-on', 0, 6, 514, 120, 120);
-    }
-    if (!tex3.has('sound-mute')) {
-      tex3.add('sound-mute', 0, 136, 514, 120, 120);
-    }
-    const soundBtn = this.add.image(w - 55, 55, 'shared2', 'sound-on');
-    soundBtn.setDepth(100);
-    soundBtn.setScale(0.70)
+    // 声音按钮 sprite 复用 debug 段创建的 this.soundBtn
+    // debug 段已注册 'sound-on'=(1,513,128,128) 和 'sound-off'=(131,513,128,128)
+    const soundBtn = this.soundBtn;
     const soundBtnZone = this.createButtonZone(
       soundBtn.x,
       soundBtn.y,
@@ -647,7 +602,7 @@ export class GameScene extends Phaser.Scene {
       this.logButtonBounds('sound', soundBtn);
       if (this.debugDisableButtonActions) return;
       soundOn = !soundOn;
-      soundBtn.setTexture('shared2', soundOn ? 'sound-on' : 'sound-mute');
+      soundBtn.setTexture('shared2', soundOn ? 'sound-on' : 'sound-off');
       this.sound.mute = !soundOn;
     });
 
@@ -692,25 +647,9 @@ export class GameScene extends Phaser.Scene {
     };
 
     // ===== 左上角：星星 + 分数 / 皇冠 + 最高分 =====
-    const tex4 = this.textures.get('shared3');
-    // 星星
-    if (!tex4.has('star')) {
-      tex4.add('star', 0, 58, 60, 64, 64);
-    }
-    const star = this.add.image(40, 40, 'shared3', 'star');
-    star.setDepth(100);
-
-    // 星星旁分数（白色数字精灵图）
+    // Star / Crown sprite 已由 debug 段按 data.json 坐标创建（StarUI (44,38), CrownUI (44,98)）。
+    // 这里只渲染旁边的白色数字精灵。
     this.scoreDigits = renderSpriteNumber(0, 80, 40, 100);
-
-    // 皇冠
-    if (!tex4.has('crown')) {
-      tex4.add('crown', 0, 58, 189, 64, 64);
-    }
-    const crown = this.add.image(40, 100, 'shared3', 'crown');
-    crown.setDepth(100);
-
-    // 皇冠旁最高分（白色数字精灵图）
     const savedScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
     this.topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
 
@@ -720,6 +659,8 @@ export class GameScene extends Phaser.Scene {
     this.hud = new HUD(this, w, false);
     // 网格：根据实际canvas尺寸动态计算cellSize和偏移
     this.grid = new Grid(this, layout);
+    // 隐藏 Grid 类自己画的棋盘背景 —— 棋盘视觉已由 debug 段的 gridObj (data.json 参数) 负责
+    this.grid.boardBg.setVisible(false);
     // 合并系统：BFS扫描相邻同值方块，执行合并
     this.mergeSystem = new MergeSystem(this.grid);
     // 旋转系统：数据层矩阵转置 + 视觉Tween动画
@@ -1712,20 +1653,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   // 创建左右旋转按钮，使用素材图片
-  private createRotateButtons(w: number, h: number, layout: LayoutConfig): void {
-    // 旋转按钮放在底部托盘区域，原尺寸132×118
-    const btnY = h - 260 / 2 + 75; // tray中心高度
+  private createRotateButtons(_w: number, _h: number, _layout: LayoutConfig): void {
+    // 旋转按钮 sprite 复用 debug 段创建的 this.rotateArrowL / this.rotateArrowR
+    const leftBtn = this.rotateArrowL;
+    const rightBtn = this.rotateArrowR;
 
-    // 注册旋转按钮帧
-    const tex2 = this.textures.get('shared2');
-    if (!tex2.has('rotate_btn')) {
-      tex2.add('rotate_btn', 0, ROTATE_BTN_REGION.x, ROTATE_BTN_REGION.y, ROTATE_BTN_REGION.w, ROTATE_BTN_REGION.h);
-    }
-
-    // 左旋转按钮 — 原尺寸，左边
-    const leftBtn = this.add.image(132 / 2 + 40, btnY - 50, 'shared2', 'rotate_btn');
-    leftBtn.setScale(0.8)
-    leftBtn.setOrigin(0.5).setDepth(80);
     const leftBtnZone = this.createButtonZone(
       leftBtn.x,
       leftBtn.y,
@@ -1733,18 +1665,12 @@ export class GameScene extends Phaser.Scene {
       leftBtn.displayHeight,
       0xfaad14,
     );
-
     leftBtnZone.on('pointerdown', () => {
       this.logButtonBounds('rotate-left', leftBtn);
       if (this.debugDisableButtonActions) return;
       this.doRotate('ccw');
     });
 
-    // 右旋转按钮 — 原尺寸，右边，水平翻转
-    const rightBtn = this.add.image(w - 132 / 2 - 45, btnY - 50, 'shared2', 'rotate_btn');
-    rightBtn.setFlipX(true);
-    rightBtn.setScale(0.8)
-    rightBtn.setOrigin(0.5).setDepth(80);
     const rightBtnZone = this.createButtonZone(
       rightBtn.x,
       rightBtn.y,
@@ -1752,7 +1678,6 @@ export class GameScene extends Phaser.Scene {
       rightBtn.displayHeight,
       0x13c2c2,
     );
-
     rightBtnZone.on('pointerdown', () => {
       this.logButtonBounds('rotate-right', rightBtn);
       if (this.debugDisableButtonActions) return;
