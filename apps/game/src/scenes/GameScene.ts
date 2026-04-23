@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, PLAY_BACKGROUND_DISPLAY_HEIGHT, PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_GAME_X, PLAY_BACKGROUND_GAME_Y, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
+import { GameUiObjects } from '../objects/GameUiObjects';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
 import { Border } from '../objects/Border';
@@ -12,6 +13,10 @@ import { HUD } from '../ui/HUD';
 import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY, SavedSnapshot } from '../debug/DebugPanel';
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
+const SCORE_DIGITS_X = 90;
+const SCORE_DIGITS_Y = -173;
+const TOP_SCORE_DIGITS_X = 90;
+const TOP_SCORE_DIGITS_Y = -113;
 
 type OriginalMergeTwinkleFrame = {
   textureKey: 'mergeeffect-full' | 'mergeeffect-full-1' | 'mergeeffect-full-2';
@@ -172,253 +177,18 @@ export class GameScene extends Phaser.Scene {
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
 
-    // ===== 1. PlayBackground（data.json Game 实例：x=-158, y=-402, size=958×1630, origin=(0,0)）=====
-    const bg = this.add.image(PLAY_BACKGROUND_GAME_X, PLAY_BACKGROUND_GAME_Y, 'playbackground');
-    bg.setOrigin(0, 0);
-    bg.setDisplaySize(PLAY_BACKGROUND_DISPLAY_WIDTH, PLAY_BACKGROUND_DISPLAY_HEIGHT);
-    bg.setDepth(-1000);
-
-    // ===== 2. 底座 Panel（data.json Game 实例：x=320, y=960, size=837×234, origin=(0.5, 1)）=====
-    // 源帧：shared-0-sheet0.png @ (770, 736, 1024, 273)，pivot (0.5, 1)。
-    // data.json 实例的 display size 837×234 和源帧 1024×273 不是等比（1024→837 = 0.817，273→234 = 0.857）。
-    const trayXOffset = 0;   // 水平偏移
-    const trayYOffset = 211;   // 垂直偏移：负往上、正往下
-    const trayWidth = 837;   // data.json 实例宽
-    const trayHeight = 234;  // data.json 实例高
-    const trayTex = this.textures.get('shared0-orig');
-    if (!trayTex.has('panel-default')) {
-      trayTex.add('panel-default', 0, 770, 736, 1024, 273);
-    }
-    const tray = this.add.image(320 + trayXOffset, 960 + trayYOffset, 'shared0-orig', 'panel-default');
-    tray.setOrigin(0.5, 1);
-    tray.setDisplaySize(trayWidth, trayHeight);
-    tray.setDepth(70);
-
-    // ===== 3. RotateArrow（data.json 源帧：shared-0-sheet2.png @ (257, 769, 128, 115), pivot (0.5, 0.504348)）=====
-    // data.json Game 实例：display 256×141, origin (0.504132, 0.458015)。左右各一个（右边 flipX）。
-    const rotXOffset = -10;       // 水平偏移（对左右按钮对称：左减右加）
-    const rotYOffset = 240;       // 垂直偏移
-    const rotWidth = 96;        // 显示宽（128 × 0.75）
-    const rotHeight = 96;       // 显示高（128 × 0.75）
-    const rotLeftBaseX = 100;   // 左按钮基准 x
-    const rotRightBaseX = 540;  // 右按钮基准 x（对称 640-100）
-    const rotBaseY = 870;       // 两个按钮共用 y
-    const rotTex = this.textures.get('shared2');
-    if (!rotTex.has('rotate-arrow')) {
-      rotTex.add('rotate-arrow', 0, 257, 769, 128, 115);
-    }
-    const rotArrowL = this.rotateArrowL = this.add.image(rotLeftBaseX - rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
-    rotArrowL.setOrigin(0.504132, 0.458015);
-    rotArrowL.setDisplaySize(rotWidth, rotHeight);
-    rotArrowL.setDepth(80);
-    const rotArrowR = this.rotateArrowR = this.add.image(rotRightBaseX + rotXOffset, rotBaseY + rotYOffset, 'shared2', 'rotate-arrow');
-    rotArrowR.setOrigin(0.504132, 0.458015);
-    rotArrowR.setDisplaySize(rotWidth, rotHeight);
-    rotArrowR.setFlipX(true);
-    rotArrowR.setDepth(80);
-
-    // ===== 4. BgSquare（data.json 源帧：shared-0-sheet2.png @ (255, 257, 128, 128), pivot (0.5, 0.5)）=====
-    // 原版由 event sheet 动态 spawn，先放 1 个做定位基准。后续要变 5×5 阵列再说。
-    const bgSqX = 320;        // 基准 x（design 水平中心）
-    const bgSqY = 1115;        // 基准 y（design 垂直中心）
-    const bgSqSize = 96;      // 显示边长（= 128 × 0.75）
-    const bgSqTex = this.textures.get('shared2');
-    if (!bgSqTex.has('bg-square')) {
-      bgSqTex.add('bg-square', 0, 255, 257, 128, 128);
-    }
-    const bgSquare = this.add.image(bgSqX, bgSqY, 'shared2', 'bg-square');
-    bgSquare.setOrigin(0.5, 0.5);
-    bgSquare.setDisplaySize(bgSqSize, bgSqSize);
-    bgSquare.setDepth(75);
-
-    // ===== 5. Sling（data.json 源帧：shared-0-sheet1.png @ (1, 1281, 256, 160), pivot (0.5, 1)）=====
-    // 弹弓底座 —— pivot (0.5, 1) 表示底部中央是锚点，(slingX, slingY) 是"弹弓底"的位置。
-    const slingX = 320;       // 水平位置（design 中心）
-    const slingY = 1050;       // 弹弓底的 y（略高于 tray 顶部 ≈ 726）
-    const slingWidth = 256;   // 源帧宽
-    const slingHeight = 160;  // 源帧高
-    const slingTex = this.textures.get('shared1');
-    if (!slingTex.has('sling-default')) {
-      slingTex.add('sling-default', 0, 1, 1281, 256, 160);
-    }
-    const sling = this.add.image(slingX, slingY, 'shared1', 'sling-default');
-    sling.setOrigin(0.5, 1);
-    sling.setDisplaySize(slingWidth, slingHeight);
-    sling.setDepth(65);
-
-    // ===== 6. Girl（data.json Default 帧：girl-sheet0 @ (769, 769, 204, 244), pivot (0.4167, 0.9959)）=====
-    // 3 组动画（Default / Blink / Surprise）先只摆 Default 静态帧。
-    const girlXOffset = 0;     // 水平偏移
-    const girlYOffset = 0;     // 垂直偏移
-    const girlScale = 0.8;    // 缩放
-    const girlTex = this.textures.get('girl-full');
-    if (!girlTex.has('girl-default')) {
-      girlTex.add('girl-default', 0, 769, 769, 204, 244);
-    }
-    const girlBaseX = 555;     // pivot 世界 X 基准
-    const girlBaseY = 1065;     // pivot 世界 Y 基准（Girl 脚底贴 design 底部附近）
-    const girl = this.add.image(girlBaseX + girlXOffset, girlBaseY + girlYOffset, 'girl-full', 'girl-default');
-    girl.setOrigin(0.4167, 0.9959);
-    girl.setScale(girlScale);
-    girl.setDepth(50);
-
-    // ===== 7. Giant 头像（data.json Game 实例：x=311, y=116, size=421×610, angle=6.161 rad≈-7°, origin=(0.5059, 0.5016)）=====
-    // Default 帧源：shared-0-sheet0.png @ (1619, 1025, 421, 610)。先摆 Default 静态帧，Blink/Scream 后续再连动画。
-    const giantXOffset = 10;      // 水平偏移
-    const giantYOffset = 0;      // 垂直偏移
-    const giantScale = 1;        // 缩放倍率（data.json 显示尺寸 = 源帧，所以 1）
-    // data.json 原值 6.161 rad ≈ -7° 会让头像往左歪；原游戏看起来往右歪，所以取 +7°。
-    const giantAngleDeg = 7;  // 正 = 顺时针往右歪（Menu 场景同样用正值 +10°）
-    const giantTex = this.textures.get('shared0-orig');
-    if (!giantTex.has('giant-default')) {
-      giantTex.add('giant-default', 0, 1619, 1025, 421, 610);
-    }
-    const giantBaseX = 311;
-    const giantBaseY = 116;
-    const giant = this.giantHead = this.add.image(giantBaseX + giantXOffset, giantBaseY + giantYOffset, 'shared0-orig', 'giant-default');
-    giant.setOrigin(0.505938, 0.501639);
-    giant.setDisplaySize(421 * giantScale, 610 * giantScale);
-    giant.setAngle(giantAngleDeg);
-    giant.setDepth(-10);  // Giant 在棋盘 Grid.boardBg(depth -1) 后面（原版手抱板子，板子盖住身体）
-
-    // 棋盘背景 Grid 由 Grid 类统一创建（config.ts: BOARD_BG_REGION 已对齐 data.json (770,1,788,733)）
-    // debug 段不再重复。
-
-    // ===== 9. SelectedLineO 列高亮条（data.json 源帧：shared-0-sheet1.png @ (847, 1, 128, 808), pivot (0.5, 0.5)）=====
-    // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
-    // 这里先放 1 个做定位基准。
-    const selLineXOffset = 0;   // 水平偏移
-    const selLineYOffset = 28;   // 垂直偏移
-    const selLineScale = 0.78;                    // 整体等比缩放（1 = 源帧 128×808）
-    const selLineWidth = 128 * selLineScale;   // 显示宽
-    const selLineHeight = 808 * selLineScale;  // 显示高
-    const selLineTex = this.textures.get('shared1');
-    if (!selLineTex.has('selected-line-o')) {
-      selLineTex.add('selected-line-o', 0, 847, 1, 128, 808);
-    }
-    const selLineBaseX = 320;  // design 中心 x（column 3 位置）
-    const selLineBaseY = 420;  // 与 Grid 同高度中心
-    const selLine = this.add.image(selLineBaseX + selLineXOffset, selLineBaseY + selLineYOffset, 'shared1', 'selected-line-o');
-    selLine.setOrigin(0.5, 0.5);
-    selLine.setDisplaySize(selLineWidth, selLineHeight);
-    selLine.setDepth(110);   // 放最上层（比 Grid 的 100 更高）
-    // selLine.setAlpha(0.6);   // 原版带 Fade，给点透明度更接近运行时手感
-
-    // ===== 10. keyA 键盘提示（data.json 源帧：A=(131,769,122,122) pivot(0.5,0.4508)，D=(385,257,122,122) pivot(0.4713,0.4508)，shared2）=====
-    // 原版由 event sheet Pin 到左右旋转按钮上，Game layout 里没有静态实例。
-    // 这里两个按钮各放一个做视觉占位。
-    const keyXOffset = -19;         // 左右共用：对称（左减右加）
-    const keyYOffset = 240;         // 垂直偏移
-    const keyScale = 0.25;         // 整体缩放（1 = 源帧 122×122）
-    const keySize = 122 * keyScale;
-    const keyLeftBaseX = 100;     // 跟 rotLeftBaseX 对齐
-    const keyRightBaseX = 540;    // 跟 rotRightBaseX 对齐
-    const keyBaseY = 870;         // 跟 rotBaseY 对齐
-    const keyTex = this.textures.get('shared2');
-    if (!keyTex.has('key-a')) {
-      keyTex.add('key-a', 0, 131, 769, 122, 122);
-    }
-    if (!keyTex.has('key-d')) {
-      keyTex.add('key-d', 0, 385, 257, 122, 122);
-    }
-    const keyA = this.add.image(keyLeftBaseX - keyXOffset, keyBaseY + keyYOffset, 'shared2', 'key-a');
-    keyA.setOrigin(0.5, 0.4508);
-    keyA.setDisplaySize(keySize, keySize);
-    keyA.setDepth(85);  // 在 RotateArrow(80) 之上
-    const keyD = this.add.image(keyRightBaseX + keyXOffset, keyBaseY + keyYOffset, 'shared2', 'key-d');
-    keyD.setOrigin(0.4713, 0.4508);
-    keyD.setDisplaySize(keySize, keySize);
-    keyD.setDepth(85);
-
-    // ===== 11. StarUI（data.json 源帧：shared-0-sheet3.png @ (1, 193, 50, 50), pivot (0.5, 0.5)）=====
-    // 分数旁边的装饰星图标。Game layout 里观察到的 50×50 候选位置：(44, 38)、(44, 98)。
-    const starXOffset = 0;        // 水平偏移
-    const starYOffset = -213;        // 垂直偏移
-    const starScale = 1;          // 缩放（1 = 源帧 50×50）
-    const starSize = 50 * starScale;
-    const starTex = this.textures.get('shared3');
-    if (!starTex.has('star-ui')) {
-      starTex.add('star-ui', 0, 1, 193, 50, 50);
-    }
-    const starBaseX = 44;         // 左上分数区基准 x
-    const starBaseY = 38;         // 左上分数区基准 y
-    const starUI = this.add.image(starBaseX + starXOffset, starBaseY + starYOffset, 'shared3', 'star-ui');
-    starUI.setOrigin(0.5, 0.5);
-    starUI.setDisplaySize(starSize, starSize);
-    starUI.setDepth(90);
-
-    // ===== 12. CrownUI（data.json 源帧：shared-0-sheet3.png @ (65, 193, 50, 50), pivot (0.5, 0.5)）=====
-    // 王冠图标，通常标识 top score（最高分）。基准位置 (44, 98) —— StarUI 下方 60px。
-    const crownXOffset = 0;       // 水平偏移
-    const crownYOffset = -213;       // 垂直偏移
-    const crownScale = 1;         // 缩放（1 = 源帧 50×50）
-    const crownSize = 50 * crownScale;
-    const crownTex = this.textures.get('shared3');
-    if (!crownTex.has('crown-ui')) {
-      crownTex.add('crown-ui', 0, 65, 193, 50, 50);
-    }
-    const crownBaseX = 44;        // 左上最高分区 x
-    const crownBaseY = 98;        // 左上最高分区 y（= StarUI y 38 + 60）
-    const crownUI = this.add.image(crownBaseX + crownXOffset, crownBaseY + crownYOffset, 'shared3', 'crown-ui');
-    crownUI.setOrigin(0.5, 0.5);
-    crownUI.setDisplaySize(crownSize, crownSize);
-    crownUI.setDepth(90);
-
-    // ===== 13. SoundB（data.json 源帧：shared2，帧 0=(131,513,128,128) 开启，帧 1=(1,513,128,128) 静音，pivot (0.5, 0.5)）=====
-    // 音效开关按钮。Game layout 里无静态实例。默认显示"开启"帧。
-    const soundXOffset = -10;       // 水平偏移
-    const soundYOffset = -200;       // 垂直偏移
-    const soundScale = 0.66;       // 缩放（0.5 = 64×64）
-    const soundSize = 128 * soundScale;
-    const soundTex = this.textures.get('shared2');
-    if (!soundTex.has('sound-on')) {
-      soundTex.add('sound-on', 0, 1, 513, 128, 128);    // 有声 🔊
-    }
-    if (!soundTex.has('sound-off')) {
-      soundTex.add('sound-off', 0, 131, 513, 128, 128); // 静音 🔇
-    }
-    const soundBaseX = 596;       // 右上基准 x（= 640 - 44，跟左侧 StarUI 对称）
-    const soundBaseY = 38;        // 跟 StarUI 同高
-    const soundB = this.soundBtn = this.add.image(soundBaseX + soundXOffset, soundBaseY + soundYOffset, 'shared2', 'sound-on');
-    soundB.setOrigin(0.5, 0.5);
-    soundB.setDisplaySize(soundSize, soundSize);
-    soundB.setDepth(90);
-
-    // ===== 14. GameUIPauseB（data.json 源帧：shared2，inactive=(1,769,128,128)，active=(261,513,128,128)，pivot (0.5, 0.5)）=====
-    // 暂停按钮。data.json Game 实例 origin=(0.504132, 0.470149)，不是纯中心。
-    const pauseXOffset = 0;       // 水平偏移
-    const pauseYOffset = -201;       // 垂直偏移
-    const pauseScale = 0.66;       // 缩放（0.5 = 64×64，跟 SoundB 一致）
-    const pauseSize = 128 * pauseScale;
-    const pauseTex = this.textures.get('shared2');
-    if (!pauseTex.has('pause-inactive')) {
-      pauseTex.add('pause-inactive', 0, 1, 769, 128, 128);
-    }
-    if (!pauseTex.has('pause-active')) {
-      pauseTex.add('pause-active', 0, 261, 513, 128, 128);
-    }
-    const pauseBaseX = 508;       // SoundB 左侧（596 - 88）
-    const pauseBaseY = 38;        // 跟 SoundB 同高
-    const pauseB = this.pauseBtn = this.add.image(pauseBaseX + pauseXOffset, pauseBaseY + pauseYOffset, 'shared2', 'pause-inactive');
-    pauseB.setOrigin(0.504132, 0.470149);
-    pauseB.setDisplaySize(pauseSize, pauseSize);
-    pauseB.setDepth(90);
+    const gameUi = new GameUiObjects(this, w, h);
+    this.giantHead = gameUi.giantHead;
+    this.pauseBtn = gameUi.pauseBtn;
+    this.soundBtn = gameUi.soundBtn;
+    this.rotateArrowL = gameUi.rotateArrowL;
+    this.rotateArrowR = gameUi.rotateArrowR;
 
     if (this.debugBackgroundOnly) {
       return;
     }
 
-    // （原 tray 块已迁移到 debug return 之前，改为 data.json Panel 实例坐标）
     const tex = this.textures.get('shared0');
-    // 坑（candy-hole）原尺寸120×120，底部居中，在tray上一层
-    const trayH = trayHeight;
-    const tex2 = this.textures.get('shared2');
-    if (!tex2.has('candy-hole')) {
-      tex2.add('candy-hole', 0, 260, 263, 120, 120);
-    }
-    const hole = this.add.image(w / 2, h - trayH / 2 + 5, 'shared2', 'candy-hole');
-    hole.setScale(0.7)
-    hole.setDepth(71);
 
     // Giant 头像：debug 段已创建 this.giantHead（data.json 坐标 311,116 + angle 7°）。
     // 眨眼动画暂时没接入，B 阶段用 C3 的 Blink 定义（3 帧 28fps）回来。
@@ -637,9 +407,9 @@ export class GameScene extends Phaser.Scene {
     // ===== 左上角：星星 + 分数 / 皇冠 + 最高分 =====
     // Star / Crown sprite 已由 debug 段按 data.json 坐标创建（StarUI (44,38), CrownUI (44,98)）。
     // 这里只渲染旁边的白色数字精灵。
-    this.scoreDigits = renderSpriteNumber(0, 80, 40, 100);
+    this.scoreDigits = renderSpriteNumber(0, SCORE_DIGITS_X, SCORE_DIGITS_Y, 100);
     const savedScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
-    this.topScoreDigits = renderSpriteNumber(savedScore, 80, 100, 100);
+    this.topScoreDigits = renderSpriteNumber(savedScore, TOP_SCORE_DIGITS_X, TOP_SCORE_DIGITS_Y, 100);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证（DEBUG 模式下不创建）
@@ -693,9 +463,9 @@ export class GameScene extends Phaser.Scene {
       depth: number
     ) => Phaser.GameObjects.Image[],
   ): void {
-    this.scoreDigits = updater(this.scoreDigits, this.hud.getScore(), 80, 40, 100);
+    this.scoreDigits = updater(this.scoreDigits, this.hud.getScore(), SCORE_DIGITS_X, SCORE_DIGITS_Y, 100);
     const topScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
-    this.topScoreDigits = updater(this.topScoreDigits, topScore, 80, 100, 100);
+    this.topScoreDigits = updater(this.topScoreDigits, topScore, TOP_SCORE_DIGITS_X, TOP_SCORE_DIGITS_Y, 100);
   }
 
   private addScore(points: number): void {

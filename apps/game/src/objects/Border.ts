@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { SHAPE_REGIONS } from '../config';
+import { BORDER_REGIONS } from '../config';
 
 export class Border extends Phaser.GameObjects.Container {
   public value: number;
@@ -16,13 +16,13 @@ export class Border extends Phaser.GameObjects.Container {
     this.cellSize = cellSize;
 
     const size = cellSize;
-    const frameName = `shape_${value}`;
-    const region = SHAPE_REGIONS[value];
+    const frameName = `border_${value}`;
+    const region = BORDER_REGIONS[value];
     if (region) {
-      if (!scene.textures.get('shape-full').has(frameName)) {
-        scene.textures.get('shape-full').add(frameName, 0, region.x, region.y, region.w, region.h);
+      if (!scene.textures.get('border-full').has(frameName)) {
+        scene.textures.get('border-full').add(frameName, 0, region.x, region.y, region.w, region.h);
       }
-      this.sprite = scene.add.image(0, 0, 'shape-full', frameName);
+      this.sprite = scene.add.image(0, 0, 'border-full', frameName);
       this.sprite.setDisplaySize(size, size);
     } else {
       const rect = scene.add.rectangle(0, 0, size, size, 0x888888);
@@ -36,14 +36,14 @@ export class Border extends Phaser.GameObjects.Container {
 
   setValue(newValue: number): void {
     this.value = newValue;
-    const region = SHAPE_REGIONS[newValue];
+    const region = BORDER_REGIONS[newValue];
     const size = this.cellSize;
     if (region) {
-      const frameName = `shape_${newValue}`;
-      if (!this.scene.textures.get('shape-full').has(frameName)) {
-        this.scene.textures.get('shape-full').add(frameName, 0, region.x, region.y, region.w, region.h);
+      const frameName = `border_${newValue}`;
+      if (!this.scene.textures.get('border-full').has(frameName)) {
+        this.scene.textures.get('border-full').add(frameName, 0, region.x, region.y, region.w, region.h);
       }
-      (this.sprite as Phaser.GameObjects.Image).setTexture('shape-full', frameName);
+      (this.sprite as Phaser.GameObjects.Image).setTexture('border-full', frameName);
       this.sprite.setDisplaySize(size, size);
     }
   }

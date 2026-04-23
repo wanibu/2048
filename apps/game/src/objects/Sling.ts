@@ -1,8 +1,9 @@
 import * as Phaser from 'phaser';
 import {
   GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES,
-  SLING_REGIONS, COL_HIGHLIGHT_REGION, GRID_ROWS,
-  LayoutConfig,
+  SLING_REGIONS,
+  LayoutConfig, SELECTED_LINE_DISPLAY_HEIGHT, SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_Y,
+  SLING_DISPLAY_HEIGHT, SLING_DISPLAY_WIDTH, SLING_DISPLAY_X, SLING_DISPLAY_Y,
 } from '../config';
 import { Grid } from './Grid';
 import { Shape } from './Shape';
@@ -39,11 +40,7 @@ export class Sling {
     this.grid = grid;
     this.layout = layout;
 
-    // 旧逻辑：跟随格子尺寸联动定位，先保留注释，暂时不用
-    // this.slingY = grid.getBottomY() + layout.cellSize * 1.8 + 50;
-    // this.slingY = grid.getBottomY() - 10;
-    // 现阶段先用纯视觉固定定位：相对页面底边定位
-    this.slingY = layout.height - 163 / 2 - 110;
+    this.slingY = SLING_DISPLAY_Y;
 
     // Register texture frames for sling states
     const tex = scene.textures.get('shared1');
@@ -54,25 +51,30 @@ export class Sling {
       }
     }
 
-    // Register column highlight frame
-    const chr = COL_HIGHLIGHT_REGION;
-    if (!tex.has('col_highlight')) {
-      tex.add('col_highlight', 0, chr.x, chr.y, chr.w, chr.h);
+    if (!tex.has('sling-default')) {
+      tex.add('sling-default', 0, 1, 1281, 256, 160);
+    }
+
+    // Register column highlight frame using the same crop as GameScene's static SelectedLineO.
+    if (!tex.has('selected-line-o')) {
+      tex.add('selected-line-o', 0, 847, 1, 128, 808);
     }
 
     // Column highlight
     const hlX = grid.colToLocalX(this.selectedCol);
-    this.colHighlight = scene.add.image(hlX, grid.getGridCenterLocalY() + 25, 'shared1', 'col_highlight');
-    this.colHighlight.setDisplaySize(layout.cellSize, GRID_ROWS * layout.cellSize + layout.cellSize * 1.5);
+    const hlY = SELECTED_LINE_DISPLAY_Y - layout.boardCenterY;
+    this.colHighlight = scene.add.image(hlX, hlY, 'shared1', 'selected-line-o');
+    this.colHighlight.setOrigin(0.5, 0.5);
+    this.colHighlight.setDisplaySize(SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_HEIGHT);
     // this.colHighlight.setAlpha(0.4);
     this.colHighlight.setVisible(false);
     this.grid.addToContainer(this.colHighlight);
 
     // Sling sprite
-    const slingW = 258;
-    this.slingH = 163;
-    this.slingSprite = scene.add.image(grid.colToX(this.selectedCol), this.slingY - 50, 'shared1', 'sling_0');
-    this.slingSprite.setDisplaySize(slingW, this.slingH);
+    this.slingH = SLING_DISPLAY_HEIGHT;
+    this.slingSprite = scene.add.image(SLING_DISPLAY_X, this.slingY, 'shared1', 'sling-default');
+    this.slingSprite.setOrigin(0.5, 1);
+    this.slingSprite.setDisplaySize(SLING_DISPLAY_WIDTH, this.slingH);
     this.slingSprite.setDepth(50);
 
     // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
@@ -180,25 +182,21 @@ export class Sling {
       if (hitObjects.length > 0) return;
       if (!this.shootAvailable || !this.currentShape) return;
       // 只有点击弹弓移动区域才触发（网格宽度 × 弹弓上下范围）
-      if (!this.isPointerInSlingArea(pointer.x, pointer.y)) return;
+      const pointerWorldX = this.getPointerWorldX(pointer);
+      const pointerWorldY = this.getPointerWorldY(pointer);
+      if (!this.isPointerInSlingArea(pointerWorldX, pointerWorldY)) return;
       this.isDragging = true;
       this.colHighlight.setVisible(true);
       this.scene.sound.play('slingshot1', { volume: 0.3 });
-      this.updateColumnFromPointer(pointer.x);
+      this.updateDragPosition(pointerWorldX);
       this.setSlingState(1);
       this.startPullAnimation();
     });
 
     this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging) return;
-      // 检查鼠标是否在5列范围内
-      if (this.isPointerInGridColumns(pointer.x)) {
-        this.colHighlight.setVisible(true);
-        this.updateColumnFromPointer(pointer.x);
-      } else {
-        // 离开5列范围，隐藏光柱
-        this.colHighlight.setVisible(false);
-      }
+      this.colHighlight.setVisible(true);
+      this.updateDragPosition(this.getPointerWorldX(pointer));
     });
 
     this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
@@ -206,16 +204,14 @@ export class Sling {
       this.isDragging = false;
       this.colHighlight.setVisible(false);
 
-      // 只有在5列范围内松手才发射
-      if (this.isPointerInGridColumns(pointer.x)) {
-        this.shoot();
-      } else {
-        // 松手在范围外，取消发射，重置弹弓
-        this.setSlingState(0);
-        if (this.currentShape) {
-          this.currentShape.setY(this.shapeBaseY);
-        }
+      // 松手时始终吸附回最近列；逻辑列仍然只走 1~5 列。
+      this.snapToSelectedColumn();
+
+      if (this.currentShape) {
+        this.currentShape.setY(this.shapeBaseY);
       }
+
+      this.shoot();
     });
   }
 
@@ -228,17 +224,69 @@ export class Sling {
   // 弹弓可点击区域：横向=网格宽度，纵向=弹弓上下各一个cellSize的范围
   private isPointerInSlingArea(px: number, py: number): boolean {
     if (!this.isPointerInGridColumns(px)) return false;
-    const topY = this.slingY - this.layout.cellSize * 1.5;
-    const bottomY = this.slingY + this.layout.cellSize * 1.5;
+    const slingHitCenterY = this.slingY - this.slingH / 2;
+    const topY = slingHitCenterY - this.layout.cellSize * 1.5;
+    const bottomY = slingHitCenterY + this.layout.cellSize * 1.5;
     return py >= topY && py <= bottomY;
   }
 
-  private updateColumnFromPointer(px: number): void {
-    const col = Math.round((px - this.layout.gridOffsetX - this.layout.cellSize / 2) / this.layout.cellSize);
-    const clamped = Phaser.Math.Clamp(col, 0, GRID_COLS - 1);
-    if (clamped !== this.selectedCol) {
-      this.selectedCol = clamped;
-      this.updatePosition();
+  private getPointerWorldX(pointer: Phaser.Input.Pointer): number {
+    return pointer.worldX ?? pointer.x;
+  }
+
+  private getPointerWorldY(pointer: Phaser.Input.Pointer): number {
+    return pointer.worldY ?? pointer.y;
+  }
+
+  private getLeftmostColumnX(): number {
+    return this.grid.colToX(0);
+  }
+
+  private getRightmostColumnX(): number {
+    return this.grid.colToX(GRID_COLS - 1);
+  }
+
+  private getNearestColumnFromX(worldX: number): number {
+    let nearestCol = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (let col = 0; col < GRID_COLS; col++) {
+      const distance = Math.abs(worldX - this.grid.colToX(col));
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestCol = col;
+      }
+    }
+
+    return nearestCol;
+  }
+
+  private updateDragPosition(pointerWorldX: number): void {
+    const clampedWorldX = Phaser.Math.Clamp(
+      pointerWorldX,
+      this.getLeftmostColumnX(),
+      this.getRightmostColumnX(),
+    );
+    const nearestCol = this.getNearestColumnFromX(clampedWorldX);
+
+    this.selectedCol = nearestCol;
+    this.slingSprite.setX(clampedWorldX);
+    this.colHighlight.setX(this.grid.colToLocalX(nearestCol));
+
+    if (this.currentShape) {
+      this.currentShape.setX(clampedWorldX);
+    }
+  }
+
+  private snapToSelectedColumn(): void {
+    const snappedWorldX = this.grid.colToX(this.selectedCol);
+    const snappedLocalX = this.grid.colToLocalX(this.selectedCol);
+
+    this.slingSprite.setX(snappedWorldX);
+    this.colHighlight.setX(snappedLocalX);
+
+    if (this.currentShape) {
+      this.currentShape.setX(snappedWorldX);
     }
   }
 
@@ -265,7 +313,7 @@ export class Sling {
 
   private setSlingState(state: number): void {
     this.slingState = state;
-    this.slingSprite.setFrame(`sling_${state}`);
+    this.slingSprite.setFrame(state === 0 ? 'sling-default' : `sling_${state}`);
   }
 
   private moveColumn(delta: number): void {

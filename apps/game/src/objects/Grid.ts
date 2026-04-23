@@ -1,5 +1,13 @@
 import * as Phaser from 'phaser';
-import { GRID_COLS, GRID_ROWS, STONE_VALUE, BOARD_BG_REGION, BOARD_SCALE, LayoutConfig } from '../config';
+import {
+  BOARD_BG_REGION,
+  BOARD_DISPLAY_HEIGHT,
+  BOARD_DISPLAY_WIDTH,
+  GRID_COLS,
+  GRID_ROWS,
+  LayoutConfig,
+  STONE_VALUE,
+} from '../config';
 import { Border } from './Border';
 import { Stone } from './Stone';
 
@@ -54,7 +62,7 @@ export class Grid {
     }
     this.boardBg = this.scene.add.image(0, 0, 'shared0-orig', 'board_bg');
     this.boardBg.setOrigin(0.503807, 0.489768);
-    this.boardBg.setScale(BOARD_SCALE);
+    this.boardBg.setDisplaySize(BOARD_DISPLAY_WIDTH, BOARD_DISPLAY_HEIGHT);
     this.boardBg.setDepth(-1);
     this.backgroundLayer.add(this.boardBg);
 

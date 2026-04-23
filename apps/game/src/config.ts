@@ -11,6 +11,16 @@ export const PLAY_BACKGROUND_MENU_Y = -310;
 export const PLAY_BACKGROUND_GAME_X = PLAY_BACKGROUND_MENU_X;
 export const PLAY_BACKGROUND_GAME_Y = PLAY_BACKGROUND_MENU_Y;
 
+export const SLING_DISPLAY_X = 320;
+export const SLING_DISPLAY_Y = 1050;
+export const SLING_DISPLAY_WIDTH = 256;
+export const SLING_DISPLAY_HEIGHT = 160;
+
+export const SELECTED_LINE_DISPLAY_X = 320;
+export const SELECTED_LINE_DISPLAY_Y = 448;
+export const SELECTED_LINE_DISPLAY_WIDTH = 128 * 0.78;
+export const SELECTED_LINE_DISPLAY_HEIGHT = 808 * 0.78;
+
 // Grid configuration
 export const GRID_COLS = 5;
 export const GRID_ROWS = 5;
@@ -26,19 +36,16 @@ export interface LayoutConfig {
   height: number;
 }
 
-// 棋盘背景缩放：data.json Grid 实例 630/788 ≈ 0.8（788 × 0.8 = 630.4 ≈ 630）
-export const BOARD_SCALE = 0.8;
+// C3 data.json Grid instance: center=(320,420), display=630x586, origin=(0.503807,0.489768).
+export const BOARD_DISPLAY_WIDTH = 630;
+export const BOARD_DISPLAY_HEIGHT = 586;
 export const BOARD_OFFSET_X = 0;
 export const BOARD_OFFSET_Y = 0;
-// 网格在棋盘背景内部的比例：
-// C3 全局变量 CellSize=93.5，5 格总宽 = 467.5；棋盘显示宽 630 → 467.5/630 ≈ 0.742
-export const GRID_INSIDE_RATIO = 0.742;
+export const CELL_SIZE = 93.5;
 
 export function calcLayout(w: number, h: number): LayoutConfig {
-  // 棋盘显示尺寸 = data.json Grid 实例 630×586（源 788×733 × 0.8）
-  const boardDisplaySize = BOARD_BG_REGION.w * BOARD_SCALE;
-  const gridWidth = boardDisplaySize * GRID_INSIDE_RATIO;
-  const cellSize = gridWidth / GRID_COLS;
+  const cellSize = CELL_SIZE;
+  const gridWidth = CELL_SIZE * GRID_COLS;
   // 棋盘中心 = data.json Game 实例硬编码 (320, 420)，不随 canvas 尺寸浮动
   const boardCenterX = 320 + BOARD_OFFSET_X;
   const boardCenterY = 420 + BOARD_OFFSET_Y;
@@ -140,6 +147,25 @@ export const SHAPE_REGIONS: Record<number, SpriteRegion> = {
   4: { x: 262, y: 770, w: 130, h: 131 },
   2: { x: 0, y: 770, w: 131, h: 131 },
   0: { x: 131, y: 770, w: 131, h: 131 },
+};
+
+// value -> source region in border-sheet0.png.
+// C3 uses Border for candies already placed inside the grid; Shape is for the projectile.
+export const BORDER_REGIONS: Record<number, SpriteRegion> = {
+  // 8192: { x: 1, y: 1, w: 128, h: 128 },
+  8192: { x: 131, y: 1, w: 128, h: 128 },
+  4096: { x: 261, y: 1, w: 128, h: 128 },
+  2048: { x: 1, y: 131, w: 128, h: 128 },
+  1024: { x: 131, y: 131, w: 128, h: 128 },
+  512: { x: 261, y: 131, w: 128, h: 128 },
+  256: { x: 1, y: 261, w: 128, h: 128 },
+  128: { x: 131, y: 261, w: 128, h: 128 },
+  64: { x: 261, y: 261, w: 128, h: 128 },
+  32: { x: 1, y: 513, w: 128, h: 128 },
+  16: { x: 131, y: 513, w: 128, h: 128 },
+  8: { x: 261, y: 513, w: 128, h: 128 },
+  4: { x: 1, y: 769, w: 128, h: 128 },
+  2: { x: 131, y: 769, w: 128, h: 128 },
 };
 
 // Stone sprite: first frame of border-sheet0.png
