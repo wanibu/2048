@@ -290,6 +290,26 @@ export class GameScene extends Phaser.Scene {
     gridObj.setDisplaySize(gridWidth, gridHeight);
     gridObj.setDepth(100);  // 放最上层，其他所有 debug 元素都在它下面
 
+    // ===== 9. SelectedLineO 列高亮条（data.json 源帧：shared-0-sheet1.png @ (847, 1, 128, 808), pivot (0.5, 0.5)）=====
+    // 原版由 event sheet 动态 spawn（玩家指哪列就亮哪列），Game layout 里没有静态实例。
+    // 这里先放 1 个做定位基准。
+    const selLineXOffset = 0;   // 水平偏移
+    const selLineYOffset = 110;   // 垂直偏移
+    const selLineScale = 1;                    // 整体等比缩放（1 = 源帧 128×808）
+    const selLineWidth = 128 * selLineScale;   // 显示宽
+    const selLineHeight = 808 * selLineScale;  // 显示高
+    const selLineTex = this.textures.get('shared1');
+    if (!selLineTex.has('selected-line-o')) {
+      selLineTex.add('selected-line-o', 0, 847, 1, 128, 808);
+    }
+    const selLineBaseX = 320;  // design 中心 x（column 3 位置）
+    const selLineBaseY = 420;  // 与 Grid 同高度中心
+    const selLine = this.add.image(selLineBaseX + selLineXOffset, selLineBaseY + selLineYOffset, 'shared1', 'selected-line-o');
+    selLine.setOrigin(0.5, 0.5);
+    selLine.setDisplaySize(selLineWidth, selLineHeight);
+    selLine.setDepth(110);   // 放最上层（比 Grid 的 100 更高）
+    // selLine.setAlpha(0.6);   // 原版带 Fade，给点透明度更接近运行时手感
+
     if (this.debugBackgroundOnly) {
       return;
     }
