@@ -1,30 +1,155 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { api } from '@/api/client';
 import type { Stats } from '@/api/types';
 import type { GamesStatusFilter } from '@/App';
 import { toast } from 'react-toastify';
 
-interface Props {
+interface StatsPageProps {
   onNavigateGames: (filter: GamesStatusFilter) => void;
   onNavigatePlanAnalysis: () => void;
   onNavigatePlans: () => void;
   onNavigateSequences: () => void;
 }
 
+// TODO(Phase 2.1): 后端加时间序列接口后替换为实时数据
+const TREND_GAMES = [18, 22, 20, 26, 24, 30, 28, 35, 33, 38, 36, 42];
+const TREND_PLAYERS = [8, 9, 10, 11, 12, 10, 14, 13, 15, 17, 16, 18];
+const TREND_SCORES = [2100, 2400, 2300, 2800, 2500, 3100, 2900, 3400, 3200, 3600, 3500, 3900];
+
+function formatNumber(n: number) {
+  return n.toLocaleString('en-US');
+}
+
+function PageHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        height: 48,
+        padding: '0 20px',
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>
+      {right}
+    </div>
+  );
+}
+
+function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      style={{
+        padding: '5px 10px',
+        fontSize: '0.75rem',
+        border: '1px solid var(--color-border-strong)',
+        borderRadius: 6,
+        background: 'var(--color-surface)',
+        color: 'var(--color-text-soft)',
+        cursor: loading ? 'wait' : 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontFamily: 'inherit',
+      }}
+    >
+      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+      刷新
+    </button>
+  );
+}
+
+function Spark({
+  label,
+  value,
+  delta,
+  positive,
+  data,
+  color,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  positive: boolean;
+  data: number[];
+  color: string;
+}) {
+  const max = Math.max(...data, 1);
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * 200;
+      const y = 40 - (v / max) * (40 - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: '0.6875rem',
+          color: 'var(--color-text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.8px',
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            fontFamily: 'Fredoka, system-ui, sans-serif',
+            fontWeight: 600,
+            fontSize: '1.125rem',
+            color: 'var(--color-text)',
+          }}
+        >
+          {value}
+        </span>
+        <span style={{ fontSize: '0.6875rem', color: positive ? '#1fa85a' : '#c83a3a' }}>{delta}</span>
+      </div>
+      <svg
+        viewBox="0 0 200 40"
+        preserveAspectRatio="none"
+        width="100%"
+        height={40}
+        style={{ display: 'block' }}
+      >
+        <polyline
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          points={points}
+        />
+      </svg>
+    </div>
+  );
+}
+
 export function StatsPage({
-  onNavigateGames, onNavigatePlanAnalysis, onNavigatePlans, onNavigateSequences,
-}: Props) {
+  onNavigateGames,
+  onNavigatePlanAnalysis,
+  onNavigatePlans,
+  onNavigateSequences,
+}: StatsPageProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function load() {
+  async function loadStats() {
     setLoading(true);
     try {
-      const s = await api<Stats>('/api/admin/stats');
-      setStats(s);
+      const nextStats = await api<Stats>('/api/admin/stats');
+      setStats(nextStats);
     } catch (err) {
       toast.error((err as { error?: string })?.error || '加载失败');
     } finally {
@@ -32,93 +157,151 @@ export function StatsPage({
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    void loadStats();
+  }, []);
 
-  interface CardItem {
-    label: string;
-    value: number | string;
-    color?: string;
-    onClick?: () => void;
-    hint?: string;
-  }
-
-  const items: CardItem[] = stats ? [
+  const cards = [
     {
+      key: 'totalGames',
       label: '总局数',
-      value: stats.totalGames,
+      value: stats?.totalGames ?? null,
+      hint: '点击查看游戏局',
+      accent: '#5a7cff',
       onClick: () => onNavigateGames('all'),
-      hint: '查看全部局',
     },
     {
+      key: 'playingGames',
       label: '进行中',
-      value: stats.playingGames,
-      color: 'text-orange-400',
+      value: stats?.playingGames ?? null,
+      hint: 'playing',
+      accent: '#ffb93c',
       onClick: () => onNavigateGames('playing'),
-      hint: '查看进行中的局',
     },
     {
+      key: 'finishedGames',
       label: '已结束',
-      value: stats.finishedGames,
-      color: 'text-[var(--color-success)]',
+      value: stats?.finishedGames ?? null,
+      hint: 'finished',
+      accent: '#1fa85a',
       onClick: () => onNavigateGames('finished'),
-      hint: '查看已结束的局',
     },
     {
+      key: 'uniquePlayers',
       label: '独立玩家',
-      value: stats.uniquePlayers,
+      value: stats?.uniquePlayers ?? null,
+      hint: '按 fingerprint',
+      accent: '#4ecd7a',
       onClick: () => onNavigateGames('all'),
-      hint: '查看玩家维度（全部局）',
     },
     {
+      key: 'topScore',
       label: '最高分',
-      value: stats.topScore,
-      color: 'text-[var(--color-primary)]',
+      value: stats?.topScore ?? null,
+      hint: '全量记录',
+      accent: '#c83a3a',
       onClick: onNavigatePlanAnalysis,
-      hint: '按 Plan 维度对比分数、时长、留存等',
     },
     {
+      key: 'sequencePlans',
       label: '序列方案数',
-      value: stats.sequencePlans,
+      value: stats?.sequencePlans ?? null,
+      hint: 'Plans',
+      accent: '#c14dff',
       onClick: onNavigatePlans,
-      hint: '管理 Plans',
     },
     {
-      label: '生成序列数',
-      value: stats.generatedSequences,
+      key: 'generatedSequences',
+      label: '已生成序列',
+      value: stats?.generatedSequences ?? null,
+      hint: 'Sequences',
+      accent: '#8e5dff',
       onClick: onNavigateSequences,
-      hint: '管理生成的 Sequences',
     },
-  ] : [];
+  ];
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <h2 className="text-lg font-semibold">统计</h2>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          刷新
-        </Button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {items.map((it) => (
-            <Card
-              key={it.label}
-              onClick={it.onClick}
-              className={it.onClick ? 'cursor-pointer hover:border-[var(--color-primary)] hover:shadow-md transition' : ''}
-              title={it.hint}
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--color-bg)]">
+      <PageHeader title="统计" right={<RefreshBtn onClick={() => void loadStats()} loading={loading} />} />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto p-5">
+        <div className="grid grid-cols-4 gap-[14px]">
+          {cards.map((c) => (
+            <div
+              key={c.key}
+              onClick={c.onClick}
+              style={{
+                position: 'relative',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: '18px 20px',
+                cursor: 'pointer',
+                transition: 'box-shadow 150ms ease, transform 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              <CardHeader>
-                <CardTitle className="text-xs font-normal text-[var(--color-text-muted)]">{it.label}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className={`text-2xl font-bold ${it.color || ''}`}>{it.value}</div>
-                {it.hint && (
-                  <div className="text-[10px] text-[var(--color-text-muted)] mt-1">{it.hint} →</div>
-                )}
-              </CardContent>
-            </Card>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 3,
+                  background: c.accent,
+                  opacity: 0.65,
+                  borderTopLeftRadius: 10,
+                  borderBottomLeftRadius: 10,
+                }}
+              />
+              <div
+                style={{
+                  fontSize: '0.6875rem',
+                  color: 'var(--color-text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.8px',
+                  marginBottom: 10,
+                }}
+              >
+                {c.label}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'Fredoka, system-ui, sans-serif',
+                  fontWeight: 600,
+                  fontSize: '1.875rem',
+                  color: 'var(--color-text)',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.1,
+                  marginBottom: 6,
+                }}
+              >
+                {typeof c.value === 'number' ? formatNumber(c.value) : '—'}
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-dimmest)' }}>{c.hint}</div>
+            </div>
           ))}
+        </div>
+
+        <div
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            padding: '16px 20px',
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 12 }}>近 24 小时趋势</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+            <Spark label="新增局数" value="—" delta="—" positive data={TREND_GAMES} color="#5a7cff" />
+            <Spark label="独立玩家" value="—" delta="—" positive data={TREND_PLAYERS} color="#4ecd7a" />
+            <Spark label="平均得分" value="—" delta="—" positive data={TREND_SCORES} color="#c14dff" />
+          </div>
         </div>
       </div>
     </div>
