@@ -2,34 +2,8 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { PlanStage } from '@/api/types';
 import { CandyChip } from '@/components/ui/candy-chip';
-import { ALL_VALUES, COLOR_MAP, STONE_VALUE, expectedValue, labelOf, normalize } from '@/lib/plan-shared';
-
-function DifficultyBadge({ weights }: { weights: Record<string, number> }) {
-  const ev = expectedValue(weights);
-  const log = ev > 0 ? Math.log2(ev) : 0;
-  const bucket = log < 5 ? ['easy', '#4ecd7a'] : log < 8 ? ['medium', '#ffb93c'] : log < 11 ? ['hard', '#ff6a3c'] : ['extreme', '#c14dff'];
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '4px 10px',
-        background: '#f4f4f8',
-        borderRadius: 10,
-        border: '1px solid #ececf2',
-      }}
-    >
-      <span style={{ fontSize: 11, color: '#8a8a94', letterSpacing: 0.6, textTransform: 'uppercase' }}>EV</span>
-      <span style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, fontSize: 13.5, color: '#2a2a33', fontVariantNumeric: 'tabular-nums' }}>
-        {ev < 10 ? ev.toFixed(1) : Math.round(ev).toLocaleString()}
-      </span>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: bucket[1], boxShadow: `0 0 0 2px ${bucket[1]}22` }} />
-      <span style={{ fontSize: 11, color: bucket[1], fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>{bucket[0]}</span>
-    </div>
-  );
-}
+import { DifficultyBadge } from '@/components/ui/difficulty-badge';
+import { ALL_VALUES, COLOR_MAP, STONE_VALUE, labelOf, normalize } from '@/lib/plan-shared';
 
 interface StageDetailSheetProps {
   open: boolean;

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { GeneratedSequence, Plan, PlanStage, PlansResp, SequencesResp } from '@/api/types';
@@ -8,6 +8,8 @@ import { PlanEditSheet } from '@/components/config/PlanEditSheet';
 import { SequenceDetailSheet } from '@/components/config/SequenceDetailSheet';
 import { SequenceEditSheet } from '@/components/config/SequenceEditSheet';
 import { StageDetailSheet } from '@/components/config/StageDetailSheet';
+import { PageHeader } from '@/components/ui/page-header';
+import { RefreshBtn } from '@/components/ui/refresh-btn';
 
 export function ConfigPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -212,51 +214,5 @@ export function ConfigPage() {
         }}
       />
     </div>
-  );
-}
-
-function PageHeader({ title, right }: { title: string; right?: ReactNode }) {
-  return (
-    <div
-      style={{
-        height: 48,
-        padding: '0 20px',
-        background: 'var(--color-surface)',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>
-      {right}
-    </div>
-  );
-}
-
-function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        padding: '5px 10px',
-        fontSize: '0.75rem',
-        border: '1px solid var(--color-border-strong)',
-        borderRadius: 6,
-        background: 'var(--color-surface)',
-        color: 'var(--color-text-soft)',
-        cursor: loading ? 'wait' : 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontFamily: 'inherit',
-      }}
-    >
-      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-      刷新
-    </button>
   );
 }

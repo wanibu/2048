@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { api } from '@/api/client';
 import type { PlanStat, PlanStatsResp, PlanSequenceStatsResp, SequenceStat } from '@/api/types';
+import { PageHeader } from '@/components/ui/page-header';
+import { RefreshBtn } from '@/components/ui/refresh-btn';
 
 interface PlanAnalysisPageProps {
   onSelectSequence?: (planId: string, sequenceId: string) => void;
@@ -19,14 +21,6 @@ const seqTd = { padding: '10px 12px', fontSize: '0.7188rem', borderBottom: '1px 
 function formatShortPlanId(planId: string | null) {
   if (!planId) return '—';
   return planId.length <= 12 ? planId : `${planId.slice(0, 8)}…${planId.slice(-4)}`;
-}
-
-function PageHeader({ title, right }: { title: string; right?: ReactNode }) {
-  return <div style={{ height: 48, padding: '0 20px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}><div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>{right}</div>;
-}
-
-function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={loading} style={{ padding: '5px 10px', fontSize: '0.75rem', border: '1px solid var(--color-border-strong)', borderRadius: 6, background: 'var(--color-surface)', color: 'var(--color-text-soft)', cursor: loading ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}><RefreshCw size={12} className={loading ? 'animate-spin' : ''} />刷新</button>;
 }
 
 function EndReasonCard({ plans }: { plans: PlanStat[] }) {

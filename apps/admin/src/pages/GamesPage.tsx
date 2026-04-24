@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { Game, GameDetail, GamesResp, Stats } from '@/api/types';
 import type { GamesStatusFilter } from '@/App';
 import { CandyChip } from '@/components/ui/candy-chip';
+import { PageHeader } from '@/components/ui/page-header';
+import { RefreshBtn } from '@/components/ui/refresh-btn';
+import { StatusPill } from '@/components/ui/status-pill';
 
 interface Props {
   statusFilter: GamesStatusFilter;
@@ -62,77 +65,6 @@ function parseSequence(sequence: string | null | undefined) {
   } catch {
     return [];
   }
-}
-
-function PageHeader({ title, right }: { title: string; right?: ReactNode }) {
-  return (
-    <div
-      style={{
-        height: 48,
-        padding: '0 20px',
-        background: 'var(--color-surface)',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>
-      {right}
-    </div>
-  );
-}
-
-function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        padding: '5px 10px',
-        fontSize: '0.75rem',
-        border: '1px solid var(--color-border-strong)',
-        borderRadius: 6,
-        background: 'var(--color-surface)',
-        color: 'var(--color-text-soft)',
-        cursor: loading ? 'wait' : 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontFamily: 'inherit',
-      }}
-    >
-      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-      刷新
-    </button>
-  );
-}
-
-function StatusPill({ status }: { status: 'playing' | 'finished' }) {
-  const s = status === 'playing'
-    ? { bg: '#e3eaff', fg: '#5a7cff', bd: '#c7d3ff', label: '进行中', dot: '#5a7cff' }
-    : { bg: '#e6f5ec', fg: '#1fa85a', bd: '#c8e6d3', label: '已结束', dot: '#1fa85a' };
-
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '2px 8px',
-        borderRadius: 10,
-        fontSize: '0.6562rem',
-        fontWeight: 500,
-        background: s.bg,
-        color: s.fg,
-        border: `1px solid ${s.bd}`,
-      }}
-    >
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot }} />
-      {s.label}
-    </span>
-  );
 }
 
 function MetaCell({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {

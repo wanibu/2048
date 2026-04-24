@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { GeneratedSequence } from '@/api/types';
 import { CandyChip } from '@/components/ui/candy-chip';
+import { StatusPill } from '@/components/ui/status-pill';
 
 function fmtDate(iso: string) {
   const date = new Date(iso);
@@ -19,25 +20,6 @@ function tokenValue(token: string | number) {
   if (token === 'stone' || token === 0) return 0;
   const numeric = Number(token);
   return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function StatusPill({ status }: { status: GeneratedSequence['status'] }) {
-  const enabled = status === 'enabled';
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '3px 8px',
-        borderRadius: 999,
-        fontSize: '0.6875rem',
-        color: enabled ? '#1f8a47' : '#7c7c88',
-        background: enabled ? '#e9f8ef' : '#f1f1f5',
-      }}
-    >
-      {status}
-    </span>
-  );
 }
 
 interface SequenceDetailSheetProps {

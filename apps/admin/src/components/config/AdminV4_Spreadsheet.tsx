@@ -4,7 +4,8 @@ import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { InlineStageInput, Plan } from '@/api/types';
 import { CandyChip } from '@/components/ui/candy-chip';
-import { ALL_VALUES, COLOR_MAP, STONE_VALUE, expectedValue, labelOf } from '@/lib/plan-shared';
+import { DifficultyBadge } from '@/components/ui/difficulty-badge';
+import { ALL_VALUES, COLOR_MAP, STONE_VALUE, labelOf } from '@/lib/plan-shared';
 
 export interface AdminV4_SpreadsheetProps {
   initialPlan: Plan | null;
@@ -141,41 +142,6 @@ function toEditorPlan(initialPlan: Plan | null, mode: 'new' | 'edit'): EditorPla
       weights: fromBackendWeights(stage.probabilities),
     })),
   };
-}
-
-function DifficultyBadge({ weights, dense = false }: { weights: Record<string, number>; dense?: boolean }) {
-  const ev = expectedValue(weights);
-  const log = ev > 0 ? Math.log2(ev) : 0;
-  const bucket = log < 5 ? ['easy', '#4ecd7a'] : log < 8 ? ['medium', '#ffb93c'] : log < 11 ? ['hard', '#ff6a3c'] : ['extreme', '#c14dff'];
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: dense ? 6 : 8,
-        padding: dense ? '2px 8px' : '4px 10px',
-        background: '#f4f4f8',
-        borderRadius: 10,
-        border: '1px solid #ececf2',
-      }}
-    >
-      <span style={{ fontSize: dense ? 10 : 11, color: '#8a8a94', letterSpacing: 0.6, textTransform: 'uppercase' }}>EV</span>
-      <span
-        style={{
-          fontFamily: 'Fredoka, system-ui, sans-serif',
-          fontWeight: 600,
-          fontSize: dense ? 12 : 13.5,
-          color: '#2a2a33',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {ev < 10 ? ev.toFixed(1) : Math.round(ev).toLocaleString()}
-      </span>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: bucket[1], boxShadow: `0 0 0 2px ${bucket[1]}22` }} />
-      <span style={{ fontSize: dense ? 10 : 11, color: bucket[1], fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>{bucket[0]}</span>
-    </div>
-  );
 }
 
 export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: AdminV4_SpreadsheetProps) {

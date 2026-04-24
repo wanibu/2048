@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { api } from '@/api/client';
 import type { Stats } from '@/api/types';
 import type { GamesStatusFilter } from '@/App';
+import { PageHeader } from '@/components/ui/page-header';
+import { RefreshBtn } from '@/components/ui/refresh-btn';
 import { toast } from 'react-toastify';
 
 interface StatsPageProps {
@@ -19,51 +20,6 @@ const TREND_SCORES = [2100, 2400, 2300, 2800, 2500, 3100, 2900, 3400, 3200, 3600
 
 function formatNumber(n: number) {
   return n.toLocaleString('en-US');
-}
-
-function PageHeader({ title, right }: { title: string; right?: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        height: 48,
-        padding: '0 20px',
-        background: 'var(--color-surface)',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>
-      {right}
-    </div>
-  );
-}
-
-function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        padding: '5px 10px',
-        fontSize: '0.75rem',
-        border: '1px solid var(--color-border-strong)',
-        borderRadius: 6,
-        background: 'var(--color-surface)',
-        color: 'var(--color-text-soft)',
-        cursor: loading ? 'wait' : 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontFamily: 'inherit',
-      }}
-    >
-      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-      刷新
-    </button>
-  );
 }
 
 function Spark({
