@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { GeneratedSequence, Plan, PlansResp, SequencesResp } from '@/api/types';
 import { DetailVariantA } from '@/components/config/DetailVariantA';
+import { PlanEditSheet } from '@/components/config/PlanEditSheet';
 
 export function ConfigPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -11,6 +12,9 @@ export function ConfigPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editMode, setEditMode] = useState<'new' | 'edit'>('new');
+  const [editTargetPlan, setEditTargetPlan] = useState<Plan | null>(null);
 
   async function loadAll() {
     setLoading(true);
@@ -97,7 +101,11 @@ export function ConfigPage() {
             />
             <button
               type="button"
-              onClick={() => console.log('[stub] openNewPlan')}
+              onClick={() => {
+                setEditMode('new');
+                setEditTargetPlan(null);
+                setEditOpen(true);
+              }}
               title="新增 Plan"
               style={{ padding: '5px 10px', fontSize: '0.75rem', border: '1px solid #e6e6ec', borderRadius: 6, background: '#fff', color: '#5a5a66', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
@@ -139,9 +147,25 @@ export function ConfigPage() {
             <DetailVariantA
               plan={selectedPlan}
               sequences={planSequences}
-              onEdit={() => console.log('[stub] edit plan')}
+              onEdit={() => {
+                setEditMode('edit');
+                setEditTargetPlan(selectedPlan);
+                setEditOpen(true);
+              }}
               onDelete={() => void deletePlan(selectedPlan)}
-              onGenerateSequence={() => console.log('[stub] openGenerateSequence')}
+              onGenerateSequence={async () => {
+                if (!selectedPlan) return;
+                try {
+                  await api('/api/admin/generate-sequence', {
+                    method: 'POST',
+                    body: { sequence_plan_id: selectedPlan.id },
+                  });
+                  toast.success('已生成序列');
+                  await loadAll();
+                } catch (error) {
+                  toast.error((error as { error?: string })?.error || '生成失败');
+                }
+              }}
               onSelectStage={(stage, stageIndex) => console.log('[stub] openStageDetail', { stage, stageIndex })}
               onSelectSequence={(sequence) => console.log('[stub] openSequenceDetail', sequence)}
               onEditSequence={(sequence) => console.log('[stub] openEditSequence', sequence)}
@@ -155,6 +179,16 @@ export function ConfigPage() {
           )}
         </div>
       </div>
+      <PlanEditSheet
+        open={editOpen}
+        mode={editMode}
+        initialPlan={editTargetPlan}
+        onClose={() => setEditOpen(false)}
+        onSaved={async (saved) => {
+          await loadAll();
+          if (saved?.id) setSelectedPlanId(saved.id);
+        }}
+      />
     </div>
   );
 }
