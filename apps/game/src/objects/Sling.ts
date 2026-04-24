@@ -195,14 +195,23 @@ export class Sling {
       this.isDragging = false;
       this.colHighlight.setVisible(false);
 
-      // 松手时始终吸附回最近列；逻辑列仍然只走 1~5 列。
-      this.snapToSelectedColumn();
+      const pointerWorldX = this.getPointerWorldX(pointer);
+      const pointerWorldY = this.getPointerWorldY(pointer);
+      const releasedInArea = this.isPointerInSlingArea(pointerWorldX, pointerWorldY);
 
+      // 糖果吸附到选中列并回到基准 Y
+      this.snapToSelectedColumn();
       if (this.currentShape) {
         this.currentShape.setY(this.shapeBaseY);
       }
 
-      this.shoot();
+      if (releasedInArea) {
+        // 有效区内松手 → 正常发射
+        this.shoot();
+      } else {
+        // 有效区外松手 → 静默取消，弹弓回默认状态，糖果停留等下次拖
+        this.setSlingState(0);
+      }
     });
   }
 
