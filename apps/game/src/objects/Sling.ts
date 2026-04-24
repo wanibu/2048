@@ -1,17 +1,16 @@
 import * as Phaser from 'phaser';
 import {
+  CURRENT_CANDY_DEPTH, CURRENT_CANDY_OFFSET_Y, CURRENT_CANDY_SIZE,
   GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES,
   SLING_REGIONS,
   LayoutConfig, SELECTED_LINE_DISPLAY_HEIGHT, SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_Y,
+  NEXT_PREVIEW_DEPTH, NEXT_PREVIEW_SIZE, NEXT_PREVIEW_X, NEXT_PREVIEW_Y,
   SLING_DISPLAY_HEIGHT, SLING_DISPLAY_WIDTH, SLING_DISPLAY_X, SLING_DISPLAY_Y,
 } from '../config';
 import { Grid } from './Grid';
 import { Shape } from './Shape';
 
 export class Sling {
-  private static readonly CANDY_OFFSET_Y = -90;
-  private static readonly CANDY_SIZE = 130;
-
   private scene: Phaser.Scene;
   private grid: Grid;
   private layout: LayoutConfig;
@@ -97,9 +96,9 @@ export class Sling {
 
     const x = this.grid.colToX(this.selectedCol);
     // 糖果球初始位置：相对弹弓中心固定上移
-    this.shapeBaseY = this.slingY + Sling.CANDY_OFFSET_Y;
-    this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, Sling.CANDY_SIZE);
-    this.currentShape.setDepth(140);
+    this.shapeBaseY = this.slingY + CURRENT_CANDY_OFFSET_Y;
+    this.currentShape = new Shape(this.scene, x, this.shapeBaseY, value, CURRENT_CANDY_SIZE);
+    this.currentShape.setDepth(CURRENT_CANDY_DEPTH);
     this.shootAvailable = true;
     this.setSlingState(0);
 
@@ -145,7 +144,6 @@ export class Sling {
 
   // 更新底部中间的"下一个糖果"预览
   private updateNextPreview(): void {
-    // 清理旧预览
     if (this.nextPreview && this.nextPreview.active) {
       this.nextPreview.destroy();
     }
@@ -153,15 +151,8 @@ export class Sling {
       this.nextPreview = null;
       return;
     }
-    // 放在坑（candy-hole）的位置，原尺寸显示
-    const w = this.layout.width;
-    const h = this.layout.height;
-    const trayScale = w / 781;
-    const trayH = 260 * trayScale;
-    const previewX = w / 2;
-    const previewY = h - trayH / 2 + 5; // 和坑的Y坐标一致
-    this.nextPreview = new Shape(this.scene, previewX, previewY, this.nextValue, 90);
-    this.nextPreview.setDepth(100);
+    this.nextPreview = new Shape(this.scene, NEXT_PREVIEW_X, NEXT_PREVIEW_Y, this.nextValue, NEXT_PREVIEW_SIZE);
+    this.nextPreview.setDepth(NEXT_PREVIEW_DEPTH);
   }
 
   private setupInput(): void {

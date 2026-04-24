@@ -16,6 +16,17 @@ export const SLING_DISPLAY_Y = 1050;
 export const SLING_DISPLAY_WIDTH = 256;
 export const SLING_DISPLAY_HEIGHT = 160;
 
+// 下一颗糖果预览（位于底部 tray 中央的 candy-hole 里）
+export const NEXT_PREVIEW_X = 320;
+export const NEXT_PREVIEW_Y = 1115;
+export const NEXT_PREVIEW_SIZE = 90;
+export const NEXT_PREVIEW_DEPTH = 140;
+
+// 弹弓上当前糖果（待发射的那颗）
+export const CURRENT_CANDY_OFFSET_Y = -90;
+export const CURRENT_CANDY_SIZE = 110;
+export const CURRENT_CANDY_DEPTH = 140;
+
 export const SELECTED_LINE_DISPLAY_X = 320;
 export const SELECTED_LINE_DISPLAY_Y = 448;
 export const SELECTED_LINE_DISPLAY_WIDTH = 128 * 0.78;
