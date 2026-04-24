@@ -744,6 +744,7 @@ admin.get('/games', async (c) => {
   const limit = parseInt(c.req.query('limit') || '20');
   const status = c.req.query('status'); // 'playing' | 'finished' | undefined
   const sequenceId = c.req.query('sequence_id');
+  const q = c.req.query('q');
   const offset = (page - 1) * limit;
   const db = c.env.DB;
 
@@ -756,6 +757,10 @@ admin.get('/games', async (c) => {
   if (sequenceId) {
     where.push('g.generated_sequence_id = ?');
     params.push(sequenceId);
+  }
+  if (q) {
+    where.push('(g.game_id LIKE ? OR g.fingerprint LIKE ?)');
+    params.push(`%${q}%`, `%${q}%`);
   }
   const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
 

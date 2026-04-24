@@ -1,41 +1,550 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { ChevronLeft, ChevronRight, RefreshCw, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { RefreshCw, Eye, Trash2 } from 'lucide-react';
 import { api } from '@/api/client';
-import type { Game, GameDetail, GamesResp } from '@/api/types';
+import type { Game, GameDetail, GamesResp, Stats } from '@/api/types';
 import type { GamesStatusFilter } from '@/App';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
-import { Pagination } from '@/components/ui/pagination';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { formatDateTime } from '@/lib/utils';
+import { CandyChip } from '@/components/ui/candy-chip';
 
 interface Props {
   statusFilter: GamesStatusFilter;
   onStatusFilterChange: (f: GamesStatusFilter) => void;
 }
 
+function formatNumber(n: number) {
+  return n.toLocaleString('en-US');
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return '—';
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) return '—';
+  return time.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatDurationSec(game: Game) {
+  if (game.status !== 'finished' || !game.ended_at) return '—';
+  const start = Date.parse(game.created_at);
+  const end = Date.parse(game.ended_at);
+  if (Number.isNaN(start) || Number.isNaN(end)) return '—';
+  return `${Math.round((end - start) / 1000)}s`;
+}
+
+function truncate(value: string | null | undefined, length: number) {
+  if (!value) return '—';
+  return value.length > length ? `${value.slice(0, length)}…` : value;
+}
+
+function buildPageItems(current: number, totalPages: number) {
+  if (totalPages <= 1) return [1];
+
+  const pages = new Set<number>([1, totalPages]);
+  for (let i = current - 2; i <= current + 2; i += 1) {
+    if (i >= 1 && i <= totalPages) pages.add(i);
+  }
+
+  const sorted = [...pages].sort((a, b) => a - b);
+  const items: Array<number | '…'> = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    const page = sorted[i];
+    const prev = sorted[i - 1];
+    if (i > 0 && page - prev > 1) items.push('…');
+    items.push(page);
+  }
+  return items;
+}
+
+function parseSequence(sequence: string | null | undefined) {
+  if (!sequence) return [];
+  try {
+    const parsed = JSON.parse(sequence);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function PageHeader({ title, right }: { title: string; right?: ReactNode }) {
+  return (
+    <div
+      style={{
+        height: 48,
+        padding: '0 20px',
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</div>
+      {right}
+    </div>
+  );
+}
+
+function RefreshBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      style={{
+        padding: '5px 10px',
+        fontSize: '0.75rem',
+        border: '1px solid var(--color-border-strong)',
+        borderRadius: 6,
+        background: 'var(--color-surface)',
+        color: 'var(--color-text-soft)',
+        cursor: loading ? 'wait' : 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontFamily: 'inherit',
+      }}
+    >
+      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+      刷新
+    </button>
+  );
+}
+
+function StatusPill({ status }: { status: 'playing' | 'finished' }) {
+  const s = status === 'playing'
+    ? { bg: '#e3eaff', fg: '#5a7cff', bd: '#c7d3ff', label: '进行中', dot: '#5a7cff' }
+    : { bg: '#e6f5ec', fg: '#1fa85a', bd: '#c8e6d3', label: '已结束', dot: '#1fa85a' };
+
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '2px 8px',
+        borderRadius: 10,
+        fontSize: '0.6562rem',
+        fontWeight: 500,
+        background: s.bg,
+        color: s.fg,
+        border: `1px solid ${s.bd}`,
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot }} />
+      {s.label}
+    </span>
+  );
+}
+
+function MetaCell({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: '0.6562rem',
+          color: 'var(--color-text-muted)',
+          letterSpacing: 0.4,
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: '0.75rem',
+          color: 'var(--color-text)',
+          fontFamily: mono ? 'Menlo, Monaco, monospace' : 'inherit',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function GameDetailSheet({
+  open,
+  gameId,
+  onClose,
+  onDeleted,
+}: {
+  open: boolean;
+  gameId: string | null;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [detail, setDetail] = useState<GameDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!open || !gameId) {
+      setDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadDetail() {
+      setLoading(true);
+      try {
+        const next = await api<GameDetail>(`/api/admin/game/${gameId}`);
+        if (!cancelled) setDetail(next);
+      } catch (err) {
+        if (!cancelled) {
+          toast.error((err as { error?: string })?.error || '加载详情失败');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, open]);
+
+  const sequenceTokens = useMemo(() => parseSequence(detail?.sequence), [detail?.sequence]);
+  const displayedTokens = sequenceTokens.slice(0, 60);
+  const sequencePct = detail?.sequence_length
+    ? Math.round(((detail.sequence_index || 0) / detail.sequence_length) * 100)
+    : 0;
+
+  async function handleDelete() {
+    if (!gameId) return;
+    if (!confirm(`确认删除局 ${gameId}？`)) return;
+    setDeleting(true);
+    try {
+      await api(`/api/admin/delete-game/${gameId}`, { method: 'DELETE' });
+      toast.success('已删除');
+      onDeleted();
+      onClose();
+    } catch (err) {
+      toast.error((err as { error?: string })?.error || '删除失败');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(16,16,24,0.35)',
+          zIndex: 60,
+          animation: 'planSheetOverlayIn 200ms ease-out',
+        }}
+      />
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: '80vw',
+          maxWidth: 1200,
+          zIndex: 70,
+          background: 'var(--color-bg)',
+          boxShadow: '-12px 0 32px rgba(0,0,0,0.15)',
+          animation: 'planSheetSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="关闭"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: '100%',
+            width: 40,
+            height: 40,
+            background: '#fff',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+            color: 'var(--color-text-soft)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <X size={18} />
+        </button>
+
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: 22,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => void handleDelete()}
+              disabled={loading || deleting || !detail}
+              style={{
+                padding: '5px 12px',
+                fontSize: '0.75rem',
+                background: '#fef2f2',
+                color: '#c83a3a',
+                border: '1px solid #fecaca',
+                borderRadius: 6,
+                cursor: loading || deleting || !detail ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                opacity: loading || deleting || !detail ? 0.6 : 1,
+              }}
+            >
+              <Trash2 size={13} />
+              删除
+            </button>
+          </div>
+
+          {loading || !detail ? (
+            <div
+              style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: 22,
+                fontSize: '0.75rem',
+                color: 'var(--color-text-secondary)',
+              }}
+            >
+              加载中...
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 10,
+                  padding: '18px 22px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'Menlo, Monaco, monospace', fontSize: '0.875rem', fontWeight: 600 }}>
+                    {detail.game_id}
+                  </div>
+                  <StatusPill status={detail.status} />
+                  <div style={{ flex: 1 }} />
+                  <div style={{ textAlign: 'right' }}>
+                    <div
+                      style={{
+                        fontSize: '0.625rem',
+                        color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.6,
+                        marginBottom: 2,
+                      }}
+                    >
+                      当前得分
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'Fredoka, system-ui, sans-serif',
+                        fontWeight: 700,
+                        fontSize: '1.625rem',
+                        color: 'var(--color-text)',
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {formatNumber(detail.score)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 14 }}>
+                  <MetaCell label="Plan" value={detail.plan_name ?? '—'} />
+                  <MetaCell label="Fingerprint" value={truncate(detail.fingerprint, 12)} mono />
+                  <MetaCell label="Seed" value={String(detail.seed)} mono />
+                  <MetaCell label="Steps" value={formatNumber(detail.step)} />
+                  <MetaCell label="Created" value={formatDateTime(detail.created_at)} />
+                  <MetaCell label="Last Update" value={formatDateTime(detail.last_update_at)} />
+                </div>
+              </div>
+
+              {detail.sequence_length > 0 && (
+                <div
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 10,
+                    padding: '18px 22px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 12 }}>序列进度</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
+                    <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 700, fontSize: '1.5rem' }}>
+                      {detail.sequence_index}
+                    </div>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>
+                      / {detail.sequence_length}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: 10,
+                      borderRadius: 999,
+                      background: '#eef0f5',
+                      overflow: 'hidden',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(100, (detail.sequence_index / detail.sequence_length) * 100)}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #5a7cff, #c14dff)',
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      fontSize: '0.6875rem',
+                      color: 'var(--color-text-muted)',
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span>序列 {truncate(detail.generated_sequence_id, 12)}</span>
+                    <span>剩余 {Math.max(0, detail.sequence_length - detail.sequence_index)} 块</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      fontSize: '0.6875rem',
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    {sequencePct}% 已消费
+                  </div>
+                </div>
+              )}
+
+              {sequenceTokens.length > 0 && (
+                <div
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 10,
+                    padding: '18px 22px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>序列时间轴</div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                      {displayedTokens.length} / {detail.sequence_length} 块 · 当前位置 #{detail.sequence_index}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {displayedTokens.map((token, index) => {
+                      const value = token === 'stone' ? 0 : Number(token);
+                      const played = index < detail.sequence_index;
+                      const current = index === detail.sequence_index;
+                      return (
+                        <div
+                          key={`${String(token)}-${index}`}
+                          style={{
+                            opacity: played ? 1 : 0.35,
+                            filter: index > detail.sequence_index ? 'grayscale(0.7)' : 'none',
+                            boxShadow: current ? '0 0 0 2px #5a7cff' : 'none',
+                            borderRadius: 999,
+                          }}
+                        >
+                          <CandyChip v={Number.isFinite(value) ? value : 0} size={26} />
+                        </div>
+                      );
+                    })}
+                    {sequenceTokens.length > 60 && (
+                      <div
+                        style={{
+                          padding: '6px 8px',
+                          fontSize: '0.6875rem',
+                          color: 'var(--color-text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        + {sequenceTokens.length - 60} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [data, setData] = useState<GamesResp | null>(null);
+  const [limit, _setLimit] = useState(20);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [games, setGames] = useState<Game[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<GameDetail | null>(null);
-  const [sequence, setSequence] = useState<Array<string | number>>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
 
-  async function load(p = page, filter: GamesStatusFilter = statusFilter, size = pageSize) {
+  async function loadStats() {
+    try {
+      const nextStats = await api<Stats>('/api/admin/stats');
+      setStats(nextStats);
+    } catch (err) {
+      toast.error((err as { error?: string })?.error || '加载失败');
+    }
+  }
+
+  async function load(p = page, f = statusFilter, q = debouncedQuery) {
     setLoading(true);
     try {
-      const q = new URLSearchParams({ page: String(p), limit: String(size) });
-      if (filter !== 'all') q.set('status', filter);
-      const res = await api<GamesResp>(`/api/admin/games?${q.toString()}`);
-      setData(res);
-      setPage(p);
-      setSelected(new Set()); // 翻页/刷新清空选择
+      const params = new URLSearchParams();
+      params.set('page', String(p));
+      params.set('limit', String(limit));
+      if (f !== 'all') params.set('status', f);
+      if (q) params.set('q', q);
+      const res = await api<GamesResp>(`/api/admin/games?${params.toString()}`);
+      setGames(res.games);
+      setTotal(res.total);
+      setTotalPages(res.totalPages);
+      setSelectedIds(new Set());
     } catch (err) {
       toast.error((err as { error?: string })?.error || '加载失败');
     } finally {
@@ -43,327 +552,455 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
     }
   }
 
-  useEffect(() => { load(1, statusFilter, pageSize); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter, pageSize]);
+  useEffect(() => {
+    void loadStats();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const nextQuery = query.trim();
+      setDebouncedQuery(prev => {
+        if (prev === nextQuery) return prev;
+        setPage(1);
+        return nextQuery;
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    void load(page, statusFilter, debouncedQuery);
+  }, [page, statusFilter, debouncedQuery]);
+
+  const allSelected = games.length > 0 && games.every((game) => selectedIds.has(game.game_id));
+  const someSelected = games.some((game) => selectedIds.has(game.game_id));
+  const start = total === 0 ? 0 : (page - 1) * limit + 1;
+  const end = total === 0 ? 0 : Math.min(page * limit, total);
+  const pageItems = buildPageItems(page, totalPages);
 
   function toggleOne(id: string) {
-    setSelected(prev => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
+
   function toggleAll() {
-    if (!data) return;
-    const ids = data.games.map(g => g.game_id);
-    const allSelected = ids.every(id => selected.has(id));
-    setSelected(prev => {
-      const n = new Set(prev);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
       if (allSelected) {
-        ids.forEach(id => n.delete(id));
+        games.forEach((game) => next.delete(game.game_id));
       } else {
-        ids.forEach(id => n.add(id));
+        games.forEach((game) => next.add(game.game_id));
       }
-      return n;
+      return next;
     });
   }
-  async function deleteSelected() {
-    if (selected.size === 0) return;
-    if (!confirm(`确认批量删除 ${selected.size} 局（及对应分数记录）？不可恢复。`)) return;
-    setBatchDeleting(true);
-    try {
-      const r = await api<{ success: boolean; deletedGames: number; deletedScores: number }>(
-        '/api/admin/delete-games',
-        { method: 'POST', body: { ids: Array.from(selected) } },
-      );
-      toast.success(`已删除 ${r.deletedGames} 局 / ${r.deletedScores} 条分数记录`);
-      load(page);
-    } catch (err) {
-      toast.error((err as { error?: string })?.error || '批量删除失败');
-    } finally {
-      setBatchDeleting(false);
-    }
-  }
 
-  async function showDetail(gameId: string) {
+  async function handleBatchDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确认删除选中的 ${selectedIds.size} 局？`)) return;
     try {
-      const g = await api<GameDetail>(`/api/admin/game/${gameId}`);
-      setDetail(g);
-      let seq: unknown = g.sequence;
-      if (typeof seq === 'string') {
-        try { seq = JSON.parse(seq); } catch { seq = []; }
-      }
-      setSequence(Array.isArray(seq) ? seq as Array<string | number> : []);
-    } catch (err) {
-      toast.error((err as { error?: string })?.error || '加载详情失败');
-    }
-  }
-
-  async function deleteGame(gameId: string) {
-    if (!confirm(`确认删除局 ${gameId}？`)) return;
-    try {
-      await api(`/api/admin/delete-game/${gameId}`, { method: 'DELETE' });
-      toast.success('已删除');
-      load(page);
+      await api('/api/admin/delete-games', {
+        method: 'POST',
+        body: { ids: Array.from(selectedIds) },
+      });
+      toast.success('删除成功');
+      setSelectedIds(new Set());
+      await Promise.all([load(page, statusFilter, debouncedQuery), loadStats()]);
     } catch (err) {
       toast.error((err as { error?: string })?.error || '删除失败');
     }
   }
 
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    const nextQuery = query.trim();
+    setPage(1);
+    setDebouncedQuery(nextQuery);
+  }
+
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <h2 className="text-lg font-semibold">游戏局列表</h2>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded border border-[var(--color-border)] overflow-hidden text-xs">
-            {(['all', 'playing', 'finished'] as const).map(f => (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <PageHeader title="游戏局" />
+
+      <div style={{ flex: 1, overflow: 'auto', padding: 22, background: 'var(--color-bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              background: '#fff',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              padding: 3,
+            }}
+          >
+            {[
+              { key: 'all' as const, label: '全部', count: stats?.totalGames ?? total },
+              { key: 'playing' as const, label: '进行中', count: stats?.playingGames ?? 0 },
+              { key: 'finished' as const, label: '已结束', count: stats?.finishedGames ?? 0 },
+            ].map((item) => (
               <button
-                key={f}
-                onClick={() => onStatusFilterChange(f)}
-                className={`px-3 py-1 cursor-pointer ${
-                  statusFilter === f
-                    ? 'bg-[var(--color-primary)] text-[var(--color-primary-fg)]'
-                    : 'hover:bg-[var(--color-surface-2)]'
-                }`}
+                key={item.key}
+                onClick={() => {
+                  setPage(1);
+                  onStatusFilterChange(item.key);
+                }}
+                style={{
+                  padding: '5px 14px',
+                  border: 'none',
+                  borderRadius: 6,
+                  background: statusFilter === item.key ? '#2a2a33' : 'transparent',
+                  color: statusFilter === item.key ? '#fff' : '#6a6a74',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
               >
-                {f === 'all' ? '全部' : f === 'playing' ? '进行中' : '已结束'}
+                {item.label} <span style={{ opacity: 0.72, marginLeft: 3 }}>{formatNumber(item.count)}</span>
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={() => load(page)} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-          </Button>
+
+          <button
+            onClick={() => void handleBatchDelete()}
+            disabled={selectedIds.size === 0}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 10px',
+              border: '1px solid var(--color-border-strong)',
+              borderRadius: 6,
+              background: '#fff',
+              color: 'var(--color-text-secondary)',
+              fontSize: '0.75rem',
+              fontFamily: 'inherit',
+              cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
+              opacity: selectedIds.size === 0 ? 0.45 : 1,
+            }}
+          >
+            <Trash2 size={12} />
+            删除选中 ({selectedIds.size})
+          </button>
+
+          <div style={{ flex: 1 }} />
+
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="按 game_id 或 fingerprint 搜索…"
+            style={{
+              width: 260,
+              padding: '6px 10px',
+              border: '1px solid var(--color-border)',
+              borderRadius: 6,
+              background: '#fff',
+              fontSize: '0.75rem',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+
+          <RefreshBtn onClick={() => void load(page, statusFilter, debouncedQuery)} loading={loading} />
+        </div>
+
+        <div
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            overflow: 'hidden',
+          }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+            <thead>
+              <tr style={{ background: '#fafafc' }}>
+                <th style={{ width: 40, padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(node) => {
+                      if (!node) return;
+                      node.indeterminate = someSelected && !allSelected;
+                    }}
+                    onChange={toggleAll}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Game ID</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Fingerprint</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Plan</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Status</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }}>Score</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }}>Steps</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }}>Duration</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Created</th>
+                <th style={{ width: 28, padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }} />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={10}
+                    style={{
+                      padding: '20px 12px',
+                      borderBottom: '1px solid #f6f6f9',
+                      textAlign: 'center',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    加载中...
+                  </td>
+                </tr>
+              ) : games.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={10}
+                    style={{
+                      padding: '20px 12px',
+                      borderBottom: '1px solid #f6f6f9',
+                      textAlign: 'center',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    暂无数据
+                  </td>
+                </tr>
+              ) : (
+                games.map((game) => {
+                  const scorePct = Math.min(100, (game.score / 12000) * 100);
+                  return (
+                    <tr
+                      key={game.game_id}
+                      onClick={() => setDetailId(game.game_id)}
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={(event) => {
+                        event.currentTarget.style.background = '#fafafc';
+                      }}
+                      onMouseLeave={(event) => {
+                        event.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <td
+                        style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'center' }}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(game.game_id)}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => toggleOne(game.game_id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          fontFamily: 'Menlo, Monaco, monospace',
+                          fontSize: '0.7188rem',
+                        }}
+                      >
+                        {truncate(game.game_id, 12)}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          fontFamily: 'Menlo, Monaco, monospace',
+                          fontSize: '0.7188rem',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        {truncate(game.fingerprint, 8)}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          fontFamily: 'Fredoka, system-ui, sans-serif',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {game.plan_name ?? '—'}
+                      </td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9' }}>
+                        <StatusPill status={game.status} />
+                      </td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <div
+                            style={{
+                              width: 64,
+                              height: 6,
+                              background: '#eef0f5',
+                              borderRadius: 999,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${scorePct}%`,
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #5a7cff, #c14dff)',
+                              }}
+                            />
+                          </div>
+                          <div
+                            style={{
+                              minWidth: 56,
+                              textAlign: 'right',
+                              fontFamily: 'Fredoka, system-ui, sans-serif',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {formatNumber(game.score)}
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          textAlign: 'right',
+                          fontFamily: 'Menlo, Monaco, monospace',
+                        }}
+                      >
+                        {game.step.toString()}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          textAlign: 'right',
+                          fontFamily: 'Menlo, Monaco, monospace',
+                        }}
+                      >
+                        {formatDurationSec(game)}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          color: 'var(--color-text-secondary)',
+                        }}
+                      >
+                        {formatDateTime(game.created_at)}
+                      </td>
+                      <td
+                        style={{
+                          padding: '10px 12px',
+                          borderBottom: '1px solid #f6f6f9',
+                          textAlign: 'right',
+                          color: '#c6c6cc',
+                        }}
+                      >
+                        <ChevronRight size={14} />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 14,
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+            显示 {start}–{end} / 共 {total} 条
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page <= 1}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: '1px solid var(--color-border)',
+                background: '#fff',
+                color: 'var(--color-text-soft)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                opacity: page <= 1 ? 0.5 : 1,
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            {pageItems.map((item, index) => (
+              <button
+                key={`${item}-${index}`}
+                onClick={() => {
+                  if (typeof item === 'number') setPage(item);
+                }}
+                disabled={item === '…'}
+                style={{
+                  minWidth: 28,
+                  height: 28,
+                  padding: item === '…' ? '0 6px' : '0 8px',
+                  borderRadius: 6,
+                  border: typeof item === 'number' && item === page ? 'none' : '1px solid var(--color-border)',
+                  background: typeof item === 'number' && item === page ? '#2a2a33' : '#fff',
+                  color: typeof item === 'number' && item === page ? '#fff' : 'var(--color-text-soft)',
+                  fontWeight: typeof item === 'number' && item === page ? 600 : 400,
+                  fontSize: '0.75rem',
+                  fontFamily: 'inherit',
+                  cursor: item === '…' ? 'default' : 'pointer',
+                }}
+              >
+                {item}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setPage((prev) => Math.min(totalPages || 1, prev + 1))}
+              disabled={page >= totalPages}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: '1px solid var(--color-border)',
+                background: '#fff',
+                color: 'var(--color-text-soft)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                opacity: page >= totalPages ? 0.5 : 1,
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col p-6 gap-3">
-        {selected.size > 0 && (
-          <div className="flex items-center gap-3 px-3 py-2 rounded border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-sm">
-            <span>已选 <span className="font-semibold">{selected.size}</span> 局</span>
-            <Button
-              size="sm"
-              onClick={deleteSelected}
-              disabled={batchDeleting}
-              className="bg-[var(--color-danger)] hover:bg-[var(--color-danger)]/90 text-white"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              {batchDeleting ? '删除中…' : `批量删除 ${selected.size}`}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={batchDeleting}>
-              清空选择
-            </Button>
-          </div>
-        )}
-
-        <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <CardContent className="p-0 flex-1 min-h-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8">
-                  <input
-                    type="checkbox"
-                    className="cursor-pointer"
-                    checked={!!data && data.games.length > 0 && data.games.every(g => selected.has(g.game_id))}
-                    ref={(el) => {
-                      if (!el || !data) return;
-                      const ids = data.games.map(g => g.game_id);
-                      const some = ids.some(id => selected.has(id));
-                      const all = ids.length > 0 && ids.every(id => selected.has(id));
-                      el.indeterminate = some && !all;
-                    }}
-                    onChange={toggleAll}
-                    title="全选/反选本页"
-                  />
-                </TableHead>
-                <TableHead>局号</TableHead>
-                <TableHead>指纹</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Sequence</TableHead>
-                <TableHead>进度</TableHead>
-                <TableHead>步数</TableHead>
-                <TableHead>分数</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>开局时间</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!data || data.games.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center text-[var(--color-text-muted)] py-8">
-                    {loading ? '加载中...' : '暂无数据'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.games.map((g: Game) => (
-                  <TableRow key={g.game_id} className={selected.has(g.game_id) ? 'bg-[var(--color-primary)]/5' : ''}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        className="cursor-pointer"
-                        checked={selected.has(g.game_id)}
-                        onChange={() => toggleOne(g.game_id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{g.game_id}</TableCell>
-                    <TableCell className="font-mono text-xs">{g.fingerprint.slice(0, 12)}…</TableCell>
-                    <TableCell className="text-xs">
-                      {g.plan_name ? (
-                        <span title={g.sequence_plan_id || ''}>{g.plan_name}</span>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)]">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {g.generated_sequence_id
-                        ? <span title={g.generated_sequence_id}>{g.generated_sequence_id.slice(0, 8)}…</span>
-                        : <span className="text-[var(--color-text-muted)]">-</span>}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono">
-                      {g.sequence_length
-                        ? `${g.sequence_index ?? 0} / ${g.sequence_length}`
-                        : '-'}
-                    </TableCell>
-                    <TableCell>{g.step}</TableCell>
-                    <TableCell className="font-semibold">{g.score}</TableCell>
-                    <TableCell>
-                      {g.status === 'playing'
-                        ? <Badge variant="warning">进行中</Badge>
-                        : <Badge variant="success">已结束</Badge>}
-                    </TableCell>
-                    <TableCell className="text-xs">{formatDateTime(g.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="inline-flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => showDetail(g.game_id)} title="详情">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteGame(g.game_id)} title="删除">
-                          <Trash2 className="h-4 w-4 text-[var(--color-danger)]" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          </CardContent>
-        </Card>
-
-        {data && (
-          <Pagination
-            page={page}
-            totalPages={data.totalPages}
-            total={data.total}
-            onChange={(p) => load(p)}
-            pageSize={pageSize}
-            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-          />
-        )}
-      </div>
-
-      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>局详情 — {detail?.game_id}</DialogTitle>
-          </DialogHeader>
-          {detail && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                <Row label="状态" value={detail.status === 'playing' ? '进行中' : '已结束'} />
-                <Row label="结束原因" value={detail.end_reason || '-'} />
-                <Row label="用户" value={detail.user_id || '-'} />
-                <Row label="Seed" value={String(detail.seed)} />
-                <Row label="步数 / 分数" value={`${detail.step} / ${detail.score}`} />
-                <Row
-                  label="序列进度"
-                  value={detail.sequence_length
-                    ? `${detail.sequence_index ?? 0} / ${detail.sequence_length}`
-                    : '-'}
-                />
-                <Row label="开始" value={formatDateTime(detail.created_at)} />
-                <Row label="结束" value={formatDateTime(detail.ended_at)} />
-              </div>
-
-              <div className="border-t border-[var(--color-border)] pt-3 space-y-1">
-                <Row label="Plan" value={detail.plan_name || '-'} />
-                <Row label="Plan ID" value={detail.sequence_plan_id || '-'} mono />
-                <Row label="Sequence ID" value={detail.generated_sequence_id || '-'} mono />
-                <Row label="指纹" value={detail.fingerprint} mono />
-                <Row label="签名" value={detail.sign ? detail.sign.slice(0, 48) + '…' : '-'} mono />
-              </div>
-
-              {detail.stages && detail.stages.length > 0 && (
-                <div className="border-t border-[var(--color-border)] pt-3">
-                  <div className="text-xs text-[var(--color-text-muted)] mb-2">
-                    Plan 阶段组成（{detail.stages.length} 个，按顺序）
-                  </div>
-                  <div className="space-y-1">
-                    {detail.stages.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-start gap-2 p-2 bg-[var(--color-surface-2)] rounded text-xs"
-                      >
-                        <span className="font-mono text-[var(--color-text-muted)] w-6 shrink-0">
-                          #{s.stage_order}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div>
-                            <span className="font-medium">{s.name}</span>
-                            <span className="text-[var(--color-text-muted)] ml-2">长度 {s.length}</span>
-                          </div>
-                          <div className="text-[var(--color-text-muted)] font-mono break-all">
-                            {Object.entries(s.probabilities)
-                              .map(([k, v]) => `${k}:${v}%`)
-                              .join(' · ')}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t border-[var(--color-border)] pt-3">
-                <div className="text-xs text-[var(--color-text-muted)] mb-1">
-                  糖果序列（共 {sequence.length} 个{typeof detail.sequence_index === 'number' ? `，已用 ${detail.sequence_index}` : ''}）
-                </div>
-                <div className="flex flex-wrap gap-1 max-h-48 overflow-y-auto border border-[var(--color-border)] rounded p-2 bg-[var(--color-bg)]">
-                  {sequence.length === 0 ? (
-                    <span className="text-xs text-[var(--color-text-muted)]">（无）</span>
-                  ) : sequence.map((c, i) => {
-                    const consumed = typeof detail.sequence_index === 'number' && i < detail.sequence_index;
-                    const isStone = c === 'stone' || c === -1;
-                    return (
-                      <span
-                        key={i}
-                        className={`text-xs px-1.5 py-0.5 rounded ${
-                          isStone
-                            ? 'bg-orange-200 text-orange-800'
-                            : 'bg-[var(--color-surface-2)]'
-                        } ${consumed ? 'opacity-40 line-through' : ''}`}
-                        title={consumed ? '已消费' : '未消费'}
-                      >
-                        #{i + 1}: {c}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-center gap-3 py-1 border-b border-[var(--color-border)]/40">
-      <div className="w-24 text-xs text-[var(--color-text-muted)] shrink-0">{label}</div>
-      <div className={`flex-1 min-w-0 ${mono ? 'font-mono text-xs break-all' : ''}`}>{value}</div>
+      <GameDetailSheet
+        open={!!detailId}
+        gameId={detailId}
+        onClose={() => setDetailId(null)}
+        onDeleted={() => {
+          void Promise.all([load(page, statusFilter, debouncedQuery), loadStats()]);
+        }}
+      />
     </div>
   );
 }
