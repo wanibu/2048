@@ -4,6 +4,7 @@ import { StatsPage } from '@/pages/StatsPage';
 import { GamesPage } from '@/pages/GamesPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { PlanAnalysisPage } from '@/pages/PlanAnalysisPage';
+import { SequenceAnalysisSheet } from '@/pages/SequenceAnalysisSheet';
 
 export type GamesStatusFilter = 'all' | 'playing' | 'finished';
 
@@ -26,6 +27,7 @@ export default function App() {
     return isPageKey(savedPage) ? savedPage : 'stats';
   });
   const [gamesFilter, setGamesFilter] = useState<GamesStatusFilter>('all');
+  const [seqSheetId, setSeqSheetId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('admin_page', page);
@@ -90,12 +92,19 @@ export default function App() {
             onNavigateSequences={() => setPage('config')}
           />
         )}
-        {page === 'analysis' && <PlanAnalysisPage />}
+        {page === 'analysis' && (
+          <PlanAnalysisPage onSelectSequence={(_planId, sequenceId) => setSeqSheetId(sequenceId)} />
+        )}
         {page === 'games' && (
           <GamesPage statusFilter={gamesFilter} onStatusFilterChange={setGamesFilter} />
         )}
         {page === 'config' && <ConfigPage />}
       </main>
+      <SequenceAnalysisSheet
+        open={seqSheetId !== null}
+        sequenceId={seqSheetId}
+        onClose={() => setSeqSheetId(null)}
+      />
     </div>
   );
 }

@@ -155,3 +155,23 @@ export interface PlanSequenceStatsResp {
   plan_id: string;
   sequences: SequenceStat[];
 }
+
+export interface SequenceAnalysis {
+  sequence_id: string;
+  name: string;
+  plan_id: string | null;
+  plan_name: string | null;
+  created_at: string;
+  status: 'enabled' | 'disabled';
+  playing_players: number;
+  playing_games: number;
+  today_players: number;
+  hour_games: number;
+  games_total: number;
+  games_finished: number;
+  unique_players: number;
+  score: { avg: number | null; median: number | null; min: number | null; max: number | null };
+  duration_sec: { avg: number | null; median: number | null };
+  step: { avg: number | null; median: number | null };
+  end_reasons: Record<string, number>;
+}

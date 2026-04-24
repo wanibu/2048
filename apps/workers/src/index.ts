@@ -7,6 +7,25 @@ import { generateSequenceFromPlan, PlanStageRow } from './sequence-config';
 
 type Bindings = { DB: D1Database };
 type SequenceToken = `${number}` | 'stone';
+interface SequenceAnalysisResp {
+  sequence_id: string;
+  name: string;
+  plan_id: string | null;
+  plan_name: string | null;
+  created_at: string;
+  status: 'enabled' | 'disabled';
+  playing_players: number;
+  playing_games: number;
+  today_players: number;
+  hour_games: number;
+  games_total: number;
+  games_finished: number;
+  unique_players: number;
+  score: { avg: number | null; median: number | null; min: number | null; max: number | null };
+  duration_sec: { avg: number | null; median: number | null };
+  step: { avg: number | null; median: number | null };
+  end_reasons: Record<string, number>;
+}
 
 // ================= 工具函数 =================
 
@@ -121,6 +140,35 @@ async function getPlayableSequence(db: D1Database): Promise<{
   return {
     generatedSequenceId: created.generatedSequenceId,
     sequencePlanId: created.sequencePlanId,
+  };
+}
+
+function percentile(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  if (sorted.length === 1) return sorted[0];
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function stats(nums: number[]) {
+  if (nums.length === 0) return { count: 0, min: null, avg: null, median: null, p90: null, max: null, std: null, cv: null };
+  const sorted = [...nums].sort((a, b) => a - b);
+  const sum = sorted.reduce((s, v) => s + v, 0);
+  const avg = sum / sorted.length;
+  const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / sorted.length;
+  const std = Math.sqrt(variance);
+  return {
+    count: sorted.length,
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    avg,
+    median: percentile(sorted, 0.5),
+    p90: percentile(sorted, 0.9),
+    std,
+    cv: avg > 0 ? std / avg : null,
   };
 }
 
@@ -427,35 +475,6 @@ admin.get('/plan-stats', async (c) => {
     });
   }
 
-  function percentile(sorted: number[], p: number): number | null {
-    if (sorted.length === 0) return null;
-    if (sorted.length === 1) return sorted[0];
-    const idx = (sorted.length - 1) * p;
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    if (lo === hi) return sorted[lo];
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-  }
-
-  function stats(nums: number[]) {
-    if (nums.length === 0) return { count: 0, min: null, avg: null, median: null, p90: null, max: null, std: null, cv: null };
-    const sorted = [...nums].sort((a, b) => a - b);
-    const sum = sorted.reduce((s, v) => s + v, 0);
-    const avg = sum / sorted.length;
-    const variance = sorted.reduce((s, v) => s + (v - avg) ** 2, 0) / sorted.length;
-    const std = Math.sqrt(variance);
-    return {
-      count: sorted.length,
-      min: sorted[0],
-      max: sorted[sorted.length - 1],
-      avg,
-      median: percentile(sorted, 0.5),
-      p90: percentile(sorted, 0.9),
-      std,
-      cv: avg > 0 ? std / avg : null,
-    };
-  }
-
   const plans = Array.from(byPlan.values()).map((b) => {
     const finished = b.games.filter((g) => g.status === 'finished');
     const playing = b.games.filter((g) => g.status === 'playing');
@@ -590,16 +609,6 @@ admin.get('/plan-sequence-stats', async (c) => {
     }
   }
 
-  function percentile(sorted: number[], p: number): number | null {
-    if (sorted.length === 0) return null;
-    if (sorted.length === 1) return sorted[0];
-    const idx = (sorted.length - 1) * p;
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    if (lo === hi) return sorted[lo];
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-  }
-
   const sequences = Array.from(bySeq.entries()).map(([id, b]) => {
     const sortedScore = [...b.scores].sort((a, b) => a - b);
     const sortedDur = [...b.durations].sort((a, b) => a - b);
@@ -628,6 +637,88 @@ admin.get('/plan-sequence-stats', async (c) => {
   return c.json({ plan_id: planId, sequences });
 });
 
+// ---- 样本分析：某个 generated_sequence 的单序列详情（Phase 3b）----
+admin.get('/sequence/:id/analysis', async (c) => {
+  const db = c.env.DB;
+  const sequenceId = c.req.param('id');
+
+  const sequenceRow = await db.prepare(
+    `SELECT gs.id, gs.sequence_plan_id AS plan_id, sp.name AS plan_name, gs.created_at, gs.status,
+            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id AND status = 'playing') AS playing_players,
+            (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND status = 'playing') AS playing_games,
+            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id AND date(created_at) = date('now')) AS today_players,
+            (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND created_at > datetime('now', '-1 hour')) AS hour_games,
+            (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id) AS games_total,
+            (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND status = 'finished') AS games_finished,
+            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id) AS unique_players
+     FROM generated_sequences gs
+     LEFT JOIN sequence_plans sp ON gs.sequence_plan_id = sp.id
+     WHERE gs.id = ?`
+  ).bind(sequenceId).first() as Record<string, unknown> | null;
+
+  if (!sequenceRow) return c.json({ error: 'Sequence not found' }, 404);
+
+  const finishedRows = await db.prepare(
+    `SELECT score, step, end_reason,
+            ((julianday(ended_at) - julianday(created_at)) * 86400.0) AS duration_sec
+     FROM games
+     WHERE generated_sequence_id = ?
+       AND status = 'finished'
+     ORDER BY created_at ASC`
+  ).bind(sequenceId).all();
+
+  const scores: number[] = [];
+  const durations: number[] = [];
+  const steps: number[] = [];
+  const endReasons: Record<string, number> = {};
+
+  for (const row of (finishedRows.results || []) as Array<Record<string, unknown>>) {
+    scores.push((row.score as number) || 0);
+    steps.push((row.step as number) || 0);
+    const duration = row.duration_sec as number | null;
+    if (duration !== null && Number.isFinite(duration) && duration >= 0) durations.push(duration);
+    const endReason = (row.end_reason as string) || '';
+    if (endReason) endReasons[endReason] = (endReasons[endReason] || 0) + 1;
+  }
+
+  const scoreStat = stats(scores);
+  const durationStat = stats(durations);
+  const stepStat = stats(steps);
+
+  const resp: SequenceAnalysisResp = {
+    sequence_id: sequenceRow.id as string,
+    name: (sequenceRow.id as string).slice(0, 8),
+    plan_id: (sequenceRow.plan_id as string | null) || null,
+    plan_name: (sequenceRow.plan_name as string | null) || null,
+    created_at: (sequenceRow.created_at as string) || '',
+    status: ((sequenceRow.status as 'enabled' | 'disabled') || 'disabled'),
+    playing_players: (sequenceRow.playing_players as number) || 0,
+    playing_games: (sequenceRow.playing_games as number) || 0,
+    today_players: (sequenceRow.today_players as number) || 0,
+    hour_games: (sequenceRow.hour_games as number) || 0,
+    games_total: (sequenceRow.games_total as number) || 0,
+    games_finished: (sequenceRow.games_finished as number) || 0,
+    unique_players: (sequenceRow.unique_players as number) || 0,
+    score: {
+      avg: scoreStat.avg,
+      median: percentile([...scores].sort((a, b) => a - b), 0.5),
+      min: scoreStat.min,
+      max: scoreStat.max,
+    },
+    duration_sec: {
+      avg: durationStat.avg,
+      median: percentile([...durations].sort((a, b) => a - b), 0.5),
+    },
+    step: {
+      avg: stepStat.avg,
+      median: percentile([...steps].sort((a, b) => a - b), 0.5),
+    },
+    end_reasons: endReasons,
+  };
+
+  return c.json(resp);
+});
+
 admin.get('/stats', async (c) => {
   const db = c.env.DB;
   const totalGames = await db.prepare('SELECT COUNT(*) as c FROM games').first() as Record<string, unknown>;
@@ -652,6 +743,7 @@ admin.get('/games', async (c) => {
   const page = parseInt(c.req.query('page') || '1');
   const limit = parseInt(c.req.query('limit') || '20');
   const status = c.req.query('status'); // 'playing' | 'finished' | undefined
+  const sequenceId = c.req.query('sequence_id');
   const offset = (page - 1) * limit;
   const db = c.env.DB;
 
@@ -660,6 +752,10 @@ admin.get('/games', async (c) => {
   if (status === 'playing' || status === 'finished') {
     where.push('g.status = ?');
     params.push(status);
+  }
+  if (sequenceId) {
+    where.push('g.generated_sequence_id = ?');
+    params.push(sequenceId);
   }
   const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
