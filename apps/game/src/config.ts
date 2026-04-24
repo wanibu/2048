@@ -1,6 +1,8 @@
 // Game dimensions (matching original Construct 3 project: 640x960)
 export const GAME_WIDTH = 640;
 export const GAME_HEIGHT = 960;
+// 桌面宽屏模式下 canvas 的 CSS 显示宽高比（width/height）
+export const DESKTOP_ASPECT_RATIO = 0.462;
 
 export const PLAY_BACKGROUND_DISPLAY_WIDTH = 958;
 export const PLAY_BACKGROUND_DISPLAY_HEIGHT = 1630;

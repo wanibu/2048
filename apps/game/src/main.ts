@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from './config';
+import { GAME_WIDTH, GAME_HEIGHT, DESKTOP_ASPECT_RATIO } from './config';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
@@ -50,7 +50,7 @@ function updateCanvasSize(game: Phaser.Game): void {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const desktopWide = vw / vh > GAME_WIDTH / GAME_HEIGHT;
-  const displayW = desktopWide ? Math.round(vh * GAME_WIDTH / DESKTOP_SIM_HEIGHT) : vw;
+  const displayW = desktopWide ? Math.round(vh * DESKTOP_ASPECT_RATIO) : vw;
   const displayH = desktopWide ? vh : Math.round(vw * internalH / internalW);
 
   document.documentElement.style.margin = '0';
