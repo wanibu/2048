@@ -4,13 +4,12 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
 
-const DESKTOP_SIM_HEIGHT = 1280;
 const deviceAspect = window.innerWidth / window.innerHeight;
 const designAspect = GAME_WIDTH / GAME_HEIGHT;
 const isDesktopWide = deviceAspect > designAspect;
-// 桌面宽屏模拟手机竖屏视口；移动端/窄屏仍按 C3 fullscreen scale-outer 扩展高度。
+// 桌面宽屏按 DESKTOP_ASPECT_RATIO 模拟手机竖屏视口；移动端/窄屏仍按 C3 fullscreen scale-outer 扩展高度。
 const internalW = GAME_WIDTH;
-const internalH = isDesktopWide ? DESKTOP_SIM_HEIGHT : Math.round(GAME_WIDTH / deviceAspect);
+const internalH = isDesktopWide ? Math.round(GAME_WIDTH / DESKTOP_ASPECT_RATIO) : Math.round(GAME_WIDTH / deviceAspect);
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
