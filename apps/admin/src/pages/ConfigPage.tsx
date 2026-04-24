@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { api } from '@/api/client';
-import type { GeneratedSequence, Plan, PlansResp, SequencesResp } from '@/api/types';
+import type { GeneratedSequence, Plan, PlanStage, PlansResp, SequencesResp } from '@/api/types';
 import { DetailVariantA } from '@/components/config/DetailVariantA';
 import { PlanEditSheet } from '@/components/config/PlanEditSheet';
+import { SequenceDetailSheet } from '@/components/config/SequenceDetailSheet';
+import { SequenceEditSheet } from '@/components/config/SequenceEditSheet';
+import { StageDetailSheet } from '@/components/config/StageDetailSheet';
 
 export function ConfigPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -15,6 +18,9 @@ export function ConfigPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editMode, setEditMode] = useState<'new' | 'edit'>('new');
   const [editTargetPlan, setEditTargetPlan] = useState<Plan | null>(null);
+  const [stageSheet, setStageSheet] = useState<{ stage: PlanStage; index: number } | null>(null);
+  const [seqDetailId, setSeqDetailId] = useState<string | null>(null);
+  const [seqEditTarget, setSeqEditTarget] = useState<GeneratedSequence | null>(null);
 
   async function loadAll() {
     setLoading(true);
@@ -166,9 +172,9 @@ export function ConfigPage() {
                   toast.error((error as { error?: string })?.error || '生成失败');
                 }
               }}
-              onSelectStage={(stage, stageIndex) => console.log('[stub] openStageDetail', { stage, stageIndex })}
-              onSelectSequence={(sequence) => console.log('[stub] openSequenceDetail', sequence)}
-              onEditSequence={(sequence) => console.log('[stub] openEditSequence', sequence)}
+              onSelectStage={(stage, stageIndex) => setStageSheet({ stage, index: stageIndex })}
+              onSelectSequence={(sequence) => setSeqDetailId(sequence.id)}
+              onEditSequence={(sequence) => setSeqEditTarget(sequence)}
               onDeleteSequence={(sequence) => void deleteSequence(sequence)}
               onRefresh={() => void loadAll()}
             />
@@ -187,6 +193,22 @@ export function ConfigPage() {
         onSaved={async (saved) => {
           await loadAll();
           if (saved?.id) setSelectedPlanId(saved.id);
+        }}
+      />
+      <StageDetailSheet
+        open={stageSheet !== null}
+        stage={stageSheet?.stage ?? null}
+        stageIndex={stageSheet?.index ?? 0}
+        onClose={() => setStageSheet(null)}
+      />
+      <SequenceDetailSheet open={seqDetailId !== null} sequenceId={seqDetailId} onClose={() => setSeqDetailId(null)} />
+      <SequenceEditSheet
+        open={seqEditTarget !== null}
+        sequence={seqEditTarget}
+        onClose={() => setSeqEditTarget(null)}
+        onSaved={async () => {
+          await loadAll();
+          setSeqEditTarget(null);
         }}
       />
     </div>
