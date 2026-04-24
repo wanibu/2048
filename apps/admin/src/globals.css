@@ -1,31 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #f9fafb;
+  /* Neutral surfaces */
+  --color-bg: #f7f7fa;
   --color-surface: #ffffff;
-  --color-surface-2: #f3f4f6;
-  --color-border: #e5e7eb;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-primary: #eab308;
+  --color-surface-hover: #fafafc;
+  --color-surface-warm: #fafaf7;
+  --color-surface-selected: #fff3ea;
+  --color-border: #ececf2;
+  --color-border-strong: #e6e6ec;
+
+  /* Text ladder */
+  --color-text: #2a2a33;
+  --color-text-secondary: #6a6a74;
+  --color-text-muted: #8a8a94;
+  --color-text-dimmest: #9b9ba6;
+  --color-text-soft: #5a5a66;
+
+  /* Accent */
+  --color-primary: #5a7cff;
   --color-primary-fg: #ffffff;
-  --color-accent: #2563eb;
-  --color-success: #10b981;
-  --color-danger: #ef4444;
+  --color-brand: #c8343a;
+  --color-brand-accent: #c87a3a;
+  --color-success: #1fa85a;
+  --color-warning: #ffb93c;
+  --color-danger: #c83a3a;
+
+  /* Fonts */
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-display: Fredoka, system-ui, sans-serif;
+  --font-mono: Menlo, Monaco, monospace;
 }
 
 html, body, #root {
   height: 100%;
   margin: 0;
 }
+html { font-size: 16px; }
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 1rem;
 }
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+table tr:hover > td { background: var(--color-surface-hover); }
 
 /* Sheet（右侧滑出）动画 */
 @keyframes sheet-slide-in-right {
@@ -44,3 +67,5 @@ body {
   from { opacity: 1; }
   to { opacity: 0; }
 }
+@keyframes planSheetOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes planSheetSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
