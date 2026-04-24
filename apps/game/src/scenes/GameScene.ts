@@ -468,6 +468,8 @@ export class GameScene extends Phaser.Scene {
     this.topScoreDigits = updater(this.topScoreDigits, topScore, TOP_SCORE_DIGITS_X, TOP_SCORE_DIGITS_Y, 100);
   }
 
+  private scoreReportTimer: ReturnType<typeof setTimeout> | null = null;
+
   private addScore(points: number): void {
     const before = this.hud.getScore();
     console.log(`[score] +${points}, ${before} → ${before + points}`);
@@ -483,6 +485,24 @@ export class GameScene extends Phaser.Scene {
       });
     });
     this.debugPanel?.logScoreEvent(`+${points} → 总分 ${this.hud.getScore()}`);
+    this.scheduleScoreReport();
+  }
+
+  // Debounce: 连续加分时合并，最后 500ms 后上报一次最新分数到后端
+  private scheduleScoreReport(): void {
+    if (this.scoreReportTimer !== null) clearTimeout(this.scoreReportTimer);
+    this.scoreReportTimer = setTimeout(() => {
+      this.scoreReportTimer = null;
+      this.recorder?.reportScore(this.hud.getScore());
+    }, 500);
+  }
+
+  private flushScoreReport(): void {
+    if (this.scoreReportTimer !== null) {
+      clearTimeout(this.scoreReportTimer);
+      this.scoreReportTimer = null;
+      this.recorder?.reportScore(this.hud.getScore());
+    }
   }
 
   private ensureBackgroundMusic(): void {
@@ -1948,6 +1968,7 @@ export class GameScene extends Phaser.Scene {
       clearTimeout(this.hurryUpTimer);
       this.hurryUpTimer = null;
     }
+    this.flushScoreReport();
 
     this.hideHurryUp();
   }

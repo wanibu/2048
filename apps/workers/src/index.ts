@@ -80,11 +80,10 @@ async function createGeneratedSequenceFromRandomPlan(db: D1Database): Promise<{
   if (!plan) return null;
 
   const stagesResult = await db.prepare(
-    `SELECT s.id as stage_id, s.name, s.length, s.probabilities, sps.stage_order
-     FROM sequence_plan_stages sps
-     JOIN stages s ON s.id = sps.stage_id
-     WHERE sps.sequence_plan_id = ?
-     ORDER BY sps.stage_order ASC`
+    `SELECT id as stage_id, name, length, probabilities, stage_order
+     FROM plan_stages
+     WHERE sequence_plan_id = ?
+     ORDER BY stage_order ASC`
   ).bind(plan.id as string).all<PlanStageRow>();
 
   const stages = stagesResult.results || [];
@@ -808,11 +807,10 @@ admin.get('/game/:id', async (c) => {
     plan_name = plan ? (plan.name as string) : null;
 
     const stageRows = await db.prepare(
-      `SELECT s.id, s.name, s.length, s.probabilities, sps.stage_order
-       FROM sequence_plan_stages sps
-       JOIN stages s ON s.id = sps.stage_id
-       WHERE sps.sequence_plan_id = ?
-       ORDER BY sps.stage_order ASC`
+      `SELECT id, name, length, probabilities, stage_order
+       FROM plan_stages
+       WHERE sequence_plan_id = ?
+       ORDER BY stage_order ASC`
     ).bind(game.sequence_plan_id as string).all();
     stages = (stageRows.results || []).map((r) => {
       const rec = r as Record<string, unknown>;
