@@ -1,3 +1,7 @@
+### Claude Code 运行时产物
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
 ### macOS
 # Finder metadata
 .DS_Store
@@ -6,7 +10,7 @@
 ._*
 
 # Custom folder icons
-Icon
+Icon
 
 # Volume root files
 .DocumentRevisions-V100
