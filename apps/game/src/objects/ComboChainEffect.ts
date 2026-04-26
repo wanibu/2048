@@ -168,8 +168,9 @@ export class ComboChainEffect {
     this.activeTimers.push(screamTicker);
   }
 
-  private playCandyFly(_comboCount: number): void {
-    const candyCount = COMBO_CANDY_COUNT;
+  private playCandyFly(comboCount: number): void {
+    // 3 连 = 5 颗, 4 连 = 10 颗, n 连 = (n-2)×5 颗
+    const candyCount = Math.max(COMBO_CANDY_COUNT, (comboCount - 2) * COMBO_CANDY_COUNT);
     const start = this.scene.time.delayedCall(COMBO_CANDY_START_DELAY_MS, () => {
       let completed = 0;
       for (let i = 0; i < candyCount; i++) {
