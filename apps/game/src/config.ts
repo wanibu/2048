@@ -239,3 +239,72 @@ export const BORDER_EXPLODE_FRAMES: SpriteAnimationFrame[] = [
   { texture: 'borderexplode-full-0', x: 261, y: 257, w: 246, h: 245, pivotX: 0.5, pivotY: 0.502 },
   { texture: 'borderexplode-full-1', x: 1, y: 257, w: 227, h: 234, pivotX: 0.5022, pivotY: 0.5 },
 ];
+
+// Combo 链特效（3 连及以上触发）
+export const COMBO_THRESHOLD = 3;
+
+// ComboSprite 横幅（512×305）：shared-0-sheet0.png @ (938, 1625)
+export const COMBO_BANNER_REGION: SpriteRegion = { x: 938, y: 1625, w: 512, h: 305 };
+export const COMBO_BANNER_X = 320;
+export const COMBO_BANNER_Y = 480;
+export const COMBO_BANNER_DEPTH = 200;
+export const COMBO_BANNER_SCALE_FINAL = 0.6;
+export const COMBO_BANNER_POP_MS = 200;
+export const COMBO_BANNER_HOLD_MS = 400;
+export const COMBO_BANNER_FADE_MS = 200;
+
+// Girl Surprise 10 帧（来自 girl-sheet0.png，与预览 GIRL_FRAMES 一致）
+export const GIRL_SURPRISE_FRAMES: SpriteRegion[] = [
+  { x: 257, y: 513, w: 205, h: 244 },
+  { x: 1, y: 513, w: 204, h: 247 },
+  { x: 513, y: 513, w: 206, h: 250 },
+  { x: 513, y: 1, w: 212, h: 251 },
+  { x: 769, y: 1, w: 211, h: 251 },
+  { x: 513, y: 257, w: 210, h: 250 },
+  { x: 769, y: 257, w: 208, h: 250 },
+  { x: 769, y: 513, w: 206, h: 249 },
+  { x: 257, y: 257, w: 204, h: 247 },
+  { x: 257, y: 769, w: 205, h: 244 },
+];
+export const GIRL_SURPRISE_FRAME_MS = 77;
+
+// Girl Blink 2 帧（C3 data.json 原坐标，speed 20fps → 50ms/帧）
+export const GIRL_BLINK_FRAMES: SpriteRegion[] = [
+  { x: 513, y: 769, w: 204, h: 244 }, // 半闭眼
+  { x: 1, y: 769, w: 204, h: 244 },   // 闭眼
+];
+export const GIRL_BLINK_FRAME_MS = 50;
+export const GIRL_BLINK_INTERVAL_MIN_MS = 3000;
+export const GIRL_BLINK_INTERVAL_MAX_MS = 6000;
+
+// Giant Scream 3 帧（shared-0-sheet0.png）
+export const GIANT_SCREAM_FRAMES: SpriteRegion[] = [
+  { x: 1560, y: 1, w: 424, h: 612 },
+  { x: 1195, y: 1011, w: 422, h: 612 },
+  { x: 770, y: 1011, w: 423, h: 612 },
+];
+export const GIANT_SCREAM_FRAME_MS = 50;
+
+// Giant Blink 3 帧（C3 data.json：blink-1/2 在 shared-0-sheet1, blink-3=闭眼 在 shared-0-sheet0）
+export const GIANT_BLINK_FRAMES: { texture: string; region: SpriteRegion }[] = [
+  { texture: 'shared1', region: { x: 1, y: 1, w: 421, h: 610 } },
+  { texture: 'shared1', region: { x: 424, y: 1, w: 421, h: 610 } },
+  { texture: 'shared0-orig', region: { x: 1, y: 1027, w: 421, h: 610 } },
+];
+export const GIANT_BLINK_FRAME_MS = 48;
+export const GIANT_BLINK_INTERVAL_MIN_MS = 4000;
+export const GIANT_BLINK_INTERVAL_MAX_MS = 8000;
+export const GIANT_TWEEN_Y_OFFSET = -50;
+export const GIANT_TWEEN_MS = 300;
+
+// 飞糖果（shared-0-sheet3.png 上的小糖果 40×40 @ x:1 y:129）
+export const COMBO_CANDY_REGION: SpriteRegion = { x: 1, y: 129, w: 40, h: 40 };
+export const COMBO_CANDY_COUNT = 5;
+export const COMBO_CANDY_FLY_MS = 800;
+export const COMBO_CANDY_STAGGER_MS = 60;
+export const COMBO_CANDY_START_DELAY_MS = 150;
+
+// 飞糖路径关键点（取自预览 HTML）
+export const COMBO_CANDY_FROM = { x: 510, y: 810 };
+export const COMBO_CANDY_TO = { x: 320, y: 280 };
+export const COMBO_CANDY_ARC_HEIGHT = 120;

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
+import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
@@ -76,6 +77,9 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false;
   private isPauseOpen: boolean = false;
   private lastLandedCol: number | undefined;
+  private comboCount = 0;
+  private comboFiredThisChain = false;
+  private comboChainEffect!: ComboChainEffect;
   private debugPanel: DebugPanel | null = null;
   private debugCurrentCandy: number | null = 2;
   private debugNextCandy: number | null = 4;
@@ -183,6 +187,7 @@ export class GameScene extends Phaser.Scene {
     this.soundBtn = gameUi.soundBtn;
     this.rotateArrowL = gameUi.rotateArrowL;
     this.rotateArrowR = gameUi.rotateArrowR;
+    this.comboChainEffect = new ComboChainEffect(this, gameUi.girl, gameUi.giantHead);
 
     if (this.debugBackgroundOnly) {
       return;
@@ -1228,6 +1233,8 @@ export class GameScene extends Phaser.Scene {
   // 推进 token 队列，处理待定石头，然后装填弹弓
   private respawnWithSequence(): void {
     console.log(`[GameScene] respawnWithSequence(), DEBUG=${IS_DEBUG}, isResolvingTurn=${this.isResolvingTurn}`);
+    this.comboCount = 0;
+    this.comboFiredThisChain = false;
     if (IS_DEBUG) {
       // DEBUG 模式：只消费当前面板里已设置的糖果，current -> next -> 停。
       const nextCandy = this.debugNextCandy;
@@ -1691,6 +1698,8 @@ export class GameScene extends Phaser.Scene {
 
     if (groups.length === 0) {
       this.lastLandedCol = undefined;
+      this.comboCount = 0;
+      this.comboFiredThisChain = false;
       this.respawnWithSequence();
       return;
     }
@@ -1702,6 +1711,12 @@ export class GameScene extends Phaser.Scene {
     this.debugPanel?.logDebugEvent(`合并：${group.value}×${group.cells.length} @ ${mergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group, this.lastLandedCol);
+    this.comboCount++;
+    if (!this.comboFiredThisChain && this.comboCount >= COMBO_THRESHOLD) {
+      this.comboFiredThisChain = true;
+      this.sound.play('combo', { volume: 0.6 });
+      this.comboChainEffect.play(this.comboCount);
+    }
     console.log(
       `[合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
       `最终=(${result.finalRow + 1},${result.finalCol + 1})`
@@ -1738,7 +1753,11 @@ export class GameScene extends Phaser.Scene {
     const groups = this.mergeSystem.findMergeGroups();
     console.log(`[旋转后合并检查] 找到 ${groups.length} 个合并组`);
 
-    if (groups.length === 0) return;
+    if (groups.length === 0) {
+      this.comboCount = 0;
+      this.comboFiredThisChain = false;
+      return;
+    }
 
     groups.sort((a, b) => b.cells.length - a.cells.length);
     const group = groups[0];
@@ -1747,6 +1766,12 @@ export class GameScene extends Phaser.Scene {
     this.debugPanel?.logDebugEvent(`旋转后合并：${group.value}×${group.cells.length} @ ${rotMergeCellsStr}`);
 
     const result = this.mergeSystem.executeMerge(group);
+    this.comboCount++;
+    if (!this.comboFiredThisChain && this.comboCount >= COMBO_THRESHOLD) {
+      this.comboFiredThisChain = true;
+      this.sound.play('combo', { volume: 0.6 });
+      this.comboChainEffect.play(this.comboCount);
+    }
     console.log(
       `[旋转后合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
       `最终=(${result.finalRow + 1},${result.finalCol + 1})`
@@ -1955,6 +1980,8 @@ export class GameScene extends Phaser.Scene {
 
   private handleSceneShutdown(): void {
     window.removeEventListener('resize', this.onResize);
+    this.comboCount = 0;
+    this.comboFiredThisChain = false;
 
     if (this.resizeTimer) {
       clearTimeout(this.resizeTimer);

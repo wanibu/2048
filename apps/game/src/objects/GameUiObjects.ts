@@ -1,5 +1,14 @@
 import * as Phaser from 'phaser';
 import {
+  GIANT_BLINK_FRAMES,
+  GIANT_BLINK_FRAME_MS,
+  GIANT_BLINK_INTERVAL_MAX_MS,
+  GIANT_BLINK_INTERVAL_MIN_MS,
+  GIRL_BLINK_FRAMES,
+  GIRL_BLINK_FRAME_MS,
+  GIRL_BLINK_INTERVAL_MAX_MS,
+  GIRL_BLINK_INTERVAL_MIN_MS,
+  GIRL_SURPRISE_FRAMES,
   PLAY_BACKGROUND_DISPLAY_HEIGHT,
   PLAY_BACKGROUND_DISPLAY_WIDTH,
   PLAY_BACKGROUND_GAME_X,
@@ -7,6 +16,7 @@ import {
 } from '../config';
 
 export class GameUiObjects {
+  readonly girl: Phaser.GameObjects.Image;
   readonly giantHead: Phaser.GameObjects.Image;
   readonly pauseBtn: Phaser.GameObjects.Image;
   readonly soundBtn: Phaser.GameObjects.Image;
@@ -21,7 +31,7 @@ export class GameUiObjects {
     this.rotateArrowL = rotate.left;
     this.rotateArrowR = rotate.right;
     this.createBgSquare(scene);
-    this.createGirl(scene);
+    this.girl = this.createGirl(scene);
     this.giantHead = this.createGiant(scene);
     this.createKeyHints(scene);
     this.createScoreIcons(scene);
@@ -81,15 +91,51 @@ export class GameUiObjects {
     bgSquare.setDepth(75);
   }
 
-  private createGirl(scene: Phaser.Scene): void {
+  private createGirl(scene: Phaser.Scene): Phaser.GameObjects.Image {
     const tex = scene.textures.get('girl-full');
     if (!tex.has('girl-default')) {
       tex.add('girl-default', 0, 769, 769, 204, 244);
     }
+    GIRL_SURPRISE_FRAMES.forEach((frame, index) => {
+      const frameKey = `girl-surprise-${index}`;
+      if (!tex.has(frameKey)) {
+        tex.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+      }
+    });
+    GIRL_BLINK_FRAMES.forEach((frame, index) => {
+      const frameKey = `girl-blink-${index}`;
+      if (!tex.has(frameKey)) {
+        tex.add(frameKey, 0, frame.x, frame.y, frame.w, frame.h);
+      }
+    });
     const girl = scene.add.image(555, 1065, 'girl-full', 'girl-default');
     girl.setOrigin(0.4167, 0.9959);
     girl.setScale(0.8);
     girl.setDepth(50);
+    this.startGirlBlinkLoop(scene, girl);
+    return girl;
+  }
+
+  private startGirlBlinkLoop(scene: Phaser.Scene, girl: Phaser.GameObjects.Image): void {
+    // 眨眼序列（ping-pong）：半闭 → 全闭 → 半闭 → 默认
+    const sequence = ['girl-blink-0', 'girl-blink-1', 'girl-blink-0', 'girl-default'];
+    const scheduleNext = (): void => {
+      const delay = Phaser.Math.Between(GIRL_BLINK_INTERVAL_MIN_MS, GIRL_BLINK_INTERVAL_MAX_MS);
+      scene.time.delayedCall(delay, () => {
+        if (girl.getData('busy') === true) {
+          scheduleNext();
+          return;
+        }
+        sequence.forEach((frameKey, i) => {
+          scene.time.delayedCall(i * GIRL_BLINK_FRAME_MS, () => {
+            if (girl.getData('busy') === true) return;
+            girl.setFrame(frameKey);
+          });
+        });
+        scene.time.delayedCall(sequence.length * GIRL_BLINK_FRAME_MS, scheduleNext);
+      });
+    };
+    scheduleNext();
   }
 
   private createGiant(scene: Phaser.Scene): Phaser.GameObjects.Image {
@@ -97,12 +143,49 @@ export class GameUiObjects {
     if (!tex.has('giant-default')) {
       tex.add('giant-default', 0, 1619, 1025, 421, 610);
     }
+    GIANT_BLINK_FRAMES.forEach((frame, index) => {
+      const frameKey = `giant-blink-${index + 1}`;
+      const frameTex = scene.textures.get(frame.texture);
+      if (!frameTex.has(frameKey)) {
+        frameTex.add(frameKey, 0, frame.region.x, frame.region.y, frame.region.w, frame.region.h);
+      }
+    });
     const giant = scene.add.image(321, 116, 'shared0-orig', 'giant-default');
     giant.setOrigin(0.505938, 0.501639);
     giant.setDisplaySize(421, 610);
     giant.setAngle(7);
     giant.setDepth(-10);
+    this.startGiantBlinkLoop(scene, giant);
     return giant;
+  }
+
+  private startGiantBlinkLoop(scene: Phaser.Scene, giant: Phaser.GameObjects.Image): void {
+    // ping-pong: blink-1 → blink-2 → blink-3 (闭眼) → blink-2 → blink-1 → default (回睁眼)
+    const sequence: { tex: string; frame: string }[] = [
+      { tex: 'shared1', frame: 'giant-blink-1' },
+      { tex: 'shared1', frame: 'giant-blink-2' },
+      { tex: 'shared0-orig', frame: 'giant-blink-3' },
+      { tex: 'shared1', frame: 'giant-blink-2' },
+      { tex: 'shared1', frame: 'giant-blink-1' },
+      { tex: 'shared0-orig', frame: 'giant-default' },
+    ];
+    const scheduleNext = (): void => {
+      const delay = Phaser.Math.Between(GIANT_BLINK_INTERVAL_MIN_MS, GIANT_BLINK_INTERVAL_MAX_MS);
+      scene.time.delayedCall(delay, () => {
+        if (giant.getData('busy') === true) {
+          scheduleNext();
+          return;
+        }
+        sequence.forEach((step, i) => {
+          scene.time.delayedCall(i * GIANT_BLINK_FRAME_MS, () => {
+            if (giant.getData('busy') === true) return;
+            giant.setTexture(step.tex, step.frame);
+          });
+        });
+        scene.time.delayedCall(sequence.length * GIANT_BLINK_FRAME_MS, scheduleNext);
+      });
+    };
+    scheduleNext();
   }
 
   private createKeyHints(scene: Phaser.Scene): void {
