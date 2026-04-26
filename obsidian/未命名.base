@@ -1,0 +1,14 @@
+formulas:
+  未命名: ""
+views:
+  - type: table
+    name: 表格
+    order:
+      - file.name
+      - file.path
+      - formula.未命名
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: 视图

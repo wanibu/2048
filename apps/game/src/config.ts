@@ -294,7 +294,7 @@ export const GIANT_BLINK_FRAMES: { texture: string; region: SpriteRegion }[] = [
 export const GIANT_BLINK_FRAME_MS = 48;
 export const GIANT_BLINK_INTERVAL_MIN_MS = 4000;
 export const GIANT_BLINK_INTERVAL_MAX_MS = 8000;
-export const GIANT_TWEEN_Y_OFFSET = -50;
+export const GIANT_TWEEN_Y_OFFSET = -100;
 export const GIANT_TWEEN_MS = 300;
 
 // 飞糖果（shared-0-sheet3.png 上的小糖果 40×40 @ x:1 y:129）
@@ -306,5 +306,5 @@ export const COMBO_CANDY_START_DELAY_MS = 150;
 
 // 飞糖路径关键点（取自预览 HTML）
 export const COMBO_CANDY_FROM = { x: 510, y: 810 };
-export const COMBO_CANDY_TO = { x: 320, y: 280 };
+export const COMBO_CANDY_TO = { x: 320, y: 100 };
 export const COMBO_CANDY_ARC_HEIGHT = 120;
