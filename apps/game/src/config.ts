@@ -242,9 +242,12 @@ export const BORDER_EXPLODE_FRAMES: SpriteAnimationFrame[] = [
 
 // Combo 链特效（3 连及以上触发）
 export const COMBO_THRESHOLD = 3;
+export const WOW_THRESHOLD = 4;
 
 // ComboSprite 横幅（512×305）：shared-0-sheet0.png @ (938, 1625)
 export const COMBO_BANNER_REGION: SpriteRegion = { x: 938, y: 1625, w: 512, h: 305 };
+// WowSprite 横幅（512×380）：shared-0-sheet0.png @ (424, 1625)
+export const WOW_BANNER_REGION: SpriteRegion = { x: 424, y: 1625, w: 512, h: 380 };
 export const COMBO_BANNER_X = 320;
 export const COMBO_BANNER_Y = 480;
 export const COMBO_BANNER_DEPTH = 200;

@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
@@ -491,6 +491,19 @@ export class GameScene extends Phaser.Scene {
     });
     this.debugPanel?.logScoreEvent(`+${points} → 总分 ${this.hud.getScore()}`);
     this.scheduleScoreReport();
+  }
+
+  // Combo 触发分发：3 连弹 ComboSprite + 5 颗糖；4 连升级 WowSprite + 再 5 颗；5+ 仅再 5 颗
+  private fireComboChain(): void {
+    if (this.comboCount === COMBO_THRESHOLD) {
+      this.sound.play('combo', { volume: 0.6 });
+      this.comboChainEffect.triggerCombo();
+    } else if (this.comboCount === WOW_THRESHOLD) {
+      this.sound.play('wow', { volume: 0.6 });
+      this.comboChainEffect.triggerWow();
+    } else if (this.comboCount > WOW_THRESHOLD) {
+      this.comboChainEffect.addCandies();
+    }
   }
 
   // Debounce: 连续加分时合并，最后 500ms 后上报一次最新分数到后端
@@ -1698,6 +1711,9 @@ export class GameScene extends Phaser.Scene {
 
     if (groups.length === 0) {
       this.lastLandedCol = undefined;
+      if (this.comboCount >= COMBO_THRESHOLD) {
+        this.comboChainEffect.notifyChainEnd();
+      }
       this.comboCount = 0;
       this.comboFiredThisChain = false;
       this.respawnWithSequence();
@@ -1712,11 +1728,7 @@ export class GameScene extends Phaser.Scene {
 
     const result = this.mergeSystem.executeMerge(group, this.lastLandedCol);
     this.comboCount++;
-    if (!this.comboFiredThisChain && this.comboCount >= COMBO_THRESHOLD) {
-      this.comboFiredThisChain = true;
-      this.sound.play('combo', { volume: 0.6 });
-      this.comboChainEffect.play(this.comboCount);
-    }
+    this.fireComboChain();
     console.log(
       `[合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
       `最终=(${result.finalRow + 1},${result.finalCol + 1})`
@@ -1754,6 +1766,9 @@ export class GameScene extends Phaser.Scene {
     console.log(`[旋转后合并检查] 找到 ${groups.length} 个合并组`);
 
     if (groups.length === 0) {
+      if (this.comboCount >= COMBO_THRESHOLD) {
+        this.comboChainEffect.notifyChainEnd();
+      }
       this.comboCount = 0;
       this.comboFiredThisChain = false;
       return;
@@ -1767,11 +1782,7 @@ export class GameScene extends Phaser.Scene {
 
     const result = this.mergeSystem.executeMerge(group);
     this.comboCount++;
-    if (!this.comboFiredThisChain && this.comboCount >= COMBO_THRESHOLD) {
-      this.comboFiredThisChain = true;
-      this.sound.play('combo', { volume: 0.6 });
-      this.comboChainEffect.play(this.comboCount);
-    }
+    this.fireComboChain();
     console.log(
       `[旋转后合并结果] 新值=${result.newValue}, 落点=(${result.landedRow + 1},${result.landedCol + 1}), ` +
       `最终=(${result.finalRow + 1},${result.finalCol + 1})`
