@@ -710,6 +710,19 @@ admin.get('/plan-sequence-stats', async (c) => {
     }
   }
 
+  // 一次性查所有涉及的 sequence_name
+  const seqIds = Array.from(bySeq.keys());
+  const nameMap = new Map<string, string>();
+  if (seqIds.length > 0) {
+    const placeholders = seqIds.map(() => '?').join(',');
+    const nameRows = await db.prepare(
+      `SELECT id, sequence_name FROM generated_sequences WHERE id IN (${placeholders})`
+    ).bind(...seqIds).all();
+    for (const r of (nameRows.results || []) as Array<Record<string, unknown>>) {
+      nameMap.set(r.id as string, (r.sequence_name as string) || '');
+    }
+  }
+
   const sequences = Array.from(bySeq.entries()).map(([id, b]) => {
     const sortedScore = [...b.scores].sort((a, b) => a - b);
     const sortedDur = [...b.durations].sort((a, b) => a - b);
@@ -721,6 +734,7 @@ admin.get('/plan-sequence-stats', async (c) => {
       : null;
     return {
       sequence_id: id,
+      sequence_name: nameMap.get(id) ?? '',
       games_total: b.games_total,
       games_finished: b.games_finished,
       unique_players: b.fps.size,
@@ -870,7 +884,8 @@ admin.get('/games', async (c) => {
             g.sequence_plan_id, g.generated_sequence_id, g.sequence_index,
             g.end_reason, g.ended_at, g.last_update_at, g.created_at,
             sp.name AS plan_name,
-            gs.sequence_length AS sequence_length
+            gs.sequence_length AS sequence_length,
+            gs.sequence_name AS sequence_name
      FROM games g
      LEFT JOIN sequence_plans sp ON g.sequence_plan_id = sp.id
      LEFT JOIN generated_sequences gs ON g.generated_sequence_id = gs.id
@@ -900,6 +915,7 @@ admin.get('/game/:id', async (c) => {
   let plan_name: string | null = null;
   let sequence: string | null = null;
   let sequence_length = 0;
+  let sequence_name: string | null = null;
   let stages: unknown[] = [];
 
   if (game.sequence_plan_id) {
@@ -930,11 +946,12 @@ admin.get('/game/:id', async (c) => {
 
   if (game.generated_sequence_id) {
     const gs = await db.prepare(
-      'SELECT sequence_data, sequence_length FROM generated_sequences WHERE id = ?'
+      'SELECT sequence_data, sequence_length, sequence_name FROM generated_sequences WHERE id = ?'
     ).bind(game.generated_sequence_id as string).first() as Record<string, unknown> | null;
     if (gs) {
       sequence = gs.sequence_data as string;
       sequence_length = (gs.sequence_length as number) || 0;
+      sequence_name = (gs.sequence_name as string) || null;
     }
   }
 
@@ -943,6 +960,7 @@ admin.get('/game/:id', async (c) => {
     plan_name,
     sequence,
     sequence_length,
+    sequence_name,
     stages,
   });
 });

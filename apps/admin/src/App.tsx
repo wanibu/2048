@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BarChart3, Gamepad2, LineChart, LogOut, Settings } from 'lucide-react';
 import { StatsPage } from '@/pages/StatsPage';
 import { GamesPage } from '@/pages/GamesPage';
@@ -10,42 +11,42 @@ import { getToken, logout } from '@/api/client';
 
 export type GamesStatusFilter = 'all' | 'playing' | 'finished';
 
-type PageKey = 'stats' | 'analysis' | 'games' | 'config';
-
 const NAV = [
-  { k: 'stats', label: '统计', icon: BarChart3 },
-  { k: 'analysis', label: '样本分析', icon: LineChart },
-  { k: 'games', label: '游戏局', icon: Gamepad2 },
-  { k: 'config', label: '配置', icon: Settings },
+  { path: '/stats', label: '统计', icon: BarChart3 },
+  { path: '/analysis', label: '样本分析', icon: LineChart },
+  { path: '/game-round', label: '游戏局', icon: Gamepad2 },
+  { path: '/settings', label: '配置', icon: Settings },
 ] as const;
 
-function isPageKey(value: string | null): value is PageKey {
-  return NAV.some((item) => item.k === value);
+// Auth gate：未登录跳 /login（带 next 参数让登录后跳回）
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  if (!getToken()) {
+    const next = location.pathname + location.search;
+    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
+  }
+  return <>{children}</>;
 }
 
-export default function App() {
-  const [authed, setAuthed] = useState<boolean>(() => !!getToken());
-  const [page, setPage] = useState<PageKey>(() => {
-    const savedPage = localStorage.getItem('admin_page');
-    return isPageKey(savedPage) ? savedPage : 'stats';
-  });
-  const [gamesFilter, setGamesFilter] = useState<GamesStatusFilter>('all');
-  const [seqSheetId, setSeqSheetId] = useState<string | null>(null);
+function LoginRoute() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get('next') || '/stats';
+  return <LoginPage onLoggedIn={() => navigate(next, { replace: true })} />;
+}
 
-  useEffect(() => {
-    localStorage.setItem('admin_page', page);
-  }, [page]);
+function Layout() {
+  const navigate = useNavigate();
 
-  // 监听 401 / logout 广播：把 authed 切回 false
+  // 监听 401 / logout 广播：跳到 /login（带 next 让登录后跳回当前页）
   useEffect(() => {
-    const onUnauthorized = () => setAuthed(false);
+    const onUnauthorized = () => {
+      const next = window.location.pathname + window.location.search;
+      navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true });
+    };
     window.addEventListener('admin-unauthorized', onUnauthorized);
     return () => window.removeEventListener('admin-unauthorized', onUnauthorized);
-  }, []);
-
-  if (!authed) {
-    return <LoginPage onLoggedIn={() => setAuthed(true)} />;
-  }
+  }, [navigate]);
 
   return (
     <div className="flex h-screen bg-[var(--color-bg)] font-[Inter,system-ui,sans-serif] text-[var(--color-text)]">
@@ -58,30 +59,32 @@ export default function App() {
         </div>
 
         <nav className="flex-1 px-[8px] py-[6px]">
-          {NAV.map(({ k, label, icon: Icon }) => {
-            const active = page === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setPage(k)}
-                className={`mb-[2px] flex w-full cursor-pointer items-center gap-[8px] rounded-[6px] border-0 px-[10px] py-[7px] text-left text-[0.7812rem] outline-none ${
-                  active
+          {NAV.map(({ path, label, icon: Icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              className={({ isActive }) =>
+                `mb-[2px] flex w-full cursor-pointer items-center gap-[8px] rounded-[6px] border-0 px-[10px] py-[7px] text-left text-[0.7812rem] outline-none no-underline ${
+                  isActive
                     ? 'bg-[var(--color-border)] font-semibold text-[var(--color-text)]'
                     : 'bg-transparent font-medium text-[var(--color-text-secondary)]'
-                }`}
-              >
-                <span
-                  className={`inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center ${
-                    active ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-dimmest)]'
-                  }`}
-                >
-                  <Icon size={18} />
-                </span>
-                <span>{label}</span>
-              </button>
-            );
-          })}
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={`inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center ${
+                      isActive ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-dimmest)]'
+                    }`}
+                  >
+                    <Icon size={18} />
+                  </span>
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
         <button
@@ -95,30 +98,93 @@ export default function App() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        {page === 'stats' && (
-          <StatsPage
-            onNavigateGames={(filter) => {
-              setGamesFilter(filter);
-              setPage('games');
-            }}
-            onNavigatePlanAnalysis={() => setPage('analysis')}
-            onNavigatePlans={() => setPage('config')}
-            onNavigateSequences={() => setPage('config')}
-          />
-        )}
-        {page === 'analysis' && (
-          <PlanAnalysisPage onSelectSequence={(_planId, sequenceId) => setSeqSheetId(sequenceId)} />
-        )}
-        {page === 'games' && (
-          <GamesPage statusFilter={gamesFilter} onStatusFilterChange={setGamesFilter} />
-        )}
-        {page === 'config' && <ConfigPage />}
+        <Routes>
+          <Route path="/stats" element={<StatsPageRoute />} />
+          <Route path="/analysis" element={<AnalysisPageRoute />} />
+          <Route path="/game-round" element={<GamesPageRoute />} />
+          <Route path="/settings" element={<ConfigPage />} />
+          <Route path="*" element={<Navigate to="/stats" replace />} />
+        </Routes>
       </main>
-      <SequenceAnalysisSheet
-        open={seqSheetId !== null}
-        sequenceId={seqSheetId}
-        onClose={() => setSeqSheetId(null)}
-      />
+      <AnalysisSheetMount />
     </div>
+  );
+}
+
+function StatsPageRoute() {
+  const navigate = useNavigate();
+  return (
+    <StatsPage
+      onNavigateGames={(filter) => navigate(`/game-round?status=${filter}`)}
+      onNavigatePlanAnalysis={() => navigate('/analysis')}
+      onNavigatePlans={() => navigate('/settings')}
+      onNavigateSequences={() => navigate('/settings?tab=sequences')}
+    />
+  );
+}
+
+function AnalysisPageRoute() {
+  const [params, setParams] = useSearchParams();
+  return (
+    <PlanAnalysisPage
+      onSelectSequence={(_planId, seqId) => {
+        const next = new URLSearchParams(params);
+        next.set('sequence', seqId);
+        setParams(next, { replace: false });
+      }}
+    />
+  );
+}
+
+function GamesPageRoute() {
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('status') || 'all';
+  const status = (raw === 'playing' || raw === 'finished' || raw === 'all') ? raw : 'all';
+  return (
+    <GamesPage
+      statusFilter={status as GamesStatusFilter}
+      onStatusFilterChange={(filter) => {
+        const next = new URLSearchParams(params);
+        if (filter === 'all') next.delete('status');
+        else next.set('status', filter);
+        setParams(next, { replace: false });
+      }}
+    />
+  );
+}
+
+// SequenceAnalysisSheet 由 URL ?sequence=X 控制（PlanAnalysisPage 路由 + 全局浮层）
+function AnalysisSheetMount() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = new URLSearchParams(location.search);
+  const sequenceId = location.pathname === '/analysis' ? params.get('sequence') : null;
+  return (
+    <SequenceAnalysisSheet
+      open={sequenceId !== null}
+      sequenceId={sequenceId}
+      onClose={() => {
+        const next = new URLSearchParams(params);
+        next.delete('sequence');
+        const search = next.toString();
+        navigate(`/analysis${search ? `?${search}` : ''}`, { replace: true });
+      }}
+    />
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginRoute />} />
+      <Route
+        path="*"
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      />
+    </Routes>
   );
 }

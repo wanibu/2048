@@ -36,12 +36,14 @@ export interface Game {
   // joined / enriched
   plan_name?: string | null;
   sequence_length?: number;
+  sequence_name?: string | null;
 }
 
 export interface GameDetail extends Game {
   plan_name: string | null;
   sequence: string | null;
   sequence_length: number;
+  sequence_name: string | null;
   stages: Array<{
     id: string;
     name: string;
@@ -142,6 +144,7 @@ export interface PlanStatsResp {
 
 export interface SequenceStat {
   sequence_id: string;
+  sequence_name: string;
   games_total: number;
   games_finished: number;
   unique_players: number;

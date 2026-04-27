@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { GeneratedSequence, Plan, PlanStage } from '@/api/types';
 import { CandyChip } from '@/components/ui/candy-chip';
@@ -207,8 +208,7 @@ function SequencesTable({
           生成序列
         </button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 140px 160px 100px 1fr 90px', padding: '8px 20px', background: '#fafafc', borderBottom: '1px solid #f0f0f4', fontSize: '0.625rem', color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6, gap: 14 }}>
-        <div>ID</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 100px 1fr 90px', padding: '8px 20px', background: '#fafafc', borderBottom: '1px solid #f0f0f4', fontSize: '0.625rem', color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6, gap: 14 }}>
         <div>系列名称</div>
         <div>备注</div>
         <div>状态</div>
@@ -222,7 +222,7 @@ function SequencesTable({
           <div
             key={sequence.id}
             onClick={() => onSelectSequence(sequence)}
-            style={{ display: 'grid', gridTemplateColumns: '180px 140px 160px 100px 1fr 90px', padding: '14px 20px', borderBottom: index === sequences.length - 1 ? 'none' : '1px solid #f4f4f8', alignItems: 'center', gap: 14, fontSize: '0.75rem', cursor: 'pointer' }}
+            style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 100px 1fr 90px', padding: '14px 20px', borderBottom: index === sequences.length - 1 ? 'none' : '1px solid #f4f4f8', alignItems: 'center', gap: 14, fontSize: '0.75rem', cursor: 'pointer' }}
             onMouseEnter={(event) => {
               event.currentTarget.style.background = '#fafafc';
             }}
@@ -230,7 +230,6 @@ function SequencesTable({
               event.currentTarget.style.background = 'transparent';
             }}
           >
-            <div style={{ fontFamily: 'Menlo, Monaco, monospace', color: '#2a2a33' }}>{shortId(sequence.id)}</div>
             <div style={{ color: sequence.sequence_name ? '#2a2a33' : '#c8c8d0', wordBreak: 'break-all' }}>
               {sequence.sequence_name || '—'}
             </div>
@@ -284,7 +283,14 @@ export function DetailVariantA({
   onDeleteSequence,
   onRefresh: _onRefresh,
 }: DetailVariantAProps) {
-  const [tab, setTab] = useState<'stages' | 'sequences'>('stages');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'sequences' ? 'sequences' : 'stages';
+  const setTab = (next: 'stages' | 'sequences') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'stages') params.delete('tab');
+    else params.set('tab', next);
+    setSearchParams(params, { replace: false });
+  };
   const totalLength = plan.total_length ?? plan.stages.reduce((sum, stage) => sum + stage.length, 0);
 
   return (

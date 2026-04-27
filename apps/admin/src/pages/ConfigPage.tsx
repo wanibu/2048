@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { api } from '@/api/client';
@@ -12,9 +13,15 @@ import { PageHeader } from '@/components/ui/page-header';
 import { RefreshBtn } from '@/components/ui/refresh-btn';
 
 export function ConfigPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sequences, setSequences] = useState<GeneratedSequence[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const selectedPlanId = searchParams.get('plan');
+  const setSelectedPlanId = (id: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set('plan', id); else next.delete('plan');
+    setSearchParams(next, { replace: false });
+  };
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);

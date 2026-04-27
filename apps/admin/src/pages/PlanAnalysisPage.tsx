@@ -181,7 +181,7 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7188rem', background: '#fff', border: '1px solid #ececf2', borderRadius: 6, overflow: 'hidden' }}>
                                   <thead>
                                     <tr style={{ background: '#fff' }}>
-                                      <th style={seqTh}>ID</th>
+                                      <th style={seqTh}>系列名称</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>游玩次数</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>独立用户数</th>
                                       <th style={{ ...seqTh, textAlign: 'right' }}>最小得分</th>
@@ -195,7 +195,7 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
                                   <tbody>
                                     {sequences.map((sequence) => (
                                       <tr key={sequence.sequence_id} onClick={() => onSelectSequence?.(plan.plan_id!, sequence.sequence_id)} style={{ cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#fff3ea'; e.currentTarget.style.boxShadow = 'inset 2px 0 0 #c87a3a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none'; }}>
-                                        <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{sequence.sequence_id}</td>
+                                        <td style={{ ...seqTd, color: '#2a2a33' }}>{sequence.sequence_name || '—'}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums' }}>{sequence.games_total.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>{sequence.unique_players.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', color: 'var(--color-text-secondary)' }}>{fmt0(sequence.score_min ?? 0)}</td>

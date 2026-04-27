@@ -366,7 +366,7 @@ function GameDetailSheet({
                       marginBottom: 4,
                     }}
                   >
-                    <span>序列 {truncate(detail.generated_sequence_id, 12)}</span>
+                    <span>序列 {detail.sequence_name || '—'}</span>
                     <span>剩余 {Math.max(0, detail.sequence_length - detail.sequence_index)} 块</span>
                   </div>
                   <div

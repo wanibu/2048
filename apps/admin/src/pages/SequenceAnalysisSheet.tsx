@@ -363,7 +363,7 @@ export function SequenceAnalysisSheet({
                         marginBottom: 4,
                       }}
                     >
-                      序列 ID
+                      系列名称
                     </div>
                     <div
                       style={{
@@ -397,20 +397,6 @@ export function SequenceAnalysisSheet({
                         {fmtDate(data.created_at)}
                       </span>
                     </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '92px 1fr',
-                    columnGap: 20,
-                    rowGap: 10,
-                    fontSize: '0.7812rem',
-                  }}
-                >
-                  <div style={{ color: '#8a8a94' }}>内部记录 ID</div>
-                  <div style={{ fontFamily: 'Menlo, monospace', color: '#2a2a33' }}>
-                    {data.sequence_id}
                   </div>
                 </div>
               </div>
@@ -659,7 +645,7 @@ export function SequenceAnalysisSheet({
                   >
                     <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>全部游戏</div>
                     <div style={{ marginLeft: 8, fontSize: '0.6875rem', color: '#9b9ba6' }}>
-                      围绕当前序列 ID 的全部游戏列表
+                      围绕当前系列的全部游戏列表
                     </div>
                     <div
                       style={{

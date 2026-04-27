@@ -204,20 +204,6 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
             </div>
             <div style={{ display: 'grid', gap: 16 }}>
               <div>
-                <div style={LABEL_STYLE}>序列 ID</div>
-                <div
-                  style={{
-                    ...INPUT_STYLE,
-                    background: '#fafafc',
-                    color: '#6a6a74',
-                    fontFamily: 'Menlo, Monaco, monospace',
-                    fontSize: '0.8125rem',
-                  }}
-                >
-                  {sequence.id}
-                </div>
-              </div>
-              <div>
                 <div style={LABEL_STYLE}>系列名称 <span style={{ color: '#c8343a' }}>*</span></div>
                 <input
                   type="text"
