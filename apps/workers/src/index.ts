@@ -51,6 +51,44 @@ async function initSign(gameId: string): Promise<string> {
   return sha256(`giant2048_game_${gameId}`);
 }
 
+// ================= Admin 签名 token =================
+// 签名 token 格式：base64url(payload).hexsig
+// payload = { user, iat, exp }，签名 = sha256(payloadB64 + '.' + ADMIN_SECRET)
+const ADMIN_SECRET = 'giant2048_admin_signing_key_v1'; // TODO: 移到 wrangler secret
+const ADMIN_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天
+
+function b64urlEncode(s: string): string {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(s: string): string {
+  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4);
+  return atob(padded);
+}
+
+async function signAdminToken(user: string): Promise<string> {
+  const now = Date.now();
+  const payload = JSON.stringify({ user, iat: now, exp: now + ADMIN_TOKEN_TTL_MS });
+  const payloadB64 = b64urlEncode(payload);
+  const sig = await sha256(payloadB64 + '.' + ADMIN_SECRET);
+  return `${payloadB64}.${sig}`;
+}
+
+async function verifyAdminToken(token: string): Promise<{ user: string; exp: number } | null> {
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+  const expectedSig = await sha256(payloadB64 + '.' + ADMIN_SECRET);
+  if (sig !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(b64urlDecode(payloadB64)) as { user?: string; exp?: number };
+    if (typeof payload.exp !== 'number' || payload.exp < Date.now()) return null;
+    if (typeof payload.user !== 'string') return null;
+    return { user: payload.user, exp: payload.exp };
+  } catch {
+    return null;
+  }
+}
+
 function generateGameId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
@@ -95,8 +133,8 @@ async function createGeneratedSequenceFromRandomPlan(db: D1Database): Promise<{
 
   await db.prepare(
     `INSERT INTO generated_sequences
-     (id, sequence_plan_id, sequence_data, sequence_length, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'enabled', ?, ?)`
+     (id, sequence_plan_id, sequence_name, sequence_note, sequence_data, sequence_length, status, created_at, updated_at)
+     VALUES (?, ?, '', '', ?, ?, 'enabled', ?, ?)`
   ).bind(
     generatedSequenceId,
     plan.id as string,
@@ -415,17 +453,19 @@ const admin = new Hono<{ Bindings: Bindings }>();
 admin.post('/login', async (c) => {
   const { username, password } = await c.req.json<{ username: string; password: string }>();
   if (username === 'admin' && password === '123456') {
-    const token = await sha256(`admin_token_${Date.now()}_giant2048`);
+    const token = await signAdminToken(username);
     return c.json({ success: true, token });
   }
   return c.json({ error: 'Invalid credentials' }, 401);
 });
 
-// 其他 admin 路由需要 Bearer token
+// 其他 admin 路由需要 Bearer token，且必须签名有效 + 未过期
 admin.use('*', async (c, next) => {
   if (c.req.path === '/api/admin/login') return next();
   const auth = c.req.header('Authorization')?.replace('Bearer ', '');
   if (!auth) return c.json({ error: 'Unauthorized' }, 401);
+  const payload = await verifyAdminToken(auth);
+  if (!payload) return c.json({ error: 'Invalid or expired token' }, 401);
   await next();
 });
 
@@ -1040,8 +1080,11 @@ admin.delete('/sequence-plans/:id', async (c) => {
 
 // ---- Generated Sequences（已分页） ----
 admin.post('/generate-sequence', async (c) => {
-  const { sequence_plan_id, count } = await c.req.json<{
-    sequence_plan_id: string; count?: number;
+  const { sequence_plan_id, count, sequence_name, sequence_note } = await c.req.json<{
+    sequence_plan_id: string;
+    count?: number;
+    sequence_name?: string;
+    sequence_note?: string;
   }>();
   if (!sequence_plan_id) return c.json({ error: 'Missing sequence_plan_id' }, 400);
 
@@ -1066,6 +1109,8 @@ admin.post('/generate-sequence', async (c) => {
   }));
 
   const generateCount = count || 1;
+  const seqName = sequence_name ?? '';
+  const seqNote = sequence_note ?? '';
   const generated = [];
 
   for (let i = 0; i < generateCount; i++) {
@@ -1074,11 +1119,11 @@ admin.post('/generate-sequence', async (c) => {
     const now = new Date().toISOString();
 
     await db.prepare(
-      `INSERT INTO generated_sequences (id, sequence_plan_id, sequence_data, sequence_length, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'enabled', ?, ?)`
-    ).bind(seqId, sequence_plan_id, JSON.stringify(sequence), sequence.length, now, now).run();
+      `INSERT INTO generated_sequences (id, sequence_plan_id, sequence_name, sequence_note, sequence_data, sequence_length, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'enabled', ?, ?)`
+    ).bind(seqId, sequence_plan_id, seqName, seqNote, JSON.stringify(sequence), sequence.length, now, now).run();
 
-    generated.push({ id: seqId, sequence_length: sequence.length, sequence_data: sequence });
+    generated.push({ id: seqId, sequence_length: sequence.length, sequence_data: sequence, sequence_name: seqName, sequence_note: seqNote });
   }
 
   return c.json({ generated, count: generateCount });
@@ -1136,13 +1181,36 @@ admin.get('/generated-sequences/:id', async (c) => {
 
 admin.put('/generated-sequences/:id', async (c) => {
   const seqId = c.req.param('id');
-  const { status } = await c.req.json<{ status: string }>();
-  if (status !== 'enabled' && status !== 'disabled') {
-    return c.json({ error: 'Status must be enabled or disabled' }, 400);
+  const body = await c.req.json<{ status?: string; sequence_name?: string; sequence_note?: string }>();
+
+  const sets: string[] = [];
+  const params: unknown[] = [];
+
+  if (body.status !== undefined) {
+    if (body.status !== 'enabled' && body.status !== 'disabled') {
+      return c.json({ error: 'Status must be enabled or disabled' }, 400);
+    }
+    sets.push('status = ?');
+    params.push(body.status);
   }
+  if (body.sequence_name !== undefined) {
+    sets.push('sequence_name = ?');
+    params.push(body.sequence_name);
+  }
+  if (body.sequence_note !== undefined) {
+    sets.push('sequence_note = ?');
+    params.push(body.sequence_note);
+  }
+  if (sets.length === 0) {
+    return c.json({ error: 'No fields to update' }, 400);
+  }
+  sets.push('updated_at = ?');
+  params.push(new Date().toISOString());
+  params.push(seqId);
+
   await c.env.DB.prepare(
-    'UPDATE generated_sequences SET status = ?, updated_at = ? WHERE id = ?'
-  ).bind(status, new Date().toISOString(), seqId).run();
+    `UPDATE generated_sequences SET ${sets.join(', ')} WHERE id = ?`
+  ).bind(...params).run();
   return c.json({ success: true });
 });
 

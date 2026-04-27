@@ -51,6 +51,8 @@ interface SequenceEditSheetProps {
 
 export function SequenceEditSheet({ open, sequence, onClose, onSaved }: SequenceEditSheetProps) {
   const [status, setStatus] = useState<'enabled' | 'disabled'>('enabled');
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -65,6 +67,8 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
   useEffect(() => {
     if (!sequence) return;
     setStatus(sequence.status);
+    setName(sequence.sequence_name ?? '');
+    setNote(sequence.sequence_note ?? '');
   }, [sequence]);
 
   if (!open || !sequence) return null;
@@ -75,7 +79,7 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
       setSaving(true);
       await api(`/api/admin/generated-sequences/${sequence.id}`, {
         method: 'PUT',
-        body: { status },
+        body: { status, sequence_name: name, sequence_note: note },
       });
       toast.success('已保存');
       onSaved();
@@ -149,7 +153,7 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
             }}
           >
             <div style={{ fontFamily: 'Fredoka, system-ui, sans-serif', fontSize: '1.125rem', fontWeight: 600, marginBottom: 20 }}>
-              编辑序列状态
+              编辑序列
             </div>
             <div style={{ display: 'grid', gap: 16 }}>
               <div>
@@ -165,6 +169,26 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
                 >
                   {sequence.id}
                 </div>
+              </div>
+              <div>
+                <div style={LABEL_STYLE}>系列名称</div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="如：标准节奏 A1"
+                  style={INPUT_STYLE}
+                />
+              </div>
+              <div>
+                <div style={LABEL_STYLE}>备注</div>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="可选，用于描述这条序列的特点"
+                  rows={3}
+                  style={{ ...INPUT_STYLE, resize: 'vertical', minHeight: 64 }}
+                />
               </div>
               <div>
                 <div style={LABEL_STYLE}>状态</div>

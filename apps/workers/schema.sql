@@ -28,6 +28,8 @@ CREATE INDEX IF NOT EXISTS idx_plan_stages_plan
 CREATE TABLE IF NOT EXISTS generated_sequences (
   id TEXT PRIMARY KEY,
   sequence_plan_id TEXT NOT NULL,
+  sequence_name TEXT NOT NULL DEFAULT '',
+  sequence_note TEXT NOT NULL DEFAULT '',
   sequence_data TEXT NOT NULL,
   sequence_length INTEGER NOT NULL CHECK (sequence_length > 0),
   status TEXT NOT NULL CHECK (status IN ('enabled', 'disabled')),

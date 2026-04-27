@@ -87,6 +87,8 @@ export interface GeneratedSequence {
   id: string;
   sequence_plan_id: string;
   plan_name: string | null;
+  sequence_name: string;
+  sequence_note: string;
   sequence_data: Array<string | number>;
   sequence_length: number;
   status: 'enabled' | 'disabled';

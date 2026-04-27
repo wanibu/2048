@@ -57,6 +57,11 @@ export async function api<T = unknown>(
       error: (body.error as string) || res.statusText || 'Request failed',
     };
     console.warn(`[admin-api #${seq}] ✗ ${method} ${path} → ${res.status} (${dur}ms)`, err);
+    // 401 → token 过期或无效：清空本地 token 并广播给 App 切回登录页
+    if (res.status === 401 && !noAuth) {
+      clearToken();
+      window.dispatchEvent(new CustomEvent('admin-unauthorized'));
+    }
     throw err;
   }
 
@@ -74,4 +79,9 @@ export async function login(username: string, password: string): Promise<string>
   if (!res.success || !res.token) throw { status: 401, error: 'Login failed' };
   setToken(res.token);
   return res.token;
+}
+
+export function logout(): void {
+  clearToken();
+  window.dispatchEvent(new CustomEvent('admin-unauthorized'));
 }

@@ -5,6 +5,8 @@ import { GamesPage } from '@/pages/GamesPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { PlanAnalysisPage } from '@/pages/PlanAnalysisPage';
 import { SequenceAnalysisSheet } from '@/pages/SequenceAnalysisSheet';
+import { LoginPage } from '@/pages/LoginPage';
+import { getToken, logout } from '@/api/client';
 
 export type GamesStatusFilter = 'all' | 'playing' | 'finished';
 
@@ -22,6 +24,7 @@ function isPageKey(value: string | null): value is PageKey {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState<boolean>(() => !!getToken());
   const [page, setPage] = useState<PageKey>(() => {
     const savedPage = localStorage.getItem('admin_page');
     return isPageKey(savedPage) ? savedPage : 'stats';
@@ -32,6 +35,17 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('admin_page', page);
   }, [page]);
+
+  // 监听 401 / logout 广播：把 authed 切回 false
+  useEffect(() => {
+    const onUnauthorized = () => setAuthed(false);
+    window.addEventListener('admin-unauthorized', onUnauthorized);
+    return () => window.removeEventListener('admin-unauthorized', onUnauthorized);
+  }, []);
+
+  if (!authed) {
+    return <LoginPage onLoggedIn={() => setAuthed(true)} />;
+  }
 
   return (
     <div className="flex h-screen bg-[var(--color-bg)] font-[Inter,system-ui,sans-serif] text-[var(--color-text)]">
@@ -72,7 +86,7 @@ export default function App() {
 
         <button
           type="button"
-          onClick={() => {}}
+          onClick={() => logout()}
           className="flex cursor-pointer items-center gap-[6px] border-0 border-t border-[var(--color-border)] px-[12px] py-[12px] text-[0.6875rem] text-[var(--color-text-dimmest)] outline-none"
         >
           <LogOut size={13} />

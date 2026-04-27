@@ -206,8 +206,10 @@ function SequencesTable({
           生成序列
         </button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 120px 1fr 90px', padding: '8px 20px', background: '#fafafc', borderBottom: '1px solid #f0f0f4', fontSize: '0.625rem', color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6, gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 140px 160px 100px 1fr 90px', padding: '8px 20px', background: '#fafafc', borderBottom: '1px solid #f0f0f4', fontSize: '0.625rem', color: '#9b9ba6', textTransform: 'uppercase', letterSpacing: 0.6, gap: 14 }}>
         <div>ID</div>
+        <div>系列名称</div>
+        <div>备注</div>
         <div>状态</div>
         <div>创建时间</div>
         <div style={{ textAlign: 'right' }}>操作</div>
@@ -219,7 +221,7 @@ function SequencesTable({
           <div
             key={sequence.id}
             onClick={() => onSelectSequence(sequence)}
-            style={{ display: 'grid', gridTemplateColumns: '180px 120px 1fr 90px', padding: '14px 20px', borderBottom: index === sequences.length - 1 ? 'none' : '1px solid #f4f4f8', alignItems: 'center', gap: 14, fontSize: '0.75rem', cursor: 'pointer' }}
+            style={{ display: 'grid', gridTemplateColumns: '180px 140px 160px 100px 1fr 90px', padding: '14px 20px', borderBottom: index === sequences.length - 1 ? 'none' : '1px solid #f4f4f8', alignItems: 'center', gap: 14, fontSize: '0.75rem', cursor: 'pointer' }}
             onMouseEnter={(event) => {
               event.currentTarget.style.background = '#fafafc';
             }}
@@ -228,6 +230,12 @@ function SequencesTable({
             }}
           >
             <div style={{ fontFamily: 'Menlo, Monaco, monospace', color: '#2a2a33' }}>{shortId(sequence.id)}</div>
+            <div style={{ color: sequence.sequence_name ? '#2a2a33' : '#c8c8d0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sequence.sequence_name}>
+              {sequence.sequence_name || '—'}
+            </div>
+            <div style={{ color: sequence.sequence_note ? '#5a5a66' : '#c8c8d0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sequence.sequence_note}>
+              {sequence.sequence_note || '—'}
+            </div>
             <div>
               <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: 999, fontSize: '0.6875rem', color: sequence.status === 'enabled' ? '#1f8a47' : '#7c7c88', background: sequence.status === 'enabled' ? '#e9f8ef' : '#f1f1f5' }}>{sequence.status}</span>
             </div>
