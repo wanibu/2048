@@ -105,7 +105,7 @@ export function StageDetailSheet({ open, stage, stageIndex, onClose }: StageDeta
               ].map(([label, value]) => (
                 <div key={label} style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '0.625rem', letterSpacing: 0.6, textTransform: 'uppercase', color: '#9b9ba6', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#2a2a33', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: label === 'Stage ID' ? 'Menlo, Monaco, monospace' : 'inherit' }}>{value}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#2a2a33', wordBreak: 'break-all', fontFamily: label === 'Stage ID' ? 'Menlo, Monaco, monospace' : 'inherit' }}>{value}</div>
                 </div>
               ))}
             </div>

@@ -14,13 +14,13 @@ const fmt0 = (v: number) => Math.round(v).toLocaleString();
 const fmtSec = (v: number) => `${Math.round(v)}s`;
 
 const analysisTh = { padding: '10px 12px', fontSize: '0.625rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 500, borderBottom: '1px solid #ececf2', whiteSpace: 'nowrap', textAlign: 'left' } as const;
-const analysisTd = { padding: '10px 12px', borderBottom: '1px solid #f0f0f4', whiteSpace: 'nowrap', fontSize: '0.75rem', color: 'var(--color-text)' } as const;
+const analysisTd = { padding: '10px 12px', borderBottom: '1px solid #f0f0f4', fontSize: '0.75rem', color: 'var(--color-text)', wordBreak: 'break-all' } as const;
 const seqTh = { padding: '8px 12px', fontSize: '0.6562rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 500, borderBottom: '1px solid #f0f0f4', textAlign: 'left', whiteSpace: 'nowrap' } as const;
-const seqTd = { padding: '10px 12px', fontSize: '0.7188rem', borderBottom: '1px solid #f6f6f9', whiteSpace: 'nowrap' } as const;
+const seqTd = { padding: '10px 12px', fontSize: '0.7188rem', borderBottom: '1px solid #f6f6f9', wordBreak: 'break-all' } as const;
 
 function formatShortPlanId(planId: string | null) {
-  if (!planId) return '—';
-  return planId.length <= 12 ? planId : `${planId.slice(0, 8)}…${planId.slice(-4)}`;
+  // 不再截断，全显
+  return planId ?? '—';
 }
 
 function EndReasonCard({ plans }: { plans: PlanStat[] }) {
@@ -195,7 +195,7 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
                                   <tbody>
                                     {sequences.map((sequence) => (
                                       <tr key={sequence.sequence_id} onClick={() => onSelectSequence?.(plan.plan_id!, sequence.sequence_id)} style={{ cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#fff3ea'; e.currentTarget.style.boxShadow = 'inset 2px 0 0 #c87a3a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none'; }}>
-                                        <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{sequence.sequence_id.slice(0, 12)}</td>
+                                        <td style={{ ...seqTd, fontFamily: 'Menlo, monospace', color: '#6a6a74' }}>{sequence.sequence_id}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums' }}>{sequence.games_total.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', fontFamily: 'Fredoka, system-ui, sans-serif', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>{sequence.unique_players.toLocaleString()}</td>
                                         <td style={{ ...seqTd, textAlign: 'right', color: 'var(--color-text-secondary)' }}>{fmt0(sequence.score_min ?? 0)}</td>

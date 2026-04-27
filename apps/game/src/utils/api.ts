@@ -76,8 +76,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 // 开局：获取初始 tokens（前几个），后续通过 nextToken 按需拉取。
-export async function startGame(fingerprint: string, userId?: string): Promise<StartGameResponse> {
-  return post<StartGameResponse>('/api/start-game', { fingerprint, userId });
+// planName / sequenceName：可选，按 plan name + sequence name 强制选用某条 sequence；查不到 fallback 到随机
+export async function startGame(
+  fingerprint: string,
+  userId?: string,
+  planName?: string,
+  sequenceName?: string,
+): Promise<StartGameResponse> {
+  return post<StartGameResponse>('/api/start-game', { fingerprint, userId, planName, sequenceName });
 }
 
 // 按需拉取下一批 tokens。

@@ -441,16 +441,19 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数 userId
+    // 解析 URL 参数：userId / plan（plan 名称）/ sequence（generated_sequence 的 sequence_name）
+    // ?userId=AAA&plan=A&sequence=标准A —— plan 和 sequence 都按"名称"查
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('userId') || '';
+    const planName = urlParams.get('plan') || '';
+    const sequenceName = urlParams.get('sequence') || '';
 
     if (IS_DEBUG) {
       // DEBUG 模式：不走后端，弹弓糖果和棋盘由 DebugPanel 控制
       this.initDebugMode();
     } else {
       // 后端开局：获取本局完整 sequence。
-      this.initBackend(userId);
+      this.initBackend(userId, planName, sequenceName);
     }
 
     this.refreshScoreSprites(updateSpriteNumber);
@@ -612,14 +615,14 @@ export class GameScene extends Phaser.Scene {
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private static initBackendSeq: number = 0;
 
-  private async initBackend(userId: string): Promise<void> {
+  private async initBackend(userId: string, planName: string = '', sequenceName: string = ''): Promise<void> {
     const recorder = this.recorder;
     if (!recorder) return;
     // 每次调用递增序号，只有最新的一次能继续执行
     const mySeq = ++GameScene.initBackendSeq;
 
     try {
-      await recorder.init(userId);
+      await recorder.init(userId, planName, sequenceName);
 
       // await 期间如果又有新的 create 调了 initBackend，序号已变，放弃本次
       if (mySeq !== GameScene.initBackendSeq) {
@@ -1975,19 +1978,28 @@ export class GameScene extends Phaser.Scene {
     // 整局结束后一次性提交结果
     void this.recorder?.finish(this.hud.getScore(), endReason);
 
-    // 重新开始按钮
+    // 重新开始按钮（跟其他按钮一致：用独立 Zone 当点击层，避免 Text.setInteractive 在缩放 canvas 下命中失效）
     const restartBtn = this.add.text(w / 2, h * 0.58, '↻ RESTART', {
       fontSize: `${Math.round(w * 0.06)}px`,
       color: '#ffffff',
       backgroundColor: '#4caf50',
       padding: { x: 30, y: 12 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(201);
+    }).setOrigin(0.5).setDepth(201);
 
-    restartBtn.on('pointerdown', () => {
-      // 清除 resize 状态
+    // Zone 比按钮稍大（外扩 10px）确保点击范围足够
+    const restartZone = this.createButtonZone(
+      restartBtn.x,
+      restartBtn.y,
+      restartBtn.width + 20,
+      restartBtn.height + 20,
+      0x4caf50,
+    );
+    restartZone.setDepth(202);
+    restartZone.on('pointerdown', () => {
+      console.log('[restart] button clicked');
       sessionStorage.removeItem('giant2048_state');
       sessionStorage.removeItem('giant2048_playing');
-            this.scene.restart();
+      this.scene.restart();
     });
   }
 

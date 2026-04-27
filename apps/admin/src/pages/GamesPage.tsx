@@ -33,9 +33,9 @@ function formatDurationSec(game: Game) {
   return `${Math.round((end - start) / 1000)}s`;
 }
 
-function truncate(value: string | null | undefined, length: number) {
-  if (!value) return '—';
-  return value.length > length ? `${value.slice(0, length)}…` : value;
+function truncate(value: string | null | undefined, _length: number) {
+  // 不再截断，全显
+  return value || '—';
 }
 
 function buildPageItems(current: number, totalPages: number) {
@@ -86,9 +86,7 @@ function MetaCell({ label, value, mono }: { label: string; value: ReactNode; mon
           fontSize: '0.75rem',
           color: 'var(--color-text)',
           fontFamily: mono ? 'Menlo, Monaco, monospace' : 'inherit',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          wordBreak: 'break-all',
         }}
       >
         {value}

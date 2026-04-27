@@ -48,7 +48,8 @@ function fmtDate(iso: string) {
 }
 
 function shortId(id: string) {
-  return id.length <= 12 ? id : `${id.slice(0, 8)}…${id.slice(-4)}`;
+  // 不再截断，全显
+  return id;
 }
 
 function toEntries(probabilities: Record<string, number>) {
@@ -73,7 +74,7 @@ function Meta({ label, value, mono = false }: { label: string; value: ReactNode;
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: '0.625rem', letterSpacing: 0.6, textTransform: 'uppercase', color: '#9b9ba6', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: '0.75rem', color: '#2a2a33', fontFamily: mono ? 'Menlo, Monaco, monospace' : 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      <div style={{ fontSize: '0.75rem', color: '#2a2a33', fontFamily: mono ? 'Menlo, Monaco, monospace' : 'inherit', wordBreak: 'break-all' }}>{value}</div>
     </div>
   );
 }
@@ -230,10 +231,10 @@ function SequencesTable({
             }}
           >
             <div style={{ fontFamily: 'Menlo, Monaco, monospace', color: '#2a2a33' }}>{shortId(sequence.id)}</div>
-            <div style={{ color: sequence.sequence_name ? '#2a2a33' : '#c8c8d0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sequence.sequence_name}>
+            <div style={{ color: sequence.sequence_name ? '#2a2a33' : '#c8c8d0', wordBreak: 'break-all' }}>
               {sequence.sequence_name || '—'}
             </div>
-            <div style={{ color: sequence.sequence_note ? '#5a5a66' : '#c8c8d0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sequence.sequence_note}>
+            <div style={{ color: sequence.sequence_note ? '#5a5a66' : '#c8c8d0', wordBreak: 'break-all' }}>
               {sequence.sequence_note || '—'}
             </div>
             <div>

@@ -14,7 +14,7 @@ type TabKey = 'overview' | 'all-games';
 
 const fmtNum = (n: number | null | undefined) => (n == null ? '—' : Math.round(n).toLocaleString());
 const fmtSec = (n: number | null | undefined) => (n == null ? '—' : `${n.toFixed(0)}s`);
-const shortId = (s: string | null | undefined) => (s ? `${s.slice(0, 8)}…${s.slice(-4)}` : '—');
+const shortId = (s: string | null | undefined) => (s ?? '—');
 const fmtDate = (iso: string | null | undefined) => {
   if (!iso) return '—';
   const d = new Date(iso);

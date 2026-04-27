@@ -142,7 +142,7 @@ export function ConfigPage() {
                       if (!active) event.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plan.name}</span>
+                    <span style={{ wordBreak: 'break-all' }}>{plan.name}</span>
                     <span style={{ color: active ? '#c87a3a' : '#9b9ba6', fontWeight: 500, fontSize: '0.6875rem', marginLeft: 8 }}>{planSequenceCounts.get(plan.id) ?? 0}</span>
                   </button>
                 );

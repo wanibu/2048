@@ -151,10 +151,67 @@ async function createGeneratedSequenceFromRandomPlan(db: D1Database): Promise<{
   };
 }
 
-async function getPlayableSequence(db: D1Database): Promise<{
+async function getPlayableSequence(
+  db: D1Database,
+  planName: string = '',
+  sequenceName: string = '',
+): Promise<{
   generatedSequenceId: string;
   sequencePlanId: string;
 }> {
+  // 1. 如果传了 planName：先按 name 查 plan（不命中 → fallback 到全局随机）
+  let resolvedPlanId: string | null = null;
+  if (planName) {
+    const plan = await db.prepare(
+      'SELECT id FROM sequence_plans WHERE name = ? LIMIT 1'
+    ).bind(planName).first() as Record<string, unknown> | null;
+    if (plan) {
+      resolvedPlanId = plan.id as string;
+      console.log(`[playable] plan name="${planName}" → id=${resolvedPlanId}`);
+    } else {
+      console.warn(`[playable] plan name="${planName}" not found, fallback to random`);
+    }
+  }
+
+  // 2. 如果有 plan + 传了 sequenceName：按 plan + sequence name 精确查
+  if (resolvedPlanId && sequenceName) {
+    const seq = await db.prepare(
+      `SELECT id, sequence_plan_id
+       FROM generated_sequences
+       WHERE sequence_plan_id = ? AND sequence_name = ? AND status = 'enabled'
+       ORDER BY created_at DESC
+       LIMIT 1`
+    ).bind(resolvedPlanId, sequenceName).first() as Record<string, unknown> | null;
+    if (seq) {
+      console.log(`[playable] hit plan="${planName}" sequence="${sequenceName}" → id=${seq.id}`);
+      return {
+        generatedSequenceId: seq.id as string,
+        sequencePlanId: seq.sequence_plan_id as string,
+      };
+    }
+    console.warn(`[playable] sequence name="${sequenceName}" not found in plan="${planName}", fallback to that plan random`);
+  }
+
+  // 3. 只有 plan：在该 plan 下随机选一条 enabled
+  if (resolvedPlanId) {
+    const seq = await db.prepare(
+      `SELECT id, sequence_plan_id
+       FROM generated_sequences
+       WHERE sequence_plan_id = ? AND status = 'enabled'
+       ORDER BY RANDOM()
+       LIMIT 1`
+    ).bind(resolvedPlanId).first() as Record<string, unknown> | null;
+    if (seq) {
+      console.log(`[playable] plan="${planName}" random sequence id=${seq.id}`);
+      return {
+        generatedSequenceId: seq.id as string,
+        sequencePlanId: seq.sequence_plan_id as string,
+      };
+    }
+    console.warn(`[playable] plan="${planName}" has no enabled sequence, fallback to global random`);
+  }
+
+  // 4. 兜底：全局随机选一条 enabled sequence（与原逻辑一致）
   const generated = await db.prepare(
     `SELECT id, sequence_plan_id
      FROM generated_sequences
@@ -241,8 +298,13 @@ app.onError((err, c) => {
 // ================= 公共游戏 API =================
 
 app.post('/api/start-game', async (c) => {
-  const { fingerprint, userId } = await c.req.json<{ fingerprint: string; userId?: string }>();
-  console.log(`[start-game] fp=${fingerprint?.slice(0, 12)}… userId=${userId || '(anon)'}`);
+  const { fingerprint, userId, planName, sequenceName } = await c.req.json<{
+    fingerprint: string;
+    userId?: string;
+    planName?: string;
+    sequenceName?: string;
+  }>();
+  console.log(`[start-game] fp=${fingerprint?.slice(0, 12)}… userId=${userId || '(anon)'} plan="${planName || ''}" sequence="${sequenceName || ''}"`);
   if (!fingerprint) return c.json({ error: 'Missing fingerprint' }, 400);
 
   const db = c.env.DB;
@@ -256,7 +318,7 @@ app.post('/api/start-game', async (c) => {
   const seed = Math.floor(Math.random() * 2147483647);
   const now = new Date().toISOString();
   const sign = await initSign(gameId);
-  const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(db);
+  const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(db, planName || '', sequenceName || '');
   console.log(`[start-game] picked plan=${sequencePlanId} seq=${generatedSequenceId}`);
 
   const genSeq = await db.prepare(
@@ -1041,11 +1103,16 @@ admin.put('/sequence-plans/:id', async (c) => {
     if (err) return c.json({ error: err }, 400);
   }
 
+  // 全局规则：undefined = 不动；'' = 清空（但 name 是 NOT NULL UNIQUE，'' 视为非法）
+  if (name !== undefined && name === '') {
+    return c.json({ error: 'Name cannot be empty' }, 400);
+  }
+
   const now = new Date().toISOString();
   await db.prepare(
     'UPDATE sequence_plans SET name = ?, description = ?, updated_at = ? WHERE id = ?'
   ).bind(
-    name || existing.name as string,
+    name !== undefined ? name : existing.name as string,
     description !== undefined ? description : existing.description as string,
     now, planId,
   ).run();
@@ -1108,8 +1175,13 @@ admin.post('/generate-sequence', async (c) => {
     probabilities: s.probabilities as string,
   }));
 
+  // 查 plan name，用于默认 sequence_name 自动生成（{plan_name}_seq_{uuid}）
+  const planRow = await db.prepare(
+    'SELECT name FROM sequence_plans WHERE id = ?'
+  ).bind(sequence_plan_id).first() as Record<string, unknown> | null;
+  const planName = (planRow?.name as string) || '';
+
   const generateCount = count || 1;
-  const seqName = sequence_name ?? '';
   const seqNote = sequence_note ?? '';
   const generated = [];
 
@@ -1118,12 +1190,23 @@ admin.post('/generate-sequence', async (c) => {
     const seqId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // 每条序列单独决定 sequence_name：
+    //   - 未传（undefined）→ 自动生成 {plan_name}_seq_{uuid}
+    //   - 传了空字符串 ""  → 保留为空（用户主动清空）
+    //   - 传了非空字符串    → 用用户传的
+    let finalName: string;
+    if (sequence_name === undefined) {
+      finalName = `${planName}_seq_${crypto.randomUUID()}`;
+    } else {
+      finalName = sequence_name;
+    }
+
     await db.prepare(
       `INSERT INTO generated_sequences (id, sequence_plan_id, sequence_name, sequence_note, sequence_data, sequence_length, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'enabled', ?, ?)`
-    ).bind(seqId, sequence_plan_id, seqName, seqNote, JSON.stringify(sequence), sequence.length, now, now).run();
+    ).bind(seqId, sequence_plan_id, finalName, seqNote, JSON.stringify(sequence), sequence.length, now, now).run();
 
-    generated.push({ id: seqId, sequence_length: sequence.length, sequence_data: sequence, sequence_name: seqName, sequence_note: seqNote });
+    generated.push({ id: seqId, sequence_length: sequence.length, sequence_data: sequence, sequence_name: finalName, sequence_note: seqNote });
   }
 
   return c.json({ generated, count: generateCount });
