@@ -282,14 +282,22 @@ export class ComboChainEffect {
     this.activeCandies.forEach((candy) => candy.destroy());
     this.activeCandies = [];
     this.clearBannerLifecycle();
-    this.banner.setVisible(false);
-    this.banner.setAlpha(0);
-    this.banner.setScale(0);
-    this.girl.setFrame('girl-default');
-    this.girl.setData('busy', false);
-    this.giant.setTexture('shared0-orig', 'giant-default');
-    this.giant.setData('busy', false);
-    this.giant.y = this.giantBaseY;
+    // 场景 shutdown 时 banner/girl/giant 可能已经被 Phaser 销毁，访问 setTexture 会报
+    // "Cannot read properties of undefined (reading 'sys')"。这里全部加 active 守卫。
+    if (this.banner.active) {
+      this.banner.setVisible(false);
+      this.banner.setAlpha(0);
+      this.banner.setScale(0);
+    }
+    if (this.girl.active) {
+      this.girl.setFrame('girl-default');
+      this.girl.setData('busy', false);
+    }
+    if (this.giant.active) {
+      this.giant.setTexture('shared0-orig', 'giant-default');
+      this.giant.setData('busy', false);
+      this.giant.y = this.giantBaseY;
+    }
     this.expectedCandies = 0;
     this.completedCandies = 0;
     this.chainEnded = false;

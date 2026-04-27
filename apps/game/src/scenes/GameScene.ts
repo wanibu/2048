@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, STONE_VALUE, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
@@ -52,7 +52,8 @@ export class GameScene extends Phaser.Scene {
   private static readonly SLING_PROMOTION_DELAY_MS = 150;
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
   private readonly debugDisableButtonActions = false;
-  private readonly showButtonHitAreaDebug = false;
+  // 本地 dev (pnpm dev) 自动开按钮 hit-area 可视化；生产构建（pnpm build / build:debug）自动关
+  private readonly showButtonHitAreaDebug = import.meta.env.DEV;
   // 分阶段调试：只渲染 PlayBackground，跳过 Girl / 棋盘 / 分数 / 按钮 / tray 等所有其他 UI
   private readonly debugBackgroundOnly = false;
   // Scene 是 Phaser 的主要工作单元。
@@ -214,7 +215,7 @@ export class GameScene extends Phaser.Scene {
     // Container 可以把多个对象当成一个整体管理。
     // 这里暂停遮罩、背景、人物、按钮都放进同一个 pauseContainer 里，
     // 这样显示/隐藏时只改一个容器就够了。
-    const pauseContainer = this.add.container(0, 0).setDepth(150).setVisible(false);
+    const pauseContainer = this.add.container(0, -214).setDepth(150).setVisible(false);
 
     // 白色遮罩
     const pauseOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0xffffff, 0.6);
@@ -1834,6 +1835,12 @@ export class GameScene extends Phaser.Scene {
 
         // 当前格确实是空的，且下方有元素
         if (this.grid.data[r][col] === 0 && r + 1 < GRID_ROWS && this.grid.data[r + 1][col] !== 0) {
+          // 石头是屏障：石头不上移，且其上方的空位也不再被填补（连锁中断）
+          if (this.grid.data[r + 1][col] === STONE_VALUE) {
+            emptyCells.delete(key);
+            continue;
+          }
+
           // 把行 r+1 的元素移到行 r
           this.grid.data[r][col] = this.grid.data[r + 1][col];
           this.grid.borders[r][col] = this.grid.borders[r + 1][col];
