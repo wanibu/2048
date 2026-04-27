@@ -1196,7 +1196,8 @@ admin.post('/generate-sequence', async (c) => {
     //   - 传了非空字符串    → 用用户传的
     let finalName: string;
     if (sequence_name === undefined) {
-      finalName = `${planName}_seq_${crypto.randomUUID()}`;
+      // UUID 取前 12 位即可（碰撞概率极低，admin 列展示更紧凑）
+      finalName = `${planName}_seq_${crypto.randomUUID().slice(0, 12)}`;
     } else {
       finalName = sequence_name;
     }
