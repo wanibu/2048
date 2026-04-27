@@ -89,6 +89,62 @@ async function verifyAdminToken(token: string): Promise<{ user: string; exp: num
   }
 }
 
+// ================= Game iframe 签名 token（HS256-style）=================
+// 给上游平台 redirect 用户进 iframe 时签发，iframe 后续所有 /game/... 调用放在 sign: header
+// payload = { jti, userId, kolUserId, platformId, appId, iat, exp(ms) }
+const GAME_JWT_SECRET = 'giant2048_game_jwt_secret_v1'; // TODO: 移到 wrangler secret
+const GAME_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 小时
+
+interface GameTokenPayload {
+  jti: string;
+  userId: string;
+  kolUserId: string;
+  platformId: string;
+  appId: string;
+  iat: number;
+  exp: number;
+}
+
+async function signGameToken(payload: Omit<GameTokenPayload, 'iat' | 'exp' | 'jti'> & Partial<Pick<GameTokenPayload, 'iat' | 'exp' | 'jti'>>): Promise<string> {
+  const now = Date.now();
+  const full: GameTokenPayload = {
+    jti: payload.jti ?? crypto.randomUUID(),
+    userId: payload.userId,
+    kolUserId: payload.kolUserId,
+    platformId: payload.platformId,
+    appId: payload.appId,
+    iat: payload.iat ?? now,
+    exp: payload.exp ?? (now + GAME_TOKEN_TTL_MS),
+  };
+  const payloadB64 = b64urlEncode(JSON.stringify(full));
+  const sig = await sha256(payloadB64 + '.' + GAME_JWT_SECRET);
+  return `${payloadB64}.${sig}`;
+}
+
+async function verifyGameToken(token: string): Promise<GameTokenPayload | null> {
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+  const expectedSig = await sha256(payloadB64 + '.' + GAME_JWT_SECRET);
+  if (sig !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(b64urlDecode(payloadB64)) as Partial<GameTokenPayload>;
+    if (typeof payload.exp !== 'number' || payload.exp < Date.now()) return null;
+    if (typeof payload.userId !== 'string' || typeof payload.jti !== 'string') return null;
+    return {
+      jti: payload.jti,
+      userId: payload.userId,
+      kolUserId: payload.kolUserId ?? '',
+      platformId: payload.platformId ?? '',
+      appId: payload.appId ?? '',
+      iat: payload.iat ?? 0,
+      exp: payload.exp,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function generateGameId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
@@ -151,67 +207,65 @@ async function createGeneratedSequenceFromRandomPlan(db: D1Database): Promise<{
   };
 }
 
+// 选 sequence 优先级链：
+//   1. users 表 WHERE user_id = ? → 命中且 sequence_id 非空 → 用之
+//   2. distribution 表加权随机
+//   3. 全局 enabled sequence 随机
+//   4. 现造一条
 async function getPlayableSequence(
   db: D1Database,
-  planName: string = '',
-  sequenceName: string = '',
+  userId: string = '',
 ): Promise<{
   generatedSequenceId: string;
   sequencePlanId: string;
 }> {
-  // 1. 如果传了 planName：先按 name 查 plan（不命中 → fallback 到全局随机）
-  let resolvedPlanId: string | null = null;
-  if (planName) {
-    const plan = await db.prepare(
-      'SELECT id FROM sequence_plans WHERE name = ? LIMIT 1'
-    ).bind(planName).first() as Record<string, unknown> | null;
-    if (plan) {
-      resolvedPlanId = plan.id as string;
-      console.log(`[playable] plan name="${planName}" → id=${resolvedPlanId}`);
-    } else {
-      console.warn(`[playable] plan name="${planName}" not found, fallback to random`);
+  // 1. users 表：按 user_id 查（不限制唯一，取第一条）
+  if (userId) {
+    const userRow = await db.prepare(
+      "SELECT sequence_id FROM users WHERE user_id = ? AND sequence_id != '' LIMIT 1"
+    ).bind(userId).first() as Record<string, unknown> | null;
+    if (userRow && userRow.sequence_id) {
+      const seqId = userRow.sequence_id as string;
+      const seq = await db.prepare(
+        `SELECT id, sequence_plan_id FROM generated_sequences
+         WHERE id = ? AND status = 'enabled' LIMIT 1`
+      ).bind(seqId).first() as Record<string, unknown> | null;
+      if (seq) {
+        console.log(`[playable] users.user_id=${userId} → sequence ${seq.id}`);
+        return {
+          generatedSequenceId: seq.id as string,
+          sequencePlanId: seq.sequence_plan_id as string,
+        };
+      }
+      console.warn(`[playable] users 表 sequence_id=${seqId} 找不到对应 enabled sequence`);
     }
   }
 
-  // 2. 如果有 plan + 传了 sequenceName：按 plan + sequence name 精确查
-  if (resolvedPlanId && sequenceName) {
-    const seq = await db.prepare(
-      `SELECT id, sequence_plan_id
-       FROM generated_sequences
-       WHERE sequence_plan_id = ? AND sequence_name = ? AND status = 'enabled'
-       ORDER BY created_at DESC
-       LIMIT 1`
-    ).bind(resolvedPlanId, sequenceName).first() as Record<string, unknown> | null;
-    if (seq) {
-      console.log(`[playable] hit plan="${planName}" sequence="${sequenceName}" → id=${seq.id}`);
-      return {
-        generatedSequenceId: seq.id as string,
-        sequencePlanId: seq.sequence_plan_id as string,
-      };
+  // 2. distribution 表加权随机
+  const distRows = await db.prepare(
+    `SELECT d.sequence_id, d.ratio, gs.sequence_plan_id
+     FROM distribution d
+     JOIN generated_sequences gs ON d.sequence_id = gs.id AND gs.status = 'enabled'`
+  ).all();
+  const distItems = (distRows.results || []) as Array<Record<string, unknown>>;
+  if (distItems.length > 0) {
+    const totalRatio = distItems.reduce((s, r) => s + ((r.ratio as number) || 0), 0);
+    if (totalRatio > 0) {
+      let pick = Math.random() * totalRatio;
+      for (const r of distItems) {
+        pick -= ((r.ratio as number) || 0);
+        if (pick <= 0) {
+          console.log(`[playable] distribution → sequence ${r.sequence_id}`);
+          return {
+            generatedSequenceId: r.sequence_id as string,
+            sequencePlanId: r.sequence_plan_id as string,
+          };
+        }
+      }
     }
-    console.warn(`[playable] sequence name="${sequenceName}" not found in plan="${planName}", fallback to that plan random`);
   }
 
-  // 3. 只有 plan：在该 plan 下随机选一条 enabled
-  if (resolvedPlanId) {
-    const seq = await db.prepare(
-      `SELECT id, sequence_plan_id
-       FROM generated_sequences
-       WHERE sequence_plan_id = ? AND status = 'enabled'
-       ORDER BY RANDOM()
-       LIMIT 1`
-    ).bind(resolvedPlanId).first() as Record<string, unknown> | null;
-    if (seq) {
-      console.log(`[playable] plan="${planName}" random sequence id=${seq.id}`);
-      return {
-        generatedSequenceId: seq.id as string,
-        sequencePlanId: seq.sequence_plan_id as string,
-      };
-    }
-    console.warn(`[playable] plan="${planName}" has no enabled sequence, fallback to global random`);
-  }
-
-  // 4. 兜底：全局随机选一条 enabled sequence（与原逻辑一致）
+  // 3. 全局随机选一条 enabled sequence
   const generated = await db.prepare(
     `SELECT id, sequence_plan_id
      FROM generated_sequences
@@ -219,7 +273,6 @@ async function getPlayableSequence(
      ORDER BY RANDOM()
      LIMIT 1`
   ).first() as Record<string, unknown> | null;
-
   if (generated) {
     return {
       generatedSequenceId: generated.id as string,
@@ -227,6 +280,7 @@ async function getPlayableSequence(
     };
   }
 
+  // 4. 完全没有 → 现造一条
   const created = await createGeneratedSequenceFromRandomPlan(db);
   if (!created) {
     throw new Error('No enabled generated sequence and no sequence plan available');
@@ -297,91 +351,188 @@ app.onError((err, c) => {
 
 // ================= 公共游戏 API =================
 
-app.post('/api/start-game', async (c) => {
-  const { fingerprint, userId, planName, sequenceName } = await c.req.json<{
-    fingerprint: string;
-    userId?: string;
-    planName?: string;
-    sequenceName?: string;
-  }>();
-  console.log(`[start-game] fp=${fingerprint?.slice(0, 12)}… userId=${userId || '(anon)'} plan="${planName || ''}" sequence="${sequenceName || ''}"`);
-  if (!fingerprint) return c.json({ error: 'Missing fingerprint' }, 400);
-
+// ================= 平台业务入口 =================
+// POST /game-center/game/enter
+// 上游聚合平台调用，鉴权头 X-Platform-Key
+// 我们 upsert users，签发 JWT，返回 iframe URL
+app.post('/game-center/game/enter', async (c) => {
+  const platformKey = c.req.header('X-Platform-Key') || '';
   const db = c.env.DB;
 
-  const sweep = await db.prepare(
-    "UPDATE games SET status = 'finished', end_reason = 'new_game', ended_at = ? WHERE fingerprint = ? AND status = 'playing'"
-  ).bind(new Date().toISOString(), fingerprint).run();
-  console.log(`[start-game] swept ${sweep.meta?.changes ?? '?'} playing games for this fp`);
+  // 1. 平台 key 鉴权（platform_keys 表）
+  if (!platformKey) return c.json({ error: 'Missing X-Platform-Key' }, 401);
+  const keyRow = await db.prepare(
+    'SELECT platform_id, enabled FROM platform_keys WHERE key = ?'
+  ).bind(platformKey).first() as Record<string, unknown> | null;
+  if (!keyRow || !keyRow.enabled) return c.json({ error: 'Invalid platform key' }, 401);
+  const resolvedPlatformId = keyRow.platform_id as string;
 
+  // 2. 入参
+  const body = await c.req.json<{
+    userId: string;
+    kolUserId?: string;
+    platformId?: string;
+    appId?: string;
+    lang?: string;
+    returnUrl?: string;
+  }>();
+  const userId = (body.userId || '').trim();
+  if (!userId) return c.json({ error: 'Missing userId' }, 400);
+  const kolUserId = body.kolUserId || '';
+  // 优先用 platform_keys.platform_id（权威）；body.platformId 仅作 hint
+  const platformId = resolvedPlatformId || body.platformId || '';
+  const appId = body.appId || '';
+  const lang = body.lang || 'en-US';
+
+  // 3. users 表 upsert（按 platform_id + user_id 复合）
+  const existing = await db.prepare(
+    'SELECT id FROM users WHERE platform_id = ? AND user_id = ? LIMIT 1'
+  ).bind(platformId, userId).first() as Record<string, unknown> | null;
+  const now = new Date().toISOString();
+  if (!existing) {
+    await db.prepare(
+      `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, '', '', ?, ?)`
+    ).bind(crypto.randomUUID(), kolUserId, userId, platformId, now, now).run();
+    console.log(`[game-enter] upsert user platform=${platformId} userId=${userId} kol=${kolUserId}`);
+  } else if (kolUserId) {
+    // 已存在 → 仅在传了 kolUserId 时回填（不覆盖）
+    await db.prepare(
+      "UPDATE users SET kol_user_id = ?, updated_at = ? WHERE id = ? AND kol_user_id = ''"
+    ).bind(kolUserId, now, existing.id as string).run();
+  }
+
+  // 4. 签 JWT
+  const token = await signGameToken({ userId, kolUserId, platformId, appId });
+
+  // 5. 构造 iframe URL（appKey 透传，方便游戏前端展示）
+  const gameOrigin = c.req.header('X-Game-Origin') || 'https://giant-2048.pages.dev';
+  const params = new URLSearchParams({
+    token,
+    platformid: platformKey,
+    lan: lang,
+    ext: '0',
+  });
+  if (body.returnUrl) params.set('returnUrl', body.returnUrl);
+  const url = `${gameOrigin}/?${params.toString()}`;
+
+  return c.json({
+    url,
+    config: { env: 'production' },
+    openType: 0,
+    screen: 1,
+  });
+});
+
+// ================= /game/* iframe API =================
+// 所有 /game/... 路由通过 sign: header 验签
+const game = new Hono<{
+  Bindings: Bindings;
+  Variables: { gameUser: GameTokenPayload };
+}>();
+
+game.use('*', async (c, next) => {
+  const sign = c.req.header('sign') || '';
+  if (!sign) return c.json({ error: 'Missing sign header' }, 401);
+  const payload = await verifyGameToken(sign);
+  if (!payload) return c.json({ error: 'Invalid or expired token' }, 401);
+  c.set('gameUser', payload);
+  await next();
+});
+
+// /game/game/getSdkInfo —— SDK 元数据（版本、能力位）
+game.post('/game/getSdkInfo', (c) => {
+  return c.json({
+    apiVersion: '1.0',
+    sdkVersion: '0.1.0',
+    features: {
+      combo: true,
+      stones: true,
+      rotation: true,
+    },
+  });
+});
+
+// /game/game/user —— 当前 token 解出来的用户
+game.post('/game/user', (c) => {
+  const u = c.get('gameUser');
+  return c.json({
+    userId: u.userId,
+    kolUserId: u.kolUserId,
+    platformId: u.platformId,
+    appId: u.appId,
+  });
+});
+
+// /game/game/init —— 开局（替代 /api/start-game）
+game.post('/game/init', async (c) => {
+  const u = c.get('gameUser');
+  const db = c.env.DB;
+
+  // 1. sweep 同 user 的 playing games（同一用户开新局自动结束旧的）
+  const sweep = await db.prepare(
+    "UPDATE games SET status = 'finished', end_reason = 'new_game', ended_at = ? WHERE user_id = ? AND platform_id = ? AND status = 'playing'"
+  ).bind(new Date().toISOString(), u.userId, u.platformId).run();
+  console.log(`[game-init] swept ${sweep.meta?.changes ?? '?'} playing games for user=${u.userId} platform=${u.platformId}`);
+
+  // 2. 选 sequence
+  const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(db, u.userId);
+
+  // 3. 拿初始 tokens
+  const genSeq = await db.prepare(
+    'SELECT sequence_data FROM generated_sequences WHERE id = ?'
+  ).bind(generatedSequenceId).first() as Record<string, unknown>;
+  if (!genSeq) return c.json({ error: 'Sequence not found' }, 500);
+
+  const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, 0, 3);
+
+  // 4. 写 games 表
   const gameId = generateGameId();
   const seed = Math.floor(Math.random() * 2147483647);
   const now = new Date().toISOString();
   const sign = await initSign(gameId);
-  const { sequencePlanId, generatedSequenceId } = await getPlayableSequence(db, planName || '', sequenceName || '');
-  console.log(`[start-game] picked plan=${sequencePlanId} seq=${generatedSequenceId}`);
-
-  const genSeq = await db.prepare(
-    'SELECT sequence_data FROM generated_sequences WHERE id = ?'
-  ).bind(generatedSequenceId).first() as Record<string, unknown>;
-
-  const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, 0, 3);
-
   await db.prepare(
     `INSERT INTO games
-     (game_id, fingerprint, user_id, seed, step, score, sign, status,
+     (game_id, user_id, kol_user_id, platform_id, app_id, token_jti, seed, step, score, sign, status,
       sequence_plan_id, generated_sequence_id, sequence_index, end_reason, ended_at, last_update_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
-    gameId, fingerprint, userId || '', seed, 0, 0, sign, 'playing',
+    gameId, u.userId, u.kolUserId, u.platformId, u.appId, u.jti,
+    seed, 0, 0, sign, 'playing',
     sequencePlanId, generatedSequenceId, newIndex, '', '', now, now,
   ).run();
 
-  console.log(`[start-game] ✓ gameId=${gameId} initialTokens=${JSON.stringify(tokens)} sequenceIndex=${newIndex}`);
+  console.log(`[game-init] ✓ gameId=${gameId} user=${u.userId} platform=${u.platformId} initialTokens=${JSON.stringify(tokens)}`);
   return c.json({ gameId, tokens, sequencePlanId, generatedSequenceId, sign });
 });
 
-app.post('/api/extend-sequence', (c) =>
-  c.json({ error: 'Deprecated API: sequence is now returned only by /api/start-game' }, 410)
-);
-
-app.post('/api/next-token', async (c) => {
+// /game/2048/next-token
+game.post('/2048/next-token', async (c) => {
   const { gameId } = await c.req.json<{ gameId: string }>();
-  console.log(`[next-token] gameId=${gameId}`);
   if (!gameId) return c.json({ error: 'Missing gameId' }, 400);
 
   const db = c.env.DB;
-  const game = await db.prepare(
-    'SELECT game_id, status, generated_sequence_id, sequence_index FROM games WHERE game_id = ?'
+  const gm = await db.prepare(
+    'SELECT game_id, status, generated_sequence_id, sequence_index, user_id FROM games WHERE game_id = ?'
   ).bind(gameId).first() as Record<string, unknown> | null;
 
-  if (!game) {
-    console.warn(`[next-token] game not found: ${gameId}`);
-    return c.json({ error: 'Game not found' }, 404);
-  }
-  if (game.status !== 'playing') {
-    console.warn(`[next-token] game not playing: ${gameId} status=${game.status}`);
-    return c.json({ error: 'Game finished' }, 400);
-  }
+  if (!gm) return c.json({ error: 'Game not found' }, 404);
+  if (gm.user_id !== c.get('gameUser').userId) return c.json({ error: 'Forbidden' }, 403);
+  if (gm.status !== 'playing') return c.json({ error: 'Game finished' }, 400);
 
   const genSeq = await db.prepare(
     'SELECT sequence_data FROM generated_sequences WHERE id = ?'
-  ).bind(game.generated_sequence_id as string).first() as Record<string, unknown>;
-
+  ).bind(gm.generated_sequence_id as string).first() as Record<string, unknown>;
   if (!genSeq) return c.json({ error: 'Sequence not found' }, 500);
 
-  const currentIndex = game.sequence_index as number;
-  const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, currentIndex, 3);
-  console.log(`[next-token] idx ${currentIndex} → ${newIndex}, tokens=${JSON.stringify(tokens)}`);
-
-  await db.prepare(
-    'UPDATE games SET sequence_index = ?, last_update_at = ? WHERE game_id = ?'
-  ).bind(newIndex, new Date().toISOString(), gameId).run();
-
+  const { tokens, newIndex } = sliceTokens(genSeq.sequence_data as string, gm.sequence_index as number, 3);
+  await db.prepare('UPDATE games SET sequence_index = ?, last_update_at = ? WHERE game_id = ?')
+    .bind(newIndex, new Date().toISOString(), gameId).run();
   return c.json({ tokens });
 });
 
-app.post('/api/action', async (c) => {
+// /game/2048/action
+game.post('/2048/action', async (c) => {
   const { gameId, action } = await c.req.json<{
     gameId: string;
     action: {
@@ -392,22 +543,13 @@ app.post('/api/action', async (c) => {
       resultValue?: number;
     };
   }>();
-  console.log(`[action] gameId=${gameId} action=${JSON.stringify(action)}`);
   if (!gameId || !action) return c.json({ error: 'Missing fields' }, 400);
 
   const db = c.env.DB;
-  const game = await db.prepare(
-    'SELECT * FROM games WHERE game_id = ?'
-  ).bind(gameId).first() as Record<string, unknown> | null;
-
-  if (!game) {
-    console.warn(`[action] game not found: ${gameId}`);
-    return c.json({ error: 'Game not found' }, 404);
-  }
-  if (game.status !== 'playing') {
-    console.warn(`[action] game not playing: ${gameId} status=${game.status} end_reason=${game.end_reason}`);
-    return c.json({ error: 'Game finished' }, 400);
-  }
+  const gm = await db.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
+  if (!gm) return c.json({ error: 'Game not found' }, 404);
+  if (gm.user_id !== c.get('gameUser').userId) return c.json({ error: 'Forbidden' }, 403);
+  if (gm.status !== 'playing') return c.json({ error: 'Game finished' }, 400);
 
   if (action.type === 'shoot' || action.type === 'direct_merge') {
     if (action.col === undefined || action.col < 0 || action.col >= 5) {
@@ -420,53 +562,50 @@ app.post('/api/action', async (c) => {
     }
   }
 
-  const newStep = (game.step as number) + 1;
-  const newSign = await chainSign(game.sign as string, action, newStep);
+  const newStep = (gm.step as number) + 1;
+  const newSign = await chainSign(gm.sign as string, action, newStep);
   const now = new Date().toISOString();
-
-  await db.prepare(
-    'UPDATE games SET step = ?, sign = ?, last_update_at = ? WHERE game_id = ?'
-  ).bind(newStep, newSign, now, gameId).run();
-
-  console.log(`[action] ✓ gameId=${gameId} step ${game.step} → ${newStep}`);
+  await db.prepare('UPDATE games SET step = ?, sign = ?, last_update_at = ? WHERE game_id = ?')
+    .bind(newStep, newSign, now, gameId).run();
   return c.json({ step: newStep, sign: newSign });
 });
 
-app.post('/api/update-score', async (c) => {
+// /game/2048/update-score
+game.post('/2048/update-score', async (c) => {
   const { gameId, score } = await c.req.json<{ gameId: string; score: number }>();
-  console.log(`[update-score] gameId=${gameId} score=${score}`);
-  if (!gameId || !Number.isFinite(score)) {
-    return c.json({ error: 'Missing or invalid fields' }, 400);
-  }
+  if (!gameId || !Number.isFinite(score)) return c.json({ error: 'Missing or invalid fields' }, 400);
 
   const r = await c.env.DB.prepare(
-    "UPDATE games SET score = ?, last_update_at = ? WHERE game_id = ? AND status = 'playing'"
-  ).bind(score, new Date().toISOString(), gameId).run();
-
-  if (!r.meta?.changes) console.warn(`[update-score] no row updated (game may be finished or missing): ${gameId}`);
+    "UPDATE games SET score = ?, last_update_at = ? WHERE game_id = ? AND user_id = ? AND status = 'playing'"
+  ).bind(score, new Date().toISOString(), gameId, c.get('gameUser').userId).run();
+  if (!r.meta?.changes) console.warn(`[update-score] no row updated for ${gameId}`);
   return c.json({ success: true });
 });
 
+// /game/2048/end-game
+game.post('/2048/end-game', async (c) => {
+  const body = await c.req.json<{ gameId: string; finalSign: string; finalScore: number; endReason?: string }>();
+  const r = await finishGame(c.env.DB, body, c.get('gameUser').userId);
+  return c.json(r.body, r.status);
+});
+
+app.route('/game', game);
+
 async function finishGame(db: D1Database, body: {
   gameId: string; finalSign: string; finalScore: number; endReason?: string;
-}) {
+}, userId: string) {
   const { gameId, finalSign, finalScore, endReason } = body;
-  console.log(`[finishGame] gameId=${gameId} finalScore=${finalScore} endReason=${endReason || '(gameover)'}`);
+  console.log(`[finishGame] gameId=${gameId} userId=${userId} finalScore=${finalScore} endReason=${endReason || '(gameover)'}`);
   if (!gameId || !finalSign || !Number.isFinite(finalScore)) {
     return { status: 400 as const, body: { error: 'Missing or invalid fields' } };
   }
 
-  const game = await db.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
-  if (!game) {
-    console.warn(`[finishGame] game not found: ${gameId}`);
-    return { status: 404 as const, body: { error: 'Game not found' } };
-  }
-  if (game.status !== 'playing') {
-    console.warn(`[finishGame] game already finished: ${gameId} end_reason=${game.end_reason}`);
-    return { status: 400 as const, body: { error: 'Game already finished' } };
-  }
-  if (finalSign !== game.sign) {
-    console.warn(`[finishGame] signature mismatch for ${gameId}: got=${finalSign?.slice(0, 16)}… expected=${(game.sign as string)?.slice(0, 16)}…`);
+  const gm = await db.prepare('SELECT * FROM games WHERE game_id = ?').bind(gameId).first() as Record<string, unknown> | null;
+  if (!gm) return { status: 404 as const, body: { error: 'Game not found' } };
+  if (gm.user_id !== userId) return { status: 403 as const, body: { error: 'Forbidden' } };
+  if (gm.status !== 'playing') return { status: 400 as const, body: { error: 'Game already finished' } };
+  if (finalSign !== gm.sign) {
+    console.warn(`[finishGame] signature mismatch for ${gameId}`);
     return { status: 403 as const, body: { error: 'Invalid signature' } };
   }
 
@@ -475,30 +614,16 @@ async function finishGame(db: D1Database, body: {
 
   await db.prepare(
     `UPDATE games SET score = ?, step = ?, status = 'finished', end_reason = ?, ended_at = ?, last_update_at = ? WHERE game_id = ?`
-  ).bind(finalScore, game.step as number, reason, now, now, gameId).run();
+  ).bind(finalScore, gm.step as number, reason, now, now, gameId).run();
 
   await db.prepare(
-    'INSERT INTO scores (game_id, fingerprint, score, actions_count, sign, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(gameId, game.fingerprint as string, finalScore, game.step as number, finalSign, now).run();
+    'INSERT INTO scores (game_id, user_id, score, actions_count, sign, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(gameId, gm.user_id as string, finalScore, gm.step as number, finalSign, now).run();
 
   const rankResult = await db.prepare('SELECT COUNT(*) as rank FROM scores WHERE score > ?').bind(finalScore).first() as Record<string, unknown> | null;
   const rank = rankResult ? (rankResult.rank as number) + 1 : 1;
-
-  console.log(`[finishGame] ✓ ${gameId} finalScore=${finalScore} rank=${rank}`);
   return { status: 200 as const, body: { success: true, score: finalScore, rank } };
 }
-
-app.post('/api/submit-game', async (c) => {
-  const body = await c.req.json<{ gameId: string; finalSign: string; finalScore: number; endReason?: string }>();
-  const r = await finishGame(c.env.DB, body);
-  return c.json(r.body, r.status);
-});
-
-app.post('/api/end-game', async (c) => {
-  const body = await c.req.json<{ gameId: string; finalSign: string; finalScore: number; endReason?: string }>();
-  const r = await finishGame(c.env.DB, body);
-  return c.json(r.body, r.status);
-});
 
 app.get('/api/leaderboard', async (c) => {
   const results = await c.env.DB.prepare(
@@ -539,14 +664,14 @@ admin.get('/plan-stats', async (c) => {
 
   const rows = await db.prepare(
     `SELECT g.sequence_plan_id, sp.name AS plan_name,
-            g.fingerprint, g.step, g.score, g.end_reason,
+            g.user_id, g.step, g.score, g.end_reason,
             g.created_at, g.ended_at, g.status
      FROM games g
      LEFT JOIN sequence_plans sp ON g.sequence_plan_id = sp.id
      ORDER BY g.created_at ASC`
   ).all();
 
-  type G = { score: number; step: number; duration_sec: number | null; end_reason: string; fingerprint: string; status: string; created_at: string };
+  type G = { score: number; step: number; duration_sec: number | null; end_reason: string; user_id: string; status: string; created_at: string };
 
   const byPlan = new Map<string, { plan_id: string | null; plan_name: string | null; games: G[] }>();
 
@@ -570,7 +695,7 @@ admin.get('/plan-stats', async (c) => {
       step: (r.step as number) || 0,
       duration_sec: duration,
       end_reason: (r.end_reason as string) || '',
-      fingerprint: (r.fingerprint as string) || '',
+      user_id: (r.user_id as string) || '',
       status: (r.status as string) || '',
       created_at: createdAt || '',
     });
@@ -589,13 +714,13 @@ admin.get('/plan-stats', async (c) => {
       endReasons[r] = (endReasons[r] || 0) + 1;
     }
 
-    const uniqueFingerprints = new Set(b.games.map((g) => g.fingerprint).filter(Boolean));
+    const uniqueFingerprints = new Set(b.games.map((g) => g.user_id).filter(Boolean));
 
-    // 按 fp 聚合：新手首局表现 + retry 比例 + 学习曲线
+    // 按 user_id 聚合：新手首局表现 + retry 比例 + 学习曲线
     const byFp = new Map<string, G[]>();
-    for (const g of b.games.filter(x => x.fingerprint)) {
-      if (!byFp.has(g.fingerprint)) byFp.set(g.fingerprint, []);
-      byFp.get(g.fingerprint)!.push(g);
+    for (const g of b.games.filter(x => x.user_id)) {
+      if (!byFp.has(g.user_id)) byFp.set(g.user_id, []);
+      byFp.get(g.user_id)!.push(g);
     }
     for (const list of byFp.values()) {
       list.sort((x, y) => x.created_at.localeCompare(y.created_at));
@@ -680,7 +805,7 @@ admin.get('/plan-sequence-stats', async (c) => {
   if (!planId) return c.json({ error: 'plan_id required' }, 400);
 
   const rows = await db.prepare(
-    `SELECT g.generated_sequence_id, g.score, g.created_at, g.ended_at, g.status, g.fingerprint
+    `SELECT g.generated_sequence_id, g.score, g.created_at, g.ended_at, g.status, g.user_id
      FROM games g
      WHERE g.sequence_plan_id = ?
        AND g.generated_sequence_id IS NOT NULL
@@ -700,8 +825,8 @@ admin.get('/plan-sequence-stats', async (c) => {
     const status = (r.status as string) || '';
     if (status === 'finished') bucket.games_finished += 1;
     bucket.scores.push((r.score as number) || 0);
-    const fp = (r.fingerprint as string) || '';
-    if (fp) bucket.fps.add(fp);
+    const uid = (r.user_id as string) || '';
+    if (uid) bucket.fps.add(uid);
     const endedAt = r.ended_at as string | null;
     const createdAt = r.created_at as string | null;
     if (endedAt && createdAt) {
@@ -759,13 +884,13 @@ admin.get('/sequence/:id/analysis', async (c) => {
 
   const sequenceRow = await db.prepare(
     `SELECT gs.id, gs.sequence_plan_id AS plan_id, sp.name AS plan_name, gs.created_at, gs.status,
-            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id AND status = 'playing') AS playing_players,
+            (SELECT COUNT(DISTINCT user_id) FROM games WHERE generated_sequence_id = gs.id AND status = 'playing') AS playing_players,
             (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND status = 'playing') AS playing_games,
-            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id AND date(created_at) = date('now')) AS today_players,
+            (SELECT COUNT(DISTINCT user_id) FROM games WHERE generated_sequence_id = gs.id AND date(created_at) = date('now')) AS today_players,
             (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND created_at > datetime('now', '-1 hour')) AS hour_games,
             (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id) AS games_total,
             (SELECT COUNT(*) FROM games WHERE generated_sequence_id = gs.id AND status = 'finished') AS games_finished,
-            (SELECT COUNT(DISTINCT fingerprint) FROM games WHERE generated_sequence_id = gs.id) AS unique_players
+            (SELECT COUNT(DISTINCT user_id) FROM games WHERE generated_sequence_id = gs.id) AS unique_players
      FROM generated_sequences gs
      LEFT JOIN sequence_plans sp ON gs.sequence_plan_id = sp.id
      WHERE gs.id = ?`
@@ -840,7 +965,7 @@ admin.get('/stats', async (c) => {
   const playingGames = await db.prepare("SELECT COUNT(*) as c FROM games WHERE status = 'playing'").first() as Record<string, unknown>;
   const finishedGames = await db.prepare("SELECT COUNT(*) as c FROM games WHERE status = 'finished'").first() as Record<string, unknown>;
   const topScore = await db.prepare('SELECT MAX(score) as m FROM scores').first() as Record<string, unknown>;
-  const uniquePlayers = await db.prepare('SELECT COUNT(DISTINCT fingerprint) as c FROM games').first() as Record<string, unknown>;
+  const uniquePlayers = await db.prepare('SELECT COUNT(DISTINCT user_id) as c FROM games').first() as Record<string, unknown>;
 
   return c.json({
     totalGames: totalGames?.c || 0,
@@ -874,13 +999,14 @@ admin.get('/games', async (c) => {
     params.push(sequenceId);
   }
   if (q) {
-    where.push('(g.game_id LIKE ? OR g.fingerprint LIKE ?)');
-    params.push(`%${q}%`, `%${q}%`);
+    where.push('(g.game_id LIKE ? OR g.user_id LIKE ? OR g.kol_user_id LIKE ?)');
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const games = await db.prepare(
-    `SELECT g.game_id, g.fingerprint, g.user_id, g.seed, g.step, g.score, g.sign, g.status,
+    `SELECT g.game_id, g.user_id, g.kol_user_id, g.platform_id, g.app_id, g.token_jti,
+            g.seed, g.step, g.score, g.sign, g.status,
             g.sequence_plan_id, g.generated_sequence_id, g.sequence_index,
             g.end_reason, g.ended_at, g.last_update_at, g.created_at,
             sp.name AS plan_name,
@@ -1421,6 +1547,140 @@ admin.delete('/generated-sequences/:id', async (c) => {
 
   await db.prepare('DELETE FROM generated_sequences WHERE id = ?').bind(seqId).run();
   return c.json({ success: true, stoppedGames });
+});
+
+// ================= Admin: users（用户配置表）=================
+admin.get('/users', async (c) => {
+  const db = c.env.DB;
+  const rows = await db.prepare(
+    `SELECT u.*, gs.sequence_name AS sequence_name
+     FROM users u
+     LEFT JOIN generated_sequences gs ON u.sequence_id = gs.id
+     ORDER BY u.created_at DESC`
+  ).all();
+  return c.json({ users: rows.results });
+});
+
+admin.post('/users', async (c) => {
+  const body = await c.req.json<{
+    kol_user_id?: string;
+    user_id?: string;
+    platform_id?: string;
+    sequence_id?: string;
+    note?: string;
+  }>();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id,
+    body.kol_user_id ?? '',
+    body.user_id ?? '',
+    body.platform_id ?? '',
+    body.sequence_id ?? '',
+    body.note ?? '',
+    now, now,
+  ).run();
+  return c.json({ id });
+});
+
+admin.put('/users/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{
+    kol_user_id?: string;
+    user_id?: string;
+    platform_id?: string;
+    sequence_id?: string;
+    note?: string;
+  }>();
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  for (const f of ['kol_user_id', 'user_id', 'platform_id', 'sequence_id', 'note'] as const) {
+    if (body[f] !== undefined) {
+      sets.push(`${f} = ?`);
+      params.push(body[f]);
+    }
+  }
+  if (sets.length === 0) return c.json({ error: 'No fields to update' }, 400);
+  sets.push('updated_at = ?');
+  params.push(new Date().toISOString());
+  params.push(id);
+  await c.env.DB.prepare(
+    `UPDATE users SET ${sets.join(', ')} WHERE id = ?`
+  ).bind(...params).run();
+  return c.json({ success: true });
+});
+
+admin.delete('/users/:id', async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+  return c.json({ success: true });
+});
+
+// ================= Admin: distribution（全局分布表）=================
+admin.get('/distribution', async (c) => {
+  const db = c.env.DB;
+  const rows = await db.prepare(
+    `SELECT d.*, gs.sequence_name AS sequence_name, gs.sequence_plan_id AS sequence_plan_id, sp.name AS plan_name
+     FROM distribution d
+     LEFT JOIN generated_sequences gs ON d.sequence_id = gs.id
+     LEFT JOIN sequence_plans sp ON gs.sequence_plan_id = sp.id
+     ORDER BY d.created_at DESC`
+  ).all();
+  return c.json({ items: rows.results });
+});
+
+admin.post('/distribution', async (c) => {
+  const body = await c.req.json<{ sequence_id: string; ratio: number }>();
+  if (!body.sequence_id) return c.json({ error: 'Missing sequence_id' }, 400);
+  if (!Number.isFinite(body.ratio) || body.ratio <= 0) {
+    return c.json({ error: 'ratio must be a positive number' }, 400);
+  }
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO distribution (id, sequence_id, ratio, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(id, body.sequence_id, body.ratio, now, now).run();
+  } catch (e) {
+    return c.json({ error: (e as Error).message || 'Insert failed' }, 400);
+  }
+  return c.json({ id });
+});
+
+admin.put('/distribution/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{ sequence_id?: string; ratio?: number }>();
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  if (body.sequence_id !== undefined) {
+    sets.push('sequence_id = ?');
+    params.push(body.sequence_id);
+  }
+  if (body.ratio !== undefined) {
+    if (!Number.isFinite(body.ratio) || body.ratio <= 0) {
+      return c.json({ error: 'ratio must be a positive number' }, 400);
+    }
+    sets.push('ratio = ?');
+    params.push(body.ratio);
+  }
+  if (sets.length === 0) return c.json({ error: 'No fields to update' }, 400);
+  sets.push('updated_at = ?');
+  params.push(new Date().toISOString());
+  params.push(id);
+  await c.env.DB.prepare(
+    `UPDATE distribution SET ${sets.join(', ')} WHERE id = ?`
+  ).bind(...params).run();
+  return c.json({ success: true });
+});
+
+admin.delete('/distribution/:id', async (c) => {
+  const id = c.req.param('id');
+  await c.env.DB.prepare('DELETE FROM distribution WHERE id = ?').bind(id).run();
+  return c.json({ success: true });
 });
 
 // 挂载 admin 路由到 /api/admin

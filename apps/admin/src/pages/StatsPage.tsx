@@ -146,7 +146,7 @@ export function StatsPage({
       key: 'uniquePlayers',
       label: '独立玩家',
       value: stats?.uniquePlayers ?? null,
-      hint: '按 fingerprint',
+      hint: '按 user_id',
       accent: '#4ecd7a',
       onClick: () => onNavigateGames('all'),
     },

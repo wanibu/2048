@@ -309,11 +309,17 @@ function GameDetailSheet({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }}>
                   <MetaCell label="Plan" value={detail.plan_name ?? '—'} />
-                  <MetaCell label="Fingerprint" value={truncate(detail.fingerprint, 12)} mono />
+                  <MetaCell label="User ID" value={detail.user_id || '—'} mono />
+                  <MetaCell label="KOL" value={detail.kol_user_id || '—'} mono />
+                  <MetaCell label="Platform" value={detail.platform_id || '—'} mono />
+                  <MetaCell label="App ID" value={detail.app_id || '—'} mono />
+                  <MetaCell label="Token JTI" value={detail.token_jti || '—'} mono />
                   <MetaCell label="Seed" value={String(detail.seed)} mono />
                   <MetaCell label="Steps" value={formatNumber(detail.step)} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, marginTop: 12 }}>
                   <MetaCell label="Created" value={formatDateTime(detail.created_at)} />
                   <MetaCell label="Last Update" value={formatDateTime(detail.last_update_at)} />
                 </div>
@@ -623,7 +629,7 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="按 game_id 或 fingerprint 搜索…"
+            placeholder="按 game_id / user_id / kol 搜索…"
             style={{
               width: 260,
               padding: '6px 10px',
@@ -663,7 +669,7 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
                   />
                 </th>
                 <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Game ID</th>
-                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Fingerprint</th>
+                <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>User ID</th>
                 <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Plan</th>
                 <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'left' }}>Status</th>
                 <th style={{ padding: '10px 12px', borderBottom: '1px solid #f6f6f9', textAlign: 'right' }}>Score</th>
@@ -748,7 +754,7 @@ export function GamesPage({ statusFilter, onStatusFilterChange }: Props) {
                           color: 'var(--color-text-secondary)',
                         }}
                       >
-                        {truncate(game.fingerprint, 8)}
+                        {game.user_id || '—'}
                       </td>
                       <td
                         style={{

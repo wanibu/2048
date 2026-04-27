@@ -1,5 +1,4 @@
-import { getFingerprint } from '../utils/fingerprint';
-import { startGame, sendAction, updateScore, endGame } from '../utils/api';
+import { gameInit, sendAction, updateScore, endGame } from '../utils/api';
 import { TokenQueue, AdvanceResult } from './TokenQueue';
 
 export class ActionRecorder {
@@ -8,20 +7,16 @@ export class ActionRecorder {
   private gameId: string = '';
   private currentSign: string = '';
   private ready: boolean = false;
-  private userId: string = '';
   private sequencePlanId: string = '';
   private generatedSequenceId: string = '';
   private actionsCount: number = 0;
 
   public tokenQueue: TokenQueue = new TokenQueue();
 
-  async init(userId?: string, planName: string = '', sequenceName: string = ''): Promise<void> {
+  async init(): Promise<void> {
     const mySeq = ++ActionRecorder.initSeq;
-    this.userId = userId || '';
-    const fingerprint = await getFingerprint();
-    console.log('[ActionRecorder] fingerprint:', fingerprint.slice(0, 16) + '...');
 
-    const result = await startGame(fingerprint, this.userId, planName, sequenceName);
+    const result = await gameInit();
     // 并发守卫：只有最新一次 init 才可写回状态，否则落后响应会覆盖最新 gameId
     if (mySeq !== ActionRecorder.initSeq) {
       console.warn(`[ActionRecorder.init] 落后响应被丢弃 seq=${mySeq}, current=${ActionRecorder.initSeq}, staleGameId=${result.gameId}`);

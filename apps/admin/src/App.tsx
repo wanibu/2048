@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, Gamepad2, LineChart, LogOut, Settings } from 'lucide-react';
+import { BarChart3, Gamepad2, LineChart, LogOut, Settings, Users } from 'lucide-react';
 import { StatsPage } from '@/pages/StatsPage';
 import { GamesPage } from '@/pages/GamesPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { PlanAnalysisPage } from '@/pages/PlanAnalysisPage';
 import { SequenceAnalysisSheet } from '@/pages/SequenceAnalysisSheet';
+import { UsersPage } from '@/pages/UsersPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { getToken, logout } from '@/api/client';
 
@@ -15,6 +16,7 @@ const NAV = [
   { path: '/stats', label: '统计', icon: BarChart3 },
   { path: '/analysis', label: '样本分析', icon: LineChart },
   { path: '/game-round', label: '游戏局', icon: Gamepad2 },
+  { path: '/users', label: '用户管理', icon: Users },
   { path: '/settings', label: '配置', icon: Settings },
 ] as const;
 
@@ -102,6 +104,7 @@ function Layout() {
           <Route path="/stats" element={<StatsPageRoute />} />
           <Route path="/analysis" element={<AnalysisPageRoute />} />
           <Route path="/game-round" element={<GamesPageRoute />} />
+          <Route path="/users" element={<UsersPage />} />
           <Route path="/settings" element={<ConfigPage />} />
           <Route path="*" element={<Navigate to="/stats" replace />} />
         </Routes>

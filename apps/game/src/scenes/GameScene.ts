@@ -10,6 +10,7 @@ import { Stone } from '../objects/Stone';
 import { MergeSystem, GhostBorder } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
+import { setGameToken } from '../utils/api';
 import { HUD } from '../ui/HUD';
 import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY, SavedSnapshot } from '../debug/DebugPanel';
 
@@ -442,19 +443,18 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数：userId / plan（plan 名称）/ sequence（generated_sequence 的 sequence_name）
-    // ?userId=AAA&plan=A&sequence=标准A —— plan 和 sequence 都按"名称"查
+    // 解析 URL 参数：仅 token
+    // ?token=<JWT> 由上游平台 redirect 时带入；后端 /game/* 都用 sign: header 验签
     const urlParams = new URLSearchParams(window.location.search);
-    const userId = urlParams.get('userId') || '';
-    const planName = urlParams.get('plan') || '';
-    const sequenceName = urlParams.get('sequence') || '';
+    const token = urlParams.get('token') || '';
 
     if (IS_DEBUG) {
       // DEBUG 模式：不走后端，弹弓糖果和棋盘由 DebugPanel 控制
       this.initDebugMode();
     } else {
-      // 后端开局：获取本局完整 sequence。
-      this.initBackend(userId, planName, sequenceName);
+      // 后端开局：把 token 缓存进 api 模块，所有 /game/* 请求自动带 sign: header
+      setGameToken(token);
+      this.initBackend();
     }
 
     this.refreshScoreSprites(updateSpriteNumber);
@@ -616,14 +616,14 @@ export class GameScene extends Phaser.Scene {
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private static initBackendSeq: number = 0;
 
-  private async initBackend(userId: string, planName: string = '', sequenceName: string = ''): Promise<void> {
+  private async initBackend(): Promise<void> {
     const recorder = this.recorder;
     if (!recorder) return;
     // 每次调用递增序号，只有最新的一次能继续执行
     const mySeq = ++GameScene.initBackendSeq;
 
     try {
-      await recorder.init(userId, planName, sequenceName);
+      await recorder.init();
 
       // await 期间如果又有新的 create 调了 initBackend，序号已变，放弃本次
       if (mySeq !== GameScene.initBackendSeq) {

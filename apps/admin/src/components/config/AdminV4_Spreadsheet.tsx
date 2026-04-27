@@ -98,14 +98,6 @@ function evenSplitNum(keys: number[]): Record<number, number> {
   return out;
 }
 
-function normalizeNum(weights: Record<number, number>, target = 100): Record<number, number> {
-  const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
-  if (total === 0) return weights;
-  const out: Record<number, number> = {};
-  for (const [key, value] of Object.entries(weights)) out[Number(key)] = (value / total) * target;
-  return out;
-}
-
 function createBlankStage(index: number): EditorStage {
   return {
     id: `new_${Date.now()}_${index}`,
@@ -154,11 +146,7 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
 
   const cols = useMemo(() => [...ALL_VALUES, STONE_VALUE], []);
   const totalLength = useMemo(() => plan.stages.reduce((sum, stage) => sum + stage.length, 0), [plan.stages]);
-  const invalidStageIndex = useMemo(
-    () => plan.stages.findIndex((stage) => Math.abs(Object.values(stage.weights).reduce((sum, value) => sum + value, 0) - 100) >= 0.5),
-    [plan.stages],
-  );
-  const hasWeightMismatch = invalidStageIndex >= 0;
+  // 手动模式不再校验 100%，只显示红字提示；保存只挡 plan name 必填
   const hasNameError = plan.name.trim().length === 0;
 
   const patchStage = (id: string, patch: Partial<EditorStage>) =>
@@ -173,23 +161,29 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
       stages: [...pl.stages, createBlankStage(pl.stages.length + 1)],
     }));
 
+  // 手动模式：点空格 → 直接添加该值=0；右键已有格 → 删除该值；不再自动均分
   function toggleCell(sid: string, v: number) {
     const stage = plan.stages.find((item) => item.id === sid);
     if (!stage) return;
     const has = v in stage.weights;
-    const keys = Object.keys(stage.weights).map(Number);
-    const next = has ? keys.filter((key) => key !== v) : [...keys, v].sort((a, b) => a - b);
-    patchStage(sid, { weights: evenSplitNum(next) });
+    if (has) {
+      const next = { ...stage.weights };
+      delete next[v];
+      patchStage(sid, { weights: next });
+    } else {
+      patchStage(sid, { weights: { ...stage.weights, [v]: 0 } });
+    }
   }
 
+  // 手动模式：仅设置该值，不再做等比缩放
   function setCell(sid: string, v: number, pct: number) {
     const stage = plan.stages.find((item) => item.id === sid);
     if (!stage || !(v in stage.weights)) return;
-    patchStage(sid, { weights: normalizeNum({ ...stage.weights, [v]: pct }, 100) });
+    patchStage(sid, { weights: { ...stage.weights, [v]: pct } });
   }
 
   async function handleSave() {
-    if (hasWeightMismatch || hasNameError || saving) return;
+    if (hasNameError || saving) return;
 
     const payload: { name: string; description: string; stages: InlineStageInput[] } = {
       name: plan.name.trim(),
@@ -238,14 +232,14 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
           <button type="button" style={secondaryBtn} onClick={onCancel}>
             取消
           </button>
-          <button type="button" style={{ ...primaryBtn, opacity: hasWeightMismatch || hasNameError || saving ? 0.6 : 1, cursor: hasWeightMismatch || hasNameError || saving ? 'not-allowed' : 'pointer' }} onClick={() => void handleSave()} disabled={hasWeightMismatch || hasNameError || saving}>
+          <button type="button" style={{ ...primaryBtn, opacity: hasNameError || saving ? 0.6 : 1, cursor: hasNameError || saving ? 'not-allowed' : 'pointer' }} onClick={() => void handleSave()} disabled={hasNameError || saving}>
             {mode === 'edit' ? '保存' : '创建'}
           </button>
         </div>
 
-        {(hasWeightMismatch || hasNameError) && (
+        {hasNameError && (
           <div style={{ marginTop: -10, marginBottom: 14, fontSize: '0.75rem', color: '#c83a3a' }}>
-            {hasWeightMismatch ? `stage ${invalidStageIndex + 1} 概率和不是 100%` : '计划名称不能为空'}
+            {'计划名称不能为空'}
           </div>
         )}
 
@@ -407,7 +401,7 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
         </div>
 
         <div style={{ marginTop: 10, fontSize: '0.6875rem', color: '#9b9ba6' }}>
-          点击空单元格加入数字（自动均分）· 修改数字后其他值等比缩放保持 100% · 右键单元格移除
+          手动模式：点空单元格添加 0 后自行输入数字 · 不再自动均分或等比缩放 · 右键单元格删除 · 总和不为 100% 时显示红字（不阻止保存）
         </div>
       </div>
     </div>

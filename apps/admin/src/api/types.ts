@@ -19,8 +19,11 @@ export interface Stats {
 
 export interface Game {
   game_id: string;
-  fingerprint: string;
   user_id: string | null;
+  kol_user_id: string;
+  platform_id: string;
+  app_id: string;
+  token_jti: string;
   seed: number;
   step: number;
   score: number;
@@ -159,6 +162,29 @@ export interface SequenceStat {
 export interface PlanSequenceStatsResp {
   plan_id: string;
   sequences: SequenceStat[];
+}
+
+export interface AdminUser {
+  id: string;
+  kol_user_id: string;
+  user_id: string;
+  platform_id: string;
+  sequence_id: string;
+  note: string;
+  sequence_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DistributionItem {
+  id: string;
+  sequence_id: string;
+  ratio: number;
+  sequence_name?: string | null;
+  sequence_plan_id?: string | null;
+  plan_name?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SequenceAnalysis {

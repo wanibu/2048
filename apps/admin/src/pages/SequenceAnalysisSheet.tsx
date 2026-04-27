@@ -221,7 +221,7 @@ export function SequenceAnalysisSheet({
   const totalEndReasons = endReasonEntries.reduce((sum, item) => sum + item.count, 0) || 1;
   const kpis = data
     ? [
-        { label: '当前在玩玩家数', value: data.playing_players, hint: '按 fingerprint 去重', accent: '#5a7cff' },
+        { label: '当前在玩玩家数', value: data.playing_players, hint: '按 user_id 去重', accent: '#5a7cff' },
         { label: '当前在玩局数', value: data.playing_games, hint: 'status = playing', accent: '#ffb93c' },
         { label: '累计独立玩家数', value: data.unique_players, hint: '历史累计', accent: '#4ecd7a' },
         { label: '累计游玩次数', value: data.games_total, hint: '全部游戏局', accent: '#c14dff' },
@@ -670,7 +670,7 @@ export function SequenceAnalysisSheet({
                         <thead>
                           <tr style={{ background: '#fafafc' }}>
                             <th style={tableHeadStyle}>Game ID</th>
-                            <th style={tableHeadStyle}>Fingerprint</th>
+                            <th style={tableHeadStyle}>User ID</th>
                             <th style={tableHeadStyle}>状态</th>
                             <th style={{ ...tableHeadStyle, textAlign: 'right' }}>得分</th>
                             <th style={{ ...tableHeadStyle, textAlign: 'right' }}>步数</th>
@@ -710,7 +710,7 @@ export function SequenceAnalysisSheet({
                                     color: '#6a6a74',
                                   }}
                                 >
-                                  {shortId(game.fingerprint)}
+                                  {shortId(game.user_id)}
                                 </td>
                                 <td style={tableCellStyle}>
                                   <GameStatusPill status={game.status} />

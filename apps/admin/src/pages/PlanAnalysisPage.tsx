@@ -18,11 +18,6 @@ const analysisTd = { padding: '10px 12px', borderBottom: '1px solid #f0f0f4', fo
 const seqTh = { padding: '8px 12px', fontSize: '0.6562rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 500, borderBottom: '1px solid #f0f0f4', textAlign: 'left', whiteSpace: 'nowrap' } as const;
 const seqTd = { padding: '10px 12px', fontSize: '0.7188rem', borderBottom: '1px solid #f6f6f9', wordBreak: 'break-all' } as const;
 
-function formatShortPlanId(planId: string | null) {
-  // 不再截断，全显
-  return planId ?? '—';
-}
-
 function EndReasonCard({ plans }: { plans: PlanStat[] }) {
   const aggregated = useMemo(() => {
     const totals = new Map<string, number>();
@@ -125,7 +120,6 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
               <thead>
                 <tr style={{ background: '#fafafc' }}>
                   <th style={{ ...analysisTh, width: 32 }} />
-                  <th style={analysisTh}>Plan ID</th>
                   <th style={analysisTh}>Plan Name</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>样本数</th>
                   <th style={{ ...analysisTh, textAlign: 'right' }}>独立用户数</th>
@@ -141,7 +135,7 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
               <tbody>
                 {!data || data.plans.length === 0 ? (
                   <tr>
-                    <td colSpan={12} style={{ ...analysisTd, padding: '24px 12px', textAlign: 'center', color: '#9b9ba6' }}>{loading ? '加载中...' : '暂无数据'}</td>
+                    <td colSpan={11} style={{ ...analysisTd, padding: '24px 12px', textAlign: 'center', color: '#9b9ba6' }}>{loading ? '加载中...' : '暂无数据'}</td>
                   </tr>
                 ) : (
                   data.plans.flatMap((plan, index) => {
@@ -156,7 +150,6 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
                         <td style={{ ...analysisTd, width: 32, paddingRight: 0 }}>
                           {plan.plan_id ? <span style={{ color: '#6a6a74', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><ChevronRight size={14} /></span> : null}
                         </td>
-                        <td style={{ ...analysisTd, fontFamily: 'Menlo, monospace', fontSize: '0.6875rem', color: '#6a6a74' }}>{formatShortPlanId(plan.plan_id)}</td>
                         <td style={{ ...analysisTd, fontFamily: 'Fredoka, system-ui, sans-serif', fontWeight: 600, color: 'var(--color-text)' }}>{plan.plan_name ?? '—'}</td>
                         <td style={numericCell}>{plan.games_total.toLocaleString()}</td>
                         <td style={secondaryCell}>{plan.unique_players.toLocaleString()}</td>
@@ -170,7 +163,7 @@ export function PlanAnalysisPage({ onSelectSequence }: PlanAnalysisPageProps = {
                       </tr>,
                       isExpanded && (
                         <tr key={`${rowKey}_seq`}>
-                          <td colSpan={12} style={{ padding: 0, background: '#fafafc', borderBottom: '1px solid #ececf2' }}>
+                          <td colSpan={11} style={{ padding: 0, background: '#fafafc', borderBottom: '1px solid #ececf2' }}>
                             <div style={{ padding: '12px 20px 14px 42px' }}>
                               <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
                                 {(plan.plan_name ?? '—') + ' · 序列明细 (' + (sequences?.length ?? (isSeqLoading ? '...' : '暂无')) + ')'}

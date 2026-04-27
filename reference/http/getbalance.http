@@ -1,0 +1,25 @@
+curl 'https://api-proxy.buyacard.cc/api/pw-admin/cw/v0/account/balance' \
+  -H 'accept: application/json, text/plain, */*' \
+  -H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8,th;q=0.7' \
+  -H 'cache-control: no-cache' \
+  -H 'cid: 1.1777270777927.25e8a582.o9XcuHC3LSQfS2qJeLKbOBB5-VOrSlOpt8xtJT_DwoVYrSn2egLjFacHoyf4YCWeSJinoYNV9XWtWB4ETKAPKw' \
+  -H 'client: C_H5' \
+  -H 'device: h5' \
+  -H 'domain: super86.cc' \
+  -H 'id_a: XjCwPPy32Da09gztLPdo' \
+  -H 'language: en-US' \
+  -H 'origin: https://super86.cc' \
+  -H 'pragma: no-cache' \
+  -H 'priority: u=1, i' \
+  -H 'pwa: 0' \
+  -H 'referer: https://super86.cc/' \
+  -H 'rl: 0' \
+  -H 'sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"' \
+  -H 'sec-ch-ua-mobile: ?1' \
+  -H 'sec-ch-ua-platform: "iOS"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: cross-site' \
+  -H 'slk: 26047' \
+  -H 'token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhdGYiLCJrb2xVc2VySWQiOiIxMTAxMjE4NCIsImdlbmRlciI6IjAiLCJpcCI6IjJhMDk6YmFjNTo0MzA1OjEwMDA6OjE5ODoxMWUiLCJhdmF0YXIiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NKTkxRYjM3OTVqcXdvWEhUVEZ0VGpwcXJtcjh1VGRMVVNmRVN5QnFBQ3NUV19VOFJhdj1zOTYtYyIsImZhbWlseUlkIjoiMCIsImxvZ2luVGltZSI6IjE3NzcyNzQ0NTAwODMiLCJ1c2VyX2NvbnN1bWVfbGV2ZWwiOiIwIiwiYXBwSWQiOiIxMjEiLCJkb21haW4iOiJzdXBlcjg2LmNjIiwibmlja25hbWUiOiJ3IGphbWVzIiwic2l0ZUlkIjoiMTA2MDQxMDQxMTAwOSIsImNsaWVudCI6IjIiLCJpZCI6IjExMzI3MTU2IiwidXNlclR5cGUiOiIwIiwidmlwIjoiMCIsInVzZXJuYW1lIjoiMTEzMjcxNTYiLCJjaWQiOiIxLjE3NzcyNzA3Nzc5MjcuMjVlOGE1ODIubzlYY3VIQzNMU1FmUzJxSmVMS2JPQkI1LVZPclNsT3B0OHh0SlRfRHdvVllyU24yZWdMakZhY0hveWY0WUNXZVNKaW5vWU5WOVhXdFdCNEVUS0FQS3ciLCJmYW1pbHlDcmVhdG9yIjoibnVsbCIsImV4cCI6MTc4MzMyMjQ1MH0.vYE1cSKcC8zjld-nFcqqK6yC3oEhCZsQrOBvu48t048' \
+  -H 'user-agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'

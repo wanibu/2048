@@ -46,8 +46,11 @@ CREATE INDEX IF NOT EXISTS idx_generated_sequences_sequence_plan_id
 
 CREATE TABLE IF NOT EXISTS games (
   game_id TEXT PRIMARY KEY,
-  fingerprint TEXT NOT NULL,
   user_id TEXT NOT NULL DEFAULT '',
+  kol_user_id TEXT NOT NULL DEFAULT '',
+  platform_id TEXT NOT NULL DEFAULT '',
+  app_id TEXT NOT NULL DEFAULT '',
+  token_jti TEXT NOT NULL DEFAULT '',
   seed INTEGER NOT NULL,
   step INTEGER NOT NULL DEFAULT 0,
   score INTEGER NOT NULL DEFAULT 0,
@@ -64,7 +67,8 @@ CREATE TABLE IF NOT EXISTS games (
   FOREIGN KEY (generated_sequence_id) REFERENCES generated_sequences(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_games_fingerprint ON games(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);
+CREATE INDEX IF NOT EXISTS idx_games_platform_user ON games(platform_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
 CREATE INDEX IF NOT EXISTS idx_games_sequence_plan_id ON games(sequence_plan_id);
 CREATE INDEX IF NOT EXISTS idx_games_generated_sequence_id ON games(generated_sequence_id);
@@ -72,7 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_games_generated_sequence_id ON games(generated_se
 CREATE TABLE IF NOT EXISTS scores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   game_id TEXT NOT NULL,
-  fingerprint TEXT NOT NULL,
+  user_id TEXT NOT NULL DEFAULT '',
   score INTEGER NOT NULL,
   actions_count INTEGER NOT NULL DEFAULT 0,
   sign TEXT NOT NULL DEFAULT '',
@@ -82,3 +86,42 @@ CREATE TABLE IF NOT EXISTS scores (
 
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores(score DESC);
 CREATE INDEX IF NOT EXISTS idx_scores_game_id ON scores(game_id);
+
+-- 用户配置表：手动录入，记录某个 user_id 应该使用哪条 sequence
+-- 不限制 user_id 唯一，允许同 user_id 多条记录（使用时取第一条）
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  kol_user_id TEXT NOT NULL DEFAULT '',
+  user_id TEXT NOT NULL DEFAULT '',
+  platform_id TEXT NOT NULL DEFAULT '',
+  sequence_id TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
+CREATE INDEX IF NOT EXISTS idx_users_kol_user_id ON users(kol_user_id);
+
+-- 全局分布表：当用户没有显式 sequence_id 配置时按 ratio 加权随机选 sequence
+-- ratio 是任意正整数，按相对权重计算（不强制总和=100）
+CREATE TABLE IF NOT EXISTS distribution (
+  id TEXT PRIMARY KEY,
+  sequence_id TEXT NOT NULL,
+  ratio INTEGER NOT NULL CHECK (ratio > 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (sequence_id) REFERENCES generated_sequences(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_distribution_sequence_id ON distribution(sequence_id);
+
+-- 平台 API key：上游平台调用 /game-center/game/enter 时验证
+CREATE TABLE IF NOT EXISTS platform_keys (
+  key TEXT PRIMARY KEY,
+  platform_id TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

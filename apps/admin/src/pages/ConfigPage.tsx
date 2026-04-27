@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Sliders } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { api } from '@/api/client';
 import type { GeneratedSequence, Plan, PlanStage, PlansResp, SequencesResp } from '@/api/types';
@@ -9,6 +9,7 @@ import { PlanEditSheet } from '@/components/config/PlanEditSheet';
 import { SequenceDetailSheet } from '@/components/config/SequenceDetailSheet';
 import { SequenceEditSheet } from '@/components/config/SequenceEditSheet';
 import { StageDetailSheet } from '@/components/config/StageDetailSheet';
+import { DistributionPanel } from '@/pages/DistributionPanel';
 import { PageHeader } from '@/components/ui/page-header';
 import { RefreshBtn } from '@/components/ui/refresh-btn';
 
@@ -16,10 +17,20 @@ export function ConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [sequences, setSequences] = useState<GeneratedSequence[]>([]);
-  const selectedPlanId = searchParams.get('plan');
+  const section = searchParams.get('section');
+  const isDistributionView = section === 'distribution';
+  const selectedPlanId = isDistributionView ? null : searchParams.get('plan');
   const setSelectedPlanId = (id: string | null) => {
     const next = new URLSearchParams(searchParams);
+    next.delete('section');
     if (id) next.set('plan', id); else next.delete('plan');
+    setSearchParams(next, { replace: false });
+  };
+  const showDistribution = () => {
+    const next = new URLSearchParams(searchParams);
+    next.set('section', 'distribution');
+    next.delete('plan');
+    next.delete('tab');
     setSearchParams(next, { replace: false });
   };
   const [query, setQuery] = useState('');
@@ -52,6 +63,7 @@ export function ConfigPage() {
   }, []);
 
   useEffect(() => {
+    if (isDistributionView) return; // 在分布视图时不自动选 plan
     if (plans.length === 0) {
       setSelectedPlanId(null);
       return;
@@ -59,7 +71,7 @@ export function ConfigPage() {
     if (!selectedPlanId || !plans.some((plan) => plan.id === selectedPlanId)) {
       setSelectedPlanId(plans[0].id);
     }
-  }, [plans, selectedPlanId]);
+  }, [plans, selectedPlanId, isDistributionView]);
 
   const filteredPlans = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -107,6 +119,32 @@ export function ConfigPage() {
       <PageHeader title="配置" right={<RefreshBtn onClick={() => void loadAll()} loading={loading} />} />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ width: 248, borderRight: '1px solid #ececf2', background: '#fff', padding: 14, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* 全局分布快捷入口（与 Plan 列表平级，固定在最上方） */}
+          <button
+            type="button"
+            onClick={showDistribution}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              fontSize: '0.7812rem',
+              borderRadius: 6,
+              background: isDistributionView ? '#fff3ea' : 'transparent',
+              color: '#2a2a33',
+              fontWeight: isDistributionView ? 600 : 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer',
+              border: 'none',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+              marginBottom: 4,
+            }}
+          >
+            <Sliders size={14} color={isDistributionView ? '#c87a3a' : '#9b9ba6'} />
+            <span>全局分布</span>
+          </button>
+          <div style={{ height: 1, background: '#ececf2', margin: '0 -14px' }} />
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               value={query}
@@ -158,7 +196,9 @@ export function ConfigPage() {
           </div>
         </div>
         <div style={{ flex: 1, overflow: 'auto', minWidth: 0, background: '#f7f7fa' }}>
-          {selectedPlan ? (
+          {isDistributionView ? (
+            <DistributionPanel />
+          ) : selectedPlan ? (
             <DetailVariantA
               plan={selectedPlan}
               sequences={planSequences}
