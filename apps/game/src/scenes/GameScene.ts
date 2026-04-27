@@ -1505,6 +1505,7 @@ export class GameScene extends Phaser.Scene {
     const onComplete = () => {
       this.isRotating = false;
       this.printGrid('旋转后');
+      this.sling.refreshPreview();
       this.checkMergesAfterRotation();
     };
 
@@ -1771,6 +1772,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.comboCount = 0;
       this.comboFiredThisChain = false;
+      this.sling.refreshPreview();
       return;
     }
 

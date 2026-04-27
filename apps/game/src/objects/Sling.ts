@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import {
   CURRENT_CANDY_DEPTH, CURRENT_CANDY_OFFSET_Y, CURRENT_CANDY_SIZE,
-  GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES,
+  GRID_COLS, GRID_ROWS, SPAWN_NUMBER_MAX, SHAPE_VALUES, SHAPE_REGIONS,
   SLING_REGIONS,
   LayoutConfig, SELECTED_LINE_DISPLAY_HEIGHT, SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_Y,
   NEXT_PREVIEW_DEPTH, NEXT_PREVIEW_SIZE, NEXT_PREVIEW_X, NEXT_PREVIEW_Y,
@@ -22,6 +22,8 @@ export class Sling {
   private slingSprite: Phaser.GameObjects.Image;
   private slingState: number = 0;
   private colHighlight: Phaser.GameObjects.Image;
+  private ghostSprite: Phaser.GameObjects.Image;
+  private ghostValue: number | null = null;
   private isDragging: boolean = false;
 
   private slingY: number;
@@ -65,9 +67,20 @@ export class Sling {
     this.colHighlight = scene.add.image(hlX, hlY, 'shared1', 'selected-line-o');
     this.colHighlight.setOrigin(0.5, 0.5);
     this.colHighlight.setDisplaySize(SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_HEIGHT);
-    // this.colHighlight.setAlpha(0.4);
     this.colHighlight.setVisible(false);
     this.grid.addToContainer(this.colHighlight);
+
+    // Ghost preview: 半透明的当前糖果，显示在该列的落点格子（A 分支）
+    // 或棋盘外 row=GRID_ROWS 位置（B 分支：列满 + 底值同值，预演直接合并）
+    this.ghostSprite = scene.add.image(0, 0, 'shape-full');
+    this.ghostSprite.setOrigin(0.5, 0.5);
+    this.ghostSprite.setAlpha(0.5);
+    this.ghostSprite.setDisplaySize(layout.cellSize, layout.cellSize);
+    this.ghostSprite.setVisible(false);
+    this.grid.addToContainer(this.ghostSprite);
+    // 让 highlight + ghost 都排在 contentLayer 最底层，后续放置的 borders 会盖在它们上面
+    this.grid.getContentLayer().sendToBack(this.ghostSprite);
+    this.grid.getContentLayer().sendToBack(this.colHighlight);
 
     // Sling sprite
     this.slingH = SLING_DISPLAY_HEIGHT;
@@ -104,6 +117,7 @@ export class Sling {
 
     // 更新预览
     this.updateNextPreview();
+    this.refreshAimPreview();
   }
 
   // 设置下一个糖果值（由后端返回后调用）
@@ -131,7 +145,87 @@ export class Sling {
   unlockCurrentShape(): void {
     if (this.currentShape && this.currentShape.active) {
       this.shootAvailable = true;
+      this.refreshAimPreview();
     }
+  }
+
+  // 由 GameScene 在棋盘数据变化（合并、旋转、石头爆炸等）后调用，刷新瞄准预览
+  refreshPreview(): void {
+    this.refreshAimPreview();
+  }
+
+  // 计算当前 selectedCol 是否可发射，以及落点行
+  // 返回 null 表示 (C) 分支：列满 + 底值不同值 → 禁止发射
+  private computeAimPreview(): { row: number; isOverflow: boolean } | null {
+    if (!this.shootAvailable || !this.currentShape) return null;
+    const col = this.selectedCol;
+    const value = this.currentShape.value;
+    const data = this.grid.data;
+    const rows = GRID_ROWS;
+
+    // (A) 列入口（最底行）为空 → 找落点
+    if (data[rows - 1][col] === 0) {
+      for (let r = rows - 2; r >= 0; r--) {
+        if (data[r][col] !== 0) {
+          return { row: r + 1, isOverflow: false };
+        }
+      }
+      // 整列空 → 落到顶行
+      return { row: 0, isOverflow: false };
+    }
+
+    // (B) 列满 + 底行同值 → 棋盘外 row=GRID_ROWS 位置预演直接合并
+    if (data[rows - 1][col] === value) {
+      return { row: rows, isOverflow: true };
+    }
+
+    // (C) 列满 + 底行不同值 → 禁止
+    return null;
+  }
+
+  private refreshAimPreview(): void {
+    const preview = this.computeAimPreview();
+    // 默认不显示，只有在拖动（按下）状态才显示高亮 + ghost
+    if (!preview || !this.currentShape || !this.isDragging) {
+      this.colHighlight.setVisible(false);
+      this.ghostSprite.setVisible(false);
+      return;
+    }
+
+    // ghost 帧切到当前糖果值
+    const value = this.currentShape.value;
+    if (this.ghostValue !== value) {
+      const frameName = `shape_${value}`;
+      const tex = this.scene.textures.get('shape-full');
+      const region = SHAPE_REGIONS[value];
+      if (region && !tex.has(frameName)) {
+        tex.add(frameName, 0, region.x, region.y, region.w, region.h);
+      }
+      if (tex.has(frameName)) {
+        this.ghostSprite.setTexture('shape-full', frameName);
+        // setTexture 后 sprite 的 displayWidth/Height 会按新 frame 的原生尺寸重置 scale，
+        // 所以必须再调一次 setDisplaySize 把它定到 cell 大小（否则会显示成 frame 原生 128px 的小图）
+        this.ghostSprite.setDisplaySize(this.layout.cellSize, this.layout.cellSize);
+        this.ghostValue = value;
+      } else {
+        // 无对应帧 → 不显示 ghost（保持高亮即可）
+        this.ghostSprite.setVisible(false);
+        this.colHighlight.setX(this.grid.colToLocalX(this.selectedCol));
+        this.colHighlight.setVisible(true);
+        return;
+      }
+    }
+
+    // 计算 ghost 位置（local 坐标，相对于 grid container）
+    const localX = this.grid.colToLocalX(this.selectedCol);
+    const localY = (this.layout.gridOffsetY - this.layout.boardCenterY)
+      + preview.row * this.layout.cellSize
+      + this.layout.cellSize / 2;
+    this.ghostSprite.setPosition(localX, localY);
+    this.ghostSprite.setVisible(true);
+
+    this.colHighlight.setX(localX);
+    this.colHighlight.setVisible(true);
   }
 
   // respawn：用 nextValue 生成当前糖果（下一个糖果等后端返回后设置）
@@ -177,7 +271,6 @@ export class Sling {
       const pointerWorldY = this.getPointerWorldY(pointer);
       if (!this.isPointerInSlingArea(pointerWorldX, pointerWorldY)) return;
       this.isDragging = true;
-      this.colHighlight.setVisible(true);
       this.scene.sound.play('slingshot1', { volume: 0.3 });
       this.updateDragPosition(pointerWorldX);
       this.setSlingState(1);
@@ -186,14 +279,12 @@ export class Sling {
 
     this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging) return;
-      this.colHighlight.setVisible(true);
       this.updateDragPosition(this.getPointerWorldX(pointer));
     });
 
     this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging) return;
       this.isDragging = false;
-      this.colHighlight.setVisible(false);
 
       const pointerWorldX = this.getPointerWorldX(pointer);
       const pointerWorldY = this.getPointerWorldY(pointer);
@@ -271,23 +362,22 @@ export class Sling {
 
     this.selectedCol = nearestCol;
     this.slingSprite.setX(clampedWorldX);
-    this.colHighlight.setX(this.grid.colToLocalX(nearestCol));
 
     if (this.currentShape) {
       this.currentShape.setX(clampedWorldX);
     }
+    this.refreshAimPreview();
   }
 
   private snapToSelectedColumn(): void {
     const snappedWorldX = this.grid.colToX(this.selectedCol);
-    const snappedLocalX = this.grid.colToLocalX(this.selectedCol);
 
     this.slingSprite.setX(snappedWorldX);
-    this.colHighlight.setX(snappedLocalX);
 
     if (this.currentShape) {
       this.currentShape.setX(snappedWorldX);
     }
+    this.refreshAimPreview();
   }
 
   private startPullAnimation(): void {
@@ -323,21 +413,24 @@ export class Sling {
 
   private updatePosition(): void {
     const worldX = this.grid.colToX(this.selectedCol);
-    const localX = this.grid.colToLocalX(this.selectedCol);
     this.slingSprite.setX(worldX);
-    this.colHighlight.setX(localX);
     if (this.currentShape) {
       this.currentShape.setX(worldX);
     }
+    this.refreshAimPreview();
   }
 
   private shoot(): void {
     if (!this.shootAvailable || !this.currentShape) return;
+    // (C) 列满 + 底值不同值 → 静默拒绝（与 C3 原版一致：SelectedLine 不显示，发射键无效）
+    if (this.computeAimPreview() === null) {
+      return;
+    }
     this.shootAvailable = false;
     const shape = this.currentShape;
     this.currentShape = null;
     this.setSlingState(0);
-    this.colHighlight.setVisible(false);
+    this.refreshAimPreview();
     if (this.onShootCallback) {
       this.onShootCallback(shape, this.selectedCol);
     }
@@ -357,6 +450,7 @@ export class Sling {
     const body = shape.getBody();
     body.setVelocity(0, 0);
     this.setSlingState(0);
+    this.refreshAimPreview();
   }
 
   respawn(): void {
