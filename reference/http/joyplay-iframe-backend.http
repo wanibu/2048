@@ -1,0 +1,56 @@
+# Joyplay 游戏 iframe → joyplay 后端的 6 个接口（参考协议设计）
+# Origin: https://joyplay.cn (iframe)
+# 域名: https://d61rcnc408vl5.cloudfront.net (joyplay 后端 CloudFront 反代)
+#
+# 共同 header 模式：
+#   sign: <短 JWT> (= URL 上的 ?token=, 不是平台长 JWT)
+#   platformid: 533xp2gkz9g8l7fr44u9 (= URL ?appKey=)
+#   game_id: 1
+#   lang: zh-CN
+#   platform: iOS, model: iPhone
+#   ext: 0, mini: 0
+#   antitoken; expire_at; open_id; partner_id; refresh_token; roomid; service_node; (空占位)
+
+# JWT decode (sign header):
+# Header: {"alg":"HS256","typ":"JWT"}
+# Payload: {"jti":"8e7ff85f-c7bf-4bb1-a38b-5dd6334784de","a0":11012184,"userId":11327156,"exp":1777368573749}
+# 注意：a0 大概是 kolUserId 的简写，userId 字段名跟 super86 长 token 的 "id" 不同
+
+# 1. SDK 元信息
+curl 'https://d61rcnc408vl5.cloudfront.net/game/game/getSdkInfo' \
+  -H 'sign: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI4ZTdmZjg1Zi1jN2JmLTRiYjEtYTM4Yi01ZGQ2MzM0Nzg0ZGUiLCJhMCI6MTEwMTIxODQsInVzZXJJZCI6MTEzMjcxNTYsImV4cCI6MTc3NzM2ODU3Mzc0OX0K.14PuivUtp5gjeyF1yuacbCfu6Nz4UXPOlQnfsdwiZSc' \
+  -H 'platformid: 533xp2gkz9g8l7fr44u9' \
+  -H 'game_id: 1' -H 'lang: zh-CN' -H 'ext: 0' -H 'mini: 0' \
+  -H 'platform: iOS' -H 'model: iPhone' \
+  -H 'antitoken;' -H 'expire_at;' -H 'open_id;' -H 'partner_id;' \
+  -H 'refresh_token;' -H 'roomid;' -H 'service_node;' \
+  -H 'origin: https://joyplay.cn' -H 'referer: https://joyplay.cn/' \
+  -H 'content-type: application/json' \
+  --data-raw '{}'
+
+# 2. 游戏初始化
+curl 'https://d61rcnc408vl5.cloudfront.net/game/game/init' \
+  -H 'sign: <same JWT>' \
+  -H 'platformid: 533xp2gkz9g8l7fr44u9' \
+  -H 'game_id: 1' -H 'lang: zh-CN' -H 'ext: 0' -H 'mini: 0' \
+  -H 'content-type: application/json' \
+  --data-raw '{}'
+
+# 3. 用户信息
+curl 'https://d61rcnc408vl5.cloudfront.net/game/game/user' \
+  -H 'sign: <same JWT>' \
+  -H 'platformid: 533xp2gkz9g8l7fr44u9' \
+  -H 'game_id: 1' -H 'lang: zh-CN' \
+  -H 'content-type: application/json' \
+  --data-raw '{}'
+
+# 4-6. 老虎机专属（joyplay 自己的业务，跟我们 2048 无关）
+# POST /game/slot/odds
+# POST /game/slot/moment
+# POST /game/slot/getConfig
+
+# 我们 2048 对应应该写：
+# POST /game/2048/next-token   (拉下一批 tokens)
+# POST /game/2048/action       (上报每步操作)
+# POST /game/2048/update-score (实时分数)
+# POST /game/2048/end-game     (终局结算)

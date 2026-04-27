@@ -1,0 +1,54 @@
+# super86 实拍：玩家点击 super86.cc/game 列表的 giant2048 之后被 redirect 到的 URL
+# 这是我们的 game iframe 入口
+# 截图证据：CleanShot 2026-04-27 at 19.01.33.png
+
+# 完整 redirect URL（玩家浏览器会自动跳转到这个）
+https://giant-2048.pages.dev/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhdGYiLCJrb2xVc2VySWQiOiIxMTAxMjE4NCIsImdlbmRlciI6IjAiLCJpcCI6IjJhMDk6YmFjNTo0MzA1OjEwMDA6OjE5ODoxMWUiLCJhdmF0YXIiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NKTkxRYjM3OTVqcXdvWEhUVEZ0VGpwcXJtcjh1VGRMVVNmRVN5QnFBQ3NUV19VOFJhdj1zOTYtYyIsImZhbWlseUlkIjoiMCIsImxvZ2luVGltZSI6IjE3NzcyNzQ0NTAwODMiLCJ1c2VyX2NvbnN1bWVfbGV2ZWwiOiIwIiwiYXBwSWQiOiIxMjEiLCJkb21haW4iOiJzdXBlcjg2LmNjIiwibmlja25hbWUiOiJ3IGphbWVzIiwic2l0ZUlkIjoiMTA2MDQxMDQxMTAwOSIsImNsaWVudCI6IjIiLCJpZCI6IjExMzI3MTU2IiwidXNlclR5cGUiOiIwIiwidmlwIjoiMCIsInVzZXJuYW1lIjoiMTEzMjcxNTYiLCJjaWQiOiIxLjE3NzcyNzA3Nzc5MjcuMjVlOGE1ODIubzlYY3VIQzNMU1FmUzJxSmVMS2JPQkI1LVZPclNsT3B0OHh0SlRfRHdvVllyU24yZWdMakZhY0hveWY0WUNXZVNKaW5vWU5WOVhXdFdCNEVUS0FQS3ciLCJmYW1pbHlDcmVhdG9yIjoibnVsbCIsImV4cCI6MTc4MzMyMjQ1MH0.vYE1cSKcC8zjld-nFcqqK6yC3oEhCZsQrOBvu48t048&cid=1.1777270777927.25e8a582.o9XcuHC3LSQfS2qJeLKbOBB5-VOrSlOpt8xtJT_DwoVYrSn2egLjFacHoyf4YCWeSJinoYNV9XWtWB4ETKAPKw&language=en-US
+
+# JWT decode（base64 解 payload）：
+# {
+#   "sub": "atf",
+#   "kolUserId": "11012184",
+#   "gender": "0",
+#   "ip": "2a09:bac5:4305:1000::198:11e",
+#   "avatar": "https://lh3.googleusercontent.com/a/ACg8ocJNLQb3795jqwoXHTTFtTjpqrmr8uTdLUSfESyBqACsTW_U8Rav=s96-c",
+#   "familyId": "0",
+#   "loginTime": "1777274450083",
+#   "user_consume_level": "0",
+#   "appId": "121",
+#   "domain": "super86.cc",
+#   "nickname": "w james",
+#   "siteId": "10604104110009",
+#   "client": "2",
+#   "id": "11327156",
+#   "userType": "0",
+#   "vip": "0",
+#   "username": "11327156",
+#   "cid": "1.1777270777927.25e8a582...",
+#   "familyCreator": "null",
+#   "exp": 1783322450
+# }
+
+# 注意事项：
+# - HS256 签名，密钥 super86 持有，我们没有，无法本地验签
+# - 解决方案：调 super86 的 /game-proxy/user/token/check 远程验
+# - exp = 1783322450 (秒级), 大约比当前时间晚 1 周
+# - id = "11327156" 玩家平台 id (这是我们写到 games.user_id 的字段)
+# - kolUserId = "11012184" 推广员 id
+# - appId = "121" 应该是 super86 给我们 giant2048 分配的 app id
+# - domain = "super86.cc" 上游平台域名
+
+# query 参数:
+# - token: 上面的长 JWT
+# - cid: 客户端会话 id (与 JWT 内的 cid 字段一致)
+# - language: 语言
+
+# 当前 game 端解析：（V1 已写但 token 是 super86 的，验不过我们自己的密钥）
+# - GameScene.create() 解 ?token= → setGameToken() → initBackend() → /game/game/init
+# - 但是 verifyGameToken() 用的是我们 GAME_JWT_SECRET, super86 的签名验不过 → 401
+
+# V2 解决方案:
+# - 前端把 super86 token 通过 POST /game/auth/login 发给我们后端
+# - 后端调 super86 /game-proxy/user/token/check 远程验
+# - 验通过 → 我们后端 upsert users + 签内部短 token → 返给前端
+# - 前端用内部短 token 后续调 /game/*

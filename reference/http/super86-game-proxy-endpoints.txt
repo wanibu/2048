@@ -1,0 +1,27 @@
+super86 提供给我们（游戏供应商）调用的 8 个接口
+================================================
+基础域名（推测，待确认）：https://game-center.pwtk.cc
+
+POST /game-proxy/user/token/check          ← 用户 token 校验   ⭐⭐⭐ 最关键，V2 必须调
+POST /game-proxy/user/balance               ← 获取用户余额
+POST /game-proxy/user/score/change          ← 用户积分变更（结算扣分/加分）
+POST /game-proxy/user/game/exit             ← 用户退出游戏
+POST /game-proxy/user/game/trace            ← 用户开启游戏回调（开局通知）
+POST /game-proxy/a0/list                    ← A0 列表（KOL/代理列表？）
+POST /game-proxy/id/generate                ← 获取分布式 id
+POST /game-proxy/user/score/getOrderDetail  ← 订单状态查询
+
+⚠️ 当前没拿到完整接口文档（请求/响应字段、鉴权方式、错误码示例）。
+   回家务必先找 super86 拿完整 API doc，否则 V2 实现会瞎猜接口字段。
+
+业务逻辑预期（推测）：
+- /user/token/check：我们前端把 super86 token 透传给我们后端，我们后端用此接口验证
+- /user/balance：玩家余额（如果 2048 要计费才用）
+- /user/score/change：玩家积分变更（如果 2048 要消耗/给予 super86 积分才用）
+- /user/game/trace：玩家开始一局时通知 super86（trace = 上报）
+- /user/game/exit：玩家退出时通知 super86
+
+集成必要性（待你回答）：
+1. 2048 是免费玩还是要扣 super86 积分？     → 决定 balance/score 接不接
+2. 开局/结束 super86 那边要不要通知？        → 决定 trace/exit 接不接
+3. 我们生成的 game_id 要不要用 id/generate？  → 决定 id 接不接
