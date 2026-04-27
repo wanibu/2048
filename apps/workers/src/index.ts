@@ -1146,6 +1146,38 @@ admin.delete('/sequence-plans/:id', async (c) => {
 });
 
 // ---- Generated Sequences（已分页） ----
+// 检测 sequence_name 在该 plan 下是否已存在；返回 null 表示可用，否则返回错误字符串
+async function checkSequenceNameAvailable(
+  db: D1Database,
+  planId: string,
+  name: string,
+  excludeId?: string,
+): Promise<string | null> {
+  if (!name || name.trim() === '') return 'Name is required';
+  let row: Record<string, unknown> | null;
+  if (excludeId) {
+    row = await db.prepare(
+      'SELECT id FROM generated_sequences WHERE sequence_plan_id = ? AND sequence_name = ? AND id != ? LIMIT 1'
+    ).bind(planId, name, excludeId).first() as Record<string, unknown> | null;
+  } else {
+    row = await db.prepare(
+      'SELECT id FROM generated_sequences WHERE sequence_plan_id = ? AND sequence_name = ? LIMIT 1'
+    ).bind(planId, name).first() as Record<string, unknown> | null;
+  }
+  if (row) return 'Name already exists in this plan';
+  return null;
+}
+
+// GET /api/admin/generated-sequences/check-name?plan_id=X&name=Y&exclude_id=Z
+admin.get('/generated-sequences/check-name', async (c) => {
+  const planId = c.req.query('plan_id') || '';
+  const name = c.req.query('name') || '';
+  const excludeId = c.req.query('exclude_id') || undefined;
+  if (!planId) return c.json({ available: false, reason: 'Missing plan_id' }, 400);
+  const reason = await checkSequenceNameAvailable(c.env.DB, planId, name, excludeId);
+  return c.json({ available: reason === null, reason });
+});
+
 admin.post('/generate-sequence', async (c) => {
   const { sequence_plan_id, count, sequence_name, sequence_note } = await c.req.json<{
     sequence_plan_id: string;
@@ -1175,7 +1207,7 @@ admin.post('/generate-sequence', async (c) => {
     probabilities: s.probabilities as string,
   }));
 
-  // 查 plan name，用于默认 sequence_name 自动生成（{plan_name}_seq_{uuid}）
+  // 查 plan name，用于默认 sequence_name 自动生成
   const planRow = await db.prepare(
     'SELECT name FROM sequence_plans WHERE id = ?'
   ).bind(sequence_plan_id).first() as Record<string, unknown> | null;
@@ -1185,21 +1217,40 @@ admin.post('/generate-sequence', async (c) => {
   const seqNote = sequence_note ?? '';
   const generated = [];
 
+  // 用户传了 sequence_name：必须非空 + 同 plan 下不重名（且若 generateCount > 1，第 2 条起会冲）
+  if (sequence_name !== undefined) {
+    if (!sequence_name || sequence_name.trim() === '') {
+      return c.json({ error: 'Name is required' }, 400);
+    }
+    if (generateCount > 1) {
+      return c.json({ error: 'Cannot create multiple sequences with the same name' }, 400);
+    }
+    const reason = await checkSequenceNameAvailable(db, sequence_plan_id, sequence_name);
+    if (reason) return c.json({ error: reason }, 400);
+  }
+
   for (let i = 0; i < generateCount; i++) {
     const sequence = await generateSequenceFromPlan(planStages);
     const seqId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    // 每条序列单独决定 sequence_name：
-    //   - 未传（undefined）→ 自动生成 {plan_name}_seq_{uuid}
-    //   - 传了空字符串 ""  → 保留为空（用户主动清空）
-    //   - 传了非空字符串    → 用用户传的
+    // sequence_name 决策：
+    //   - 用户传了 → 用用户的（已校验非空 + 不重名）
+    //   - 未传 → 自动生成 {plan_name}_seq_{12位 uuid}，最多重试 3 次防碰撞
     let finalName: string;
-    if (sequence_name === undefined) {
-      // UUID 取前 12 位即可（碰撞概率极低，admin 列展示更紧凑）
-      finalName = `${planName}_seq_${crypto.randomUUID().slice(0, 12)}`;
-    } else {
+    if (sequence_name !== undefined) {
       finalName = sequence_name;
+    } else {
+      let attempt = 0;
+      do {
+        finalName = `${planName}_seq_${crypto.randomUUID().slice(0, 12)}`;
+        const reason = await checkSequenceNameAvailable(db, sequence_plan_id, finalName);
+        if (!reason) break;
+        attempt++;
+      } while (attempt < 3);
+      if (attempt >= 3) {
+        return c.json({ error: 'Failed to generate unique name after 3 attempts' }, 500);
+      }
     }
 
     await db.prepare(
@@ -1266,6 +1317,20 @@ admin.get('/generated-sequences/:id', async (c) => {
 admin.put('/generated-sequences/:id', async (c) => {
   const seqId = c.req.param('id');
   const body = await c.req.json<{ status?: string; sequence_name?: string; sequence_note?: string }>();
+  const db = c.env.DB;
+
+  // 校验 sequence_name：必填 + 同 plan 下不重名（排除自己）
+  if (body.sequence_name !== undefined) {
+    if (!body.sequence_name || body.sequence_name.trim() === '') {
+      return c.json({ error: 'Name is required' }, 400);
+    }
+    const seqRow = await db.prepare(
+      'SELECT sequence_plan_id FROM generated_sequences WHERE id = ?'
+    ).bind(seqId).first() as Record<string, unknown> | null;
+    if (!seqRow) return c.json({ error: 'Sequence not found' }, 404);
+    const reason = await checkSequenceNameAvailable(db, seqRow.sequence_plan_id as string, body.sequence_name, seqId);
+    if (reason) return c.json({ error: reason }, 400);
+  }
 
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -1292,7 +1357,7 @@ admin.put('/generated-sequences/:id', async (c) => {
   params.push(new Date().toISOString());
   params.push(seqId);
 
-  await c.env.DB.prepare(
+  await db.prepare(
     `UPDATE generated_sequences SET ${sets.join(', ')} WHERE id = ?`
   ).bind(...params).run();
   return c.json({ success: true });

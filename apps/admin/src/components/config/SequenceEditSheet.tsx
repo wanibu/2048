@@ -54,6 +54,9 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  // name 校验状态：'idle' / 'checking' / 'ok' / 'error'
+  const [nameCheckState, setNameCheckState] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle');
+  const [nameError, setNameError] = useState<string>('');
 
   useEffect(() => {
     if (!open) return;
@@ -69,17 +72,61 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
     setStatus(sequence.status);
     setName(sequence.sequence_name ?? '');
     setNote(sequence.sequence_note ?? '');
+    setNameCheckState('idle');
+    setNameError('');
   }, [sequence]);
+
+  // name 实时校验：debounce 300ms
+  useEffect(() => {
+    if (!sequence) return;
+    const trimmed = name.trim();
+    // 必填校验（前端先报）
+    if (!trimmed) {
+      setNameCheckState('error');
+      setNameError('系列名称不能为空');
+      return;
+    }
+    // 与原值相同 → 不重名（自己排除）
+    if (trimmed === (sequence.sequence_name ?? '')) {
+      setNameCheckState('ok');
+      setNameError('');
+      return;
+    }
+    setNameCheckState('checking');
+    setNameError('');
+    const timer = setTimeout(() => {
+      void api<{ available: boolean; reason?: string }>(
+        `/api/admin/generated-sequences/check-name?plan_id=${encodeURIComponent(sequence.sequence_plan_id)}&name=${encodeURIComponent(trimmed)}&exclude_id=${encodeURIComponent(sequence.id)}`,
+      )
+        .then((res) => {
+          if (res.available) {
+            setNameCheckState('ok');
+            setNameError('');
+          } else {
+            setNameCheckState('error');
+            setNameError(res.reason || '名称不可用');
+          }
+        })
+        .catch(() => {
+          setNameCheckState('idle');
+        });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [name, sequence]);
 
   if (!open || !sequence) return null;
 
   async function handleSave() {
     if (!sequence) return;
+    if (nameCheckState !== 'ok') {
+      toast.error(nameError || '请先填写有效的系列名称');
+      return;
+    }
     try {
       setSaving(true);
       await api(`/api/admin/generated-sequences/${sequence.id}`, {
         method: 'PUT',
-        body: { status, sequence_name: name, sequence_note: note },
+        body: { status, sequence_name: name.trim(), sequence_note: note },
       });
       toast.success('已保存');
       onSaved();
@@ -171,14 +218,22 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
                 </div>
               </div>
               <div>
-                <div style={LABEL_STYLE}>系列名称</div>
+                <div style={LABEL_STYLE}>系列名称 <span style={{ color: '#c8343a' }}>*</span></div>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="如：标准节奏 A1"
-                  style={INPUT_STYLE}
+                  placeholder="必填，且同 Plan 下不能重名"
+                  style={{
+                    ...INPUT_STYLE,
+                    borderColor: nameCheckState === 'error' ? '#c8343a' : nameCheckState === 'ok' ? '#1f8a47' : '#e6e6ec',
+                  }}
                 />
+                <div style={{ marginTop: 4, fontSize: '0.6875rem', minHeight: 16 }}>
+                  {nameCheckState === 'checking' && <span style={{ color: '#9b9ba6' }}>检查中…</span>}
+                  {nameCheckState === 'error' && <span style={{ color: '#c8343a' }}>{nameError}</span>}
+                  {nameCheckState === 'ok' && <span style={{ color: '#1f8a47' }}>✓ 可用</span>}
+                </div>
               </div>
               <div>
                 <div style={LABEL_STYLE}>备注</div>
@@ -232,7 +287,16 @@ export function SequenceEditSheet({ open, sequence, onClose, onSaved }: Sequence
               <button type="button" onClick={onClose} style={SECONDARY_BTN}>
                 取消
               </button>
-              <button type="button" onClick={() => void handleSave()} disabled={saving} style={{ ...PRIMARY_BTN, opacity: saving ? 0.6 : 1, cursor: saving ? 'wait' : 'pointer' }}>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving || nameCheckState !== 'ok'}
+                style={{
+                  ...PRIMARY_BTN,
+                  opacity: (saving || nameCheckState !== 'ok') ? 0.5 : 1,
+                  cursor: (saving || nameCheckState !== 'ok') ? 'not-allowed' : 'pointer',
+                }}
+              >
                 保存
               </button>
             </div>
