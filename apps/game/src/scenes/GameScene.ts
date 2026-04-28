@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, STONE_VALUE, SLING_DISPLAY_X, SLING_DISPLAY_Y, SLING_DISPLAY_HEIGHT, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, STONE_VALUE, SLING_DISPLAY_X, SLING_DISPLAY_Y, SLING_DISPLAY_HEIGHT, SHOW_HIT_AREA_DEBUG, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
@@ -53,9 +53,7 @@ export class GameScene extends Phaser.Scene {
   private static readonly SLING_PROMOTION_DELAY_MS = 150;
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
   private readonly debugDisableButtonActions = false;
-  // 调试按钮 hit-area 可视化（home/restart/play/sound/pause/rotate 的彩色边框 + zone debug 矩形）
-  // 之前 = import.meta.env.DEV 本地自动开；现在改成 false 默认隐藏，需要调试再改回 import.meta.env.DEV
-  private readonly showButtonHitAreaDebug = false;
+  // 调试按钮 hit-area 可视化由全局 SHOW_HIT_AREA_DEBUG（localStorage 开关）控制。
   // 分阶段调试：只渲染 PlayBackground，跳过 Girl / 棋盘 / 分数 / 按钮 / tray 等所有其他 UI
   private readonly debugBackgroundOnly = false;
   // Scene 是 Phaser 的主要工作单元。
@@ -124,7 +122,7 @@ export class GameScene extends Phaser.Scene {
     image: Phaser.GameObjects.Image,
     color: number,
   ): void {
-    if (!this.showButtonHitAreaDebug) return;
+    if (!SHOW_HIT_AREA_DEBUG) return;
     const debugRect = this.add.rectangle(
       image.x,
       image.y,
@@ -153,7 +151,7 @@ export class GameScene extends Phaser.Scene {
     zone.setOrigin(0.5, 0.5);
     zone.setInteractive({ useHandCursor: true });
 
-    if (this.showButtonHitAreaDebug) {
+    if (SHOW_HIT_AREA_DEBUG) {
       const debugRect = this.add.rectangle(x, y, width, height);
       debugRect.setOrigin(0.5, 0.5);
       debugRect.setStrokeStyle(2, color, 0.95);
@@ -1478,7 +1476,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    const showBbox = this.debugPanel?.isBoundingBoxVisible() ?? false;
+    const showBbox = SHOW_HIT_AREA_DEBUG || (this.debugPanel?.isBoundingBoxVisible() ?? false);
 
     cells.forEach(({ row, col }) => {
       const { x, y } = this.grid.localCellToPixel(row, col);

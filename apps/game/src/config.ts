@@ -1,8 +1,21 @@
 // Game dimensions (matching original Construct 3 project: 640x960)
 export const GAME_WIDTH = 640;
 export const GAME_HEIGHT = 960;
-// 桌面宽屏模式下 canvas 的 CSS 显示宽高比（width/height）
-export const DESKTOP_ASPECT_RATIO = 0.462;
+
+// 全局 hit-area / sprite-bbox debug 边框开关。
+// localStorage.setItem('giant2048:show_hit_area_debug', '1') 打开；removeItem 关闭。
+function readHitAreaDebugFlag(): boolean {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    const v = window.localStorage.getItem('giant2048:show_hit_area_debug');
+    return v === '1' || v === 'true';
+  } catch {
+    return false;
+  }
+}
+export const SHOW_HIT_AREA_DEBUG = readHitAreaDebugFlag();
+// 桌面宽屏模式下 canvas 的 CSS 显示宽高比（width/height）—— 对齐 414×845 视口
+export const DESKTOP_ASPECT_RATIO = 414 / 845;
 
 export const PLAY_BACKGROUND_DISPLAY_WIDTH = 958;
 export const PLAY_BACKGROUND_DISPLAY_HEIGHT = 1630;

@@ -6,6 +6,7 @@ import {
   LayoutConfig, SELECTED_LINE_DISPLAY_HEIGHT, SELECTED_LINE_DISPLAY_WIDTH, SELECTED_LINE_DISPLAY_Y,
   NEXT_PREVIEW_DEPTH, NEXT_PREVIEW_SIZE, NEXT_PREVIEW_X, NEXT_PREVIEW_Y,
   SLING_DISPLAY_HEIGHT, SLING_DISPLAY_WIDTH, SLING_DISPLAY_X, SLING_DISPLAY_Y,
+  SHOW_HIT_AREA_DEBUG,
 } from '../config';
 import { Grid } from './Grid';
 import { Shape } from './Shape';
@@ -89,22 +90,22 @@ export class Sling {
     this.slingSprite.setDisplaySize(SLING_DISPLAY_WIDTH, this.slingH);
     this.slingSprite.setDepth(50);
 
-    // Dev 模式可视化点击区域边框（绿色 #52C41A）。已隐藏；需要调试时把 if 条件改成 import.meta.env.DEV
-    // if (import.meta.env.DEV) {
-    //   const leftEdge = layout.gridOffsetX;
-    //   const rightEdge = layout.gridOffsetX + GRID_COLS * layout.cellSize;
-    //   const slingHitCenterY = this.slingY - this.slingH / 2;
-    //   const topY = slingHitCenterY - layout.cellSize * 1.5;
-    //   const bottomY = slingHitCenterY + layout.cellSize * 1.5;
-    //   const w = rightEdge - leftEdge;
-    //   const h = bottomY - topY;
-    //   const cx = (leftEdge + rightEdge) / 2;
-    //   const cy = (topY + bottomY) / 2;
-    //   const debugRect = scene.add.rectangle(cx, cy, w, h);
-    //   debugRect.setStrokeStyle(2, 0x52c41a, 0.95);
-    //   debugRect.setFillStyle(0x52c41a, 0.10);
-    //   debugRect.setDepth(9990);
-    // }
+    // 弹弓拖拽点击区域边框（绿色 #52C41A），由 localStorage 开关 SHOW_HIT_AREA_DEBUG 控制。
+    if (SHOW_HIT_AREA_DEBUG) {
+      const leftEdge = layout.gridOffsetX;
+      const rightEdge = layout.gridOffsetX + GRID_COLS * layout.cellSize;
+      const slingHitCenterY = this.slingY - this.slingH / 2;
+      const topY = slingHitCenterY - layout.cellSize * 1.5;
+      const bottomY = slingHitCenterY + layout.cellSize * 1.5;
+      const w = rightEdge - leftEdge;
+      const h = bottomY - topY;
+      const cx = (leftEdge + rightEdge) / 2;
+      const cy = (topY + bottomY) / 2;
+      const debugRect = scene.add.rectangle(cx, cy, w, h);
+      debugRect.setStrokeStyle(2, 0x52c41a, 0.95);
+      debugRect.setFillStyle(0x52c41a, 0.10);
+      debugRect.setDepth(9990);
+    }
 
     // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
     this.setupInput();

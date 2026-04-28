@@ -22,7 +22,7 @@ export class GameUiObjects {
   readonly soundBtn: Phaser.GameObjects.Image;
   readonly rotateArrowL: Phaser.GameObjects.Image;
   readonly rotateArrowR: Phaser.GameObjects.Image;
-  readonly trayHeight = 234;
+  readonly trayHeight = 374;
 
   constructor(scene: Phaser.Scene, w: number, h: number) {
     this.createBackground(scene);
@@ -52,7 +52,7 @@ export class GameUiObjects {
     if (!tex.has('panel-default')) {
       tex.add('panel-default', 0, 770, 736, 1024, 273);
     }
-    const tray = scene.add.image(320, 1171, 'shared0-orig', 'panel-default');
+    const tray = scene.add.image(320, 1238, 'shared0-orig', 'panel-default');
     tray.setOrigin(0.5, 1);
     tray.setDisplaySize(837, this.trayHeight);
     tray.setDepth(70);

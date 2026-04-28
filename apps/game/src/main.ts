@@ -7,7 +7,9 @@ import { GameScene } from './scenes/GameScene';
 const deviceAspect = window.innerWidth / window.innerHeight;
 const designAspect = GAME_WIDTH / GAME_HEIGHT;
 const isDesktopWide = deviceAspect > designAspect;
-// 桌面宽屏按 DESKTOP_ASPECT_RATIO 模拟手机竖屏视口；移动端/窄屏仍按 C3 fullscreen scale-outer 扩展高度。
+// 桌面宽屏：内部 canvas 固定 414/845 比例，CSS letterbox 到视口。
+// 移动端：canvas DOM 维持 100% 视口（无 body letterbox），内部 canvas 跟随 deviceAspect 不变形；
+//        游戏内容由各 Scene 把 camera viewport 限定到 414/845 子矩形（多出来在 canvas 内部留白）。
 const internalW = GAME_WIDTH;
 const internalH = isDesktopWide ? Math.round(GAME_WIDTH / DESKTOP_ASPECT_RATIO) : Math.round(GAME_WIDTH / deviceAspect);
 
@@ -42,7 +44,7 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 /**
- * 移动端 canvas 全屏；桌面宽屏时用 640:960 的手机窗口居中显示。
+ * 移动端 canvas 全屏；桌面宽屏时用 414/845 的手机窗口居中显示。
  */
 function updateCanvasSize(game: Phaser.Game): void {
   const canvas = game.canvas;
