@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_
 import { Grid } from '../objects/Grid';
 import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
+import { TopLeftHud } from '../objects/TopLeftHud';
 import { Sling } from '../objects/Sling';
 import { Shape } from '../objects/Shape';
 import { Border } from '../objects/Border';
@@ -15,10 +16,6 @@ import { HUD } from '../ui/HUD';
 import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY, SavedSnapshot } from '../debug/DebugPanel';
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
-const SCORE_DIGITS_X = 90;
-const SCORE_DIGITS_Y = -103;
-const TOP_SCORE_DIGITS_X = 90;
-const TOP_SCORE_DIGITS_Y = -43;
 
 type OriginalMergeTwinkleFrame = {
   textureKey: 'mergeeffect-full' | 'mergeeffect-full-1' | 'mergeeffect-full-2';
@@ -72,8 +69,7 @@ export class GameScene extends Phaser.Scene {
   private recorder: ActionRecorder | null = null;
   private hud!: HUD;
   private layout!: LayoutConfig;
-  private scoreDigits: Phaser.GameObjects.Image[] = [];
-  private topScoreDigits: Phaser.GameObjects.Image[] = [];
+  private topLeftHud!: TopLeftHud;
   private isRotating: boolean = false;
   private isResolvingTurn: boolean = false;
   private isGameOver: boolean = false;
@@ -378,52 +374,9 @@ export class GameScene extends Phaser.Scene {
       this.sound.mute = !soundOn;
     });
 
-    // ===== 注册白色数字精灵帧（shared-0-sheet1.png）=====
-    const texDigits = this.textures.get('shared1');
-    const whiteDigitCoords = [
-      { x: 260, y: 1666 }, // 0
-      { x: 316, y: 1666 }, // 1
-      { x: 378, y: 1666 }, // 2
-      { x: 436, y: 1666 }, // 3
-      { x: 495, y: 1666 }, // 4
-      { x: 555, y: 1666 }, // 5
-      { x: 615, y: 1666 }, // 6
-      { x: 675, y: 1666 }, // 7
-      { x: 732, y: 1666 }, // 8
-      { x: 793, y: 1666 }, // 9
-    ];
-    for (let d = 0; d <= 9; d++) {
-      const key = `white-${d}`;
-      if (!texDigits.has(key)) {
-        texDigits.add(key, 0, whiteDigitCoords[d].x, whiteDigitCoords[d].y, 45, 60);
-      }
-    }
-
-    // 用精灵数字渲染一个数字的函数
-    const renderSpriteNumber = (num: number, startX: number, startY: number, depth: number): Phaser.GameObjects.Image[] => {
-      const digits = String(num).split('');
-      const images: Phaser.GameObjects.Image[] = [];
-      digits.forEach((d, i) => {
-        const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
-        img.setScale(0.65);
-        img.setDepth(depth);
-        images.push(img);
-      });
-      return images;
-    };
-
-    // 更新精灵数字的函数
-    const updateSpriteNumber = (images: Phaser.GameObjects.Image[], num: number, startX: number, startY: number, depth: number): Phaser.GameObjects.Image[] => {
-      images.forEach(img => img.destroy());
-      return renderSpriteNumber(num, startX, startY, depth);
-    };
-
-    // ===== 左上角：星星 + 分数 / 皇冠 + 最高分 =====
-    // Star / Crown sprite 已由 debug 段按 data.json 坐标创建（StarUI (44,38), CrownUI (44,98)）。
-    // 这里只渲染旁边的白色数字精灵。
-    this.scoreDigits = renderSpriteNumber(0, SCORE_DIGITS_X, SCORE_DIGITS_Y, 100);
-    const savedScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
-    this.topScoreDigits = renderSpriteNumber(savedScore, TOP_SCORE_DIGITS_X, TOP_SCORE_DIGITS_Y, 100);
+    // ===== 左上角 HUD：圆形头像 + 昵称 + 余额 + ⭐ 关卡分数 + 🥮 历史最高分 =====
+    // 全部装在一个 Container 里，调 TopLeftHud 顶部的 HUD_OFFSET_X/Y 整组移动。
+    this.topLeftHud = new TopLeftHud(this);
 
     this.layout = layout;
     // 操作记录器：和后端通信，每步操作发给后端验证（DEBUG 模式下不创建）
@@ -450,15 +403,16 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数：?token=<gameToken: super86 长 JWT>，?mode=3m/5m/10m 限时模式
+    // 解析 URL 参数：?token=<gameToken: super86 长 JWT>
+    // ?mode=3m/5m/10m 仅作 plan mode 的强制覆盖（测试用）；正常情况下 modeMs 由 /game/game/init 返回
     const urlParams = new URLSearchParams(window.location.search);
     const gameToken = urlParams.get('token') || '';
     const modeRaw = (urlParams.get('mode') || '').trim().toLowerCase();
     const modeMap: Record<string, number> = { '3m': 3 * 60_000, '5m': 5 * 60_000, '10m': 10 * 60_000 };
-    this.modeMs = modeMap[modeRaw] ?? 0;
-    if (this.modeMs > 0) {
-      console.log(`[GameScene] 限时模式 mode=${modeRaw} (${this.modeMs / 60_000} 分钟)`);
-      // 隐藏暂停按钮：限时模式不让玩家暂停打断计时（对应 Q1=B）
+    const urlOverrideMs = modeMap[modeRaw] ?? 0;
+    if (urlOverrideMs > 0) {
+      this.modeMs = urlOverrideMs;
+      console.log(`[GameScene] URL 强制限时模式 mode=${modeRaw} (${this.modeMs / 60_000} 分钟)`);
       this.pauseBtn.setVisible(false);
     }
 
@@ -469,28 +423,27 @@ export class GameScene extends Phaser.Scene {
       console.warn('[GameScene] 未带 token 参数，无法进入游戏 — 上游平台需要 redirect 带 ?token=<gameToken>');
     } else {
       void this.exchangeAndInit(gameToken).then(() => {
+        // URL 没有强制覆盖时，用后端 init 返回的 plan modeMs
+        if (urlOverrideMs <= 0 && this.recorder) {
+          const planMs = this.recorder.getModeMs();
+          if (planMs > 0) {
+            this.modeMs = planMs;
+            console.log(`[GameScene] plan 限时模式 modeMs=${planMs} (${planMs / 60_000} 分钟)`);
+            this.pauseBtn.setVisible(false);
+          }
+        }
         if (this.modeMs > 0) this.startCountdown();
       });
     }
-
-    this.refreshScoreSprites(updateSpriteNumber);
 
     console.log('[GameScene] create done');
     this.printGrid('初始棋盘');
   }
 
-  private refreshScoreSprites(
-    updater: (
-      images: Phaser.GameObjects.Image[],
-      num: number,
-      startX: number,
-      startY: number,
-      depth: number
-    ) => Phaser.GameObjects.Image[],
-  ): void {
-    this.scoreDigits = updater(this.scoreDigits, this.hud.getScore(), SCORE_DIGITS_X, SCORE_DIGITS_Y, 100);
-    const topScore = parseInt(localStorage.getItem('giant2048_topscore') || '0');
-    this.topScoreDigits = updater(this.topScoreDigits, topScore, TOP_SCORE_DIGITS_X, TOP_SCORE_DIGITS_Y, 100);
+  private refreshScoreSprites(): void {
+    this.topLeftHud.setScore(this.hud.getScore());
+    const topScore = parseInt(localStorage.getItem('giant2048_topscore') || '0') || 0;
+    this.topLeftHud.setTopScore(topScore);
   }
 
   private scoreReportTimer: ReturnType<typeof setTimeout> | null = null;
@@ -499,16 +452,7 @@ export class GameScene extends Phaser.Scene {
     const before = this.hud.getScore();
     console.log(`[score] +${points}, ${before} → ${before + points}`);
     this.hud.addScore(points);
-    this.refreshScoreSprites((images, num, startX, startY, depth) => {
-      images.forEach(img => img.destroy());
-      const digits = String(num).split('');
-      return digits.map((d, i) => {
-        const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
-        img.setScale(0.65);
-        img.setDepth(depth);
-        return img;
-      });
-    });
+    this.refreshScoreSprites();
     this.debugPanel?.logScoreEvent(`+${points} → 总分 ${this.hud.getScore()}`);
     this.scheduleScoreReport();
   }
@@ -604,16 +548,7 @@ export class GameScene extends Phaser.Scene {
       // 恢复分数
       if (state.score > 0) {
         this.hud.setScore(state.score);
-        this.refreshScoreSprites((images, num, startX, startY, depth) => {
-          images.forEach(img => img.destroy());
-          const digits = String(num).split('');
-          return digits.map((d, i) => {
-            const img = this.add.image(startX + i * 28, startY, 'shared1', `white-${d}`);
-            img.setScale(0.65);
-            img.setDepth(depth);
-            return img;
-          });
-        });
+        this.refreshScoreSprites();
       }
 
       // 注意：resize 恢复后后端状态已丢失，需要重新开局
@@ -639,7 +574,7 @@ export class GameScene extends Phaser.Scene {
       const { token: internalToken, user, super86Verified } = await authLogin(gameToken);
       console.log(`[GameScene] auth/login OK userId=${user.userId} kol=${user.kolUserId} platform=${user.platformId} verified=${super86Verified} score=${user.score}`);
       setGameToken(internalToken);
-      this.gameUi.applyUserInfo(this, {
+      this.topLeftHud.applyUserInfo({
         avatar: user.avatar,
         nickname: user.nickname,
         score: user.score,

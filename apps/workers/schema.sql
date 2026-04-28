@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS sequence_plans (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   description TEXT NOT NULL DEFAULT '',
+  -- 游戏时长（毫秒），0 = 不限时；3m=180000, 5m=300000, 10m=600000
+  mode_ms INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

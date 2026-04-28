@@ -10,6 +10,7 @@ export class ActionRecorder {
   private sequencePlanId: string = '';
   private generatedSequenceId: string = '';
   private actionsCount: number = 0;
+  private modeMs: number = 0;
 
   public tokenQueue: TokenQueue = new TokenQueue();
 
@@ -27,6 +28,7 @@ export class ActionRecorder {
     this.sequencePlanId = result.sequencePlanId;
     this.generatedSequenceId = result.generatedSequenceId;
     this.actionsCount = 0;
+    this.modeMs = result.modeMs ?? 0;
 
     this.tokenQueue.init(this.gameId, result.tokens);
     this.ready = true;
@@ -132,4 +134,5 @@ export class ActionRecorder {
 
   getGameId(): string { return this.gameId; }
   getSign(): string { return this.currentSign; }
+  getModeMs(): number { return this.modeMs; }
 }

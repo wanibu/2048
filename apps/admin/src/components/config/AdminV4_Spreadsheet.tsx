@@ -25,8 +25,16 @@ interface EditorPlan {
   id?: string;
   name: string;
   description: string;
+  modeMs: number; // 0=不限时；180000=3m；300000=5m；600000=10m
   stages: EditorStage[];
 }
+
+const MODE_OPTIONS: { label: string; value: number }[] = [
+  { label: '不限时', value: 0 },
+  { label: '3 分钟', value: 180_000 },
+  { label: '5 分钟', value: 300_000 },
+  { label: '10 分钟', value: 600_000 },
+];
 
 const primaryBtn: CSSProperties = {
   padding: '9px 20px',
@@ -112,6 +120,7 @@ function toEditorPlan(initialPlan: Plan | null, mode: 'new' | 'edit'): EditorPla
     return {
       name: '',
       description: '',
+      modeMs: 0,
       stages: [
         {
           id: 'new_1',
@@ -127,6 +136,7 @@ function toEditorPlan(initialPlan: Plan | null, mode: 'new' | 'edit'): EditorPla
     id: initialPlan.id,
     name: initialPlan.name,
     description: initialPlan.description,
+    modeMs: initialPlan.mode_ms ?? 0,
     stages: initialPlan.stages.map((stage) => ({
       id: stage.id,
       name: stage.name,
@@ -188,9 +198,10 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
   async function handleSave() {
     if (hasNameError || saving) return;
 
-    const payload: { name: string; description: string; stages: InlineStageInput[] } = {
+    const payload: { name: string; description: string; mode_ms: number; stages: InlineStageInput[] } = {
       name: plan.name.trim(),
       description: plan.description.trim(),
+      mode_ms: plan.modeMs,
       stages: plan.stages.map((stage, index) => ({
         name: stage.name.trim() || `Stage ${index + 1}`,
         length: stage.length,
@@ -229,6 +240,18 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
             placeholder="备注（可选）"
             style={{ border: 'none', outline: 'none', fontSize: '0.8125rem', color: '#6a6a74', flex: 1, fontFamily: 'inherit', minWidth: 0 }}
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.5 }}>时长</span>
+            <select
+              value={plan.modeMs}
+              onChange={(event) => setPlan((current) => ({ ...current, modeMs: Number(event.target.value) }))}
+              style={{ padding: '6px 10px', border: '1px solid #e6e6ec', borderRadius: 6, fontSize: '0.75rem', background: '#fff', fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              {MODE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
           <div style={{ fontSize: '0.75rem', color: '#8a8a94' }}>
             总长度 <b style={{ color: '#2a2a33' }}>{totalLength}</b>
           </div>

@@ -10,6 +10,7 @@ interface InitGameResponse {
   sequencePlanId: string;
   generatedSequenceId: string;
   sign: string;
+  modeMs: number; // 0 = 不限时；> 0 = 倒计时毫秒
 }
 
 interface UserInfo {

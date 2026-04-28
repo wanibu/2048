@@ -733,8 +733,14 @@ game.post('/game/init', async (c) => {
     sequencePlanId, generatedSequenceId, newIndex, '', '', now, now,
   ).run();
 
-  console.log(`[game-init] ✓ gameId=${gameId} user=${u.userId} platform=${u.platformId} initialTokens=${JSON.stringify(tokens)}`);
-  return c.json({ gameId, tokens, sequencePlanId, generatedSequenceId, sign });
+  // 5. 取该 plan 的时长设置（mode_ms），让前端启动倒计时
+  const plan = await db.prepare(
+    'SELECT mode_ms FROM sequence_plans WHERE id = ?'
+  ).bind(sequencePlanId).first() as Record<string, unknown> | null;
+  const modeMs = (plan?.mode_ms as number) ?? 0;
+
+  console.log(`[game-init] ✓ gameId=${gameId} user=${u.userId} platform=${u.platformId} modeMs=${modeMs} initialTokens=${JSON.stringify(tokens)}`);
+  return c.json({ gameId, tokens, sequencePlanId, generatedSequenceId, sign, modeMs });
 });
 
 // /game/2048/next-token
@@ -1371,22 +1377,29 @@ function validateInlineStages(stages: InlineStageInput[]): string | null {
   return null;
 }
 
+// 允许的 mode_ms 值（毫秒）：0 不限时 / 180000=3m / 300000=5m / 600000=10m
+const ALLOWED_MODE_MS = new Set([0, 180_000, 300_000, 600_000]);
+
 admin.post('/sequence-plans', async (c) => {
-  const { name, description, stages } = await c.req.json<{
-    name: string; description?: string;
+  const { name, description, mode_ms, stages } = await c.req.json<{
+    name: string; description?: string; mode_ms?: number;
     stages: InlineStageInput[];
   }>();
   if (!name) return c.json({ error: 'Missing field: name' }, 400);
   const err = validateInlineStages(stages);
   if (err) return c.json({ error: err }, 400);
+  const modeMs = Number(mode_ms ?? 0);
+  if (!ALLOWED_MODE_MS.has(modeMs)) {
+    return c.json({ error: 'mode_ms must be 0 / 180000 / 300000 / 600000' }, 400);
+  }
 
   const planId = crypto.randomUUID();
   const now = new Date().toISOString();
   const db = c.env.DB;
 
   await db.prepare(
-    'INSERT INTO sequence_plans (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
-  ).bind(planId, name, description || '', now, now).run();
+    'INSERT INTO sequence_plans (id, name, description, mode_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(planId, name, description || '', modeMs, now, now).run();
 
   for (const s of stages) {
     const stageId = crypto.randomUUID();
@@ -1396,7 +1409,7 @@ admin.post('/sequence-plans', async (c) => {
     ).bind(stageId, planId, s.stage_order, s.name, s.length, JSON.stringify(s.probabilities), now, now).run();
   }
 
-  return c.json({ id: planId, name, description: description || '', stages });
+  return c.json({ id: planId, name, description: description || '', mode_ms: modeMs, stages });
 });
 
 admin.get('/sequence-plans', async (c) => {
@@ -1464,8 +1477,8 @@ admin.get('/sequence-plans/:id', async (c) => {
 
 admin.put('/sequence-plans/:id', async (c) => {
   const planId = c.req.param('id');
-  const { name, description, stages } = await c.req.json<{
-    name?: string; description?: string;
+  const { name, description, mode_ms, stages } = await c.req.json<{
+    name?: string; description?: string; mode_ms?: number;
     stages?: InlineStageInput[];
   }>();
   const db = c.env.DB;
@@ -1483,12 +1496,22 @@ admin.put('/sequence-plans/:id', async (c) => {
     return c.json({ error: 'Name cannot be empty' }, 400);
   }
 
+  let nextModeMs = existing.mode_ms as number ?? 0;
+  if (mode_ms !== undefined) {
+    const m = Number(mode_ms);
+    if (!ALLOWED_MODE_MS.has(m)) {
+      return c.json({ error: 'mode_ms must be 0 / 180000 / 300000 / 600000' }, 400);
+    }
+    nextModeMs = m;
+  }
+
   const now = new Date().toISOString();
   await db.prepare(
-    'UPDATE sequence_plans SET name = ?, description = ?, updated_at = ? WHERE id = ?'
+    'UPDATE sequence_plans SET name = ?, description = ?, mode_ms = ?, updated_at = ? WHERE id = ?'
   ).bind(
     name !== undefined ? name : existing.name as string,
     description !== undefined ? description : existing.description as string,
+    nextModeMs,
     now, planId,
   ).run();
 

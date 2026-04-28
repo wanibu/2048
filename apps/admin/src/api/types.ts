@@ -71,6 +71,8 @@ export interface Plan {
   id: string;
   name: string;
   description: string;
+  /** 游戏时长（毫秒）；0 = 不限时；3m=180000 / 5m=300000 / 10m=600000 */
+  mode_ms: number;
   created_at: string;
   updated_at: string;
   stages: PlanStage[];
