@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, STONE_VALUE, calcLayout, LayoutConfig } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT, GRID_ROWS, GRID_COLS, SPAWN_NUMBER_MAX, SHAPE_VALUES, BASE_BG_REGION, ROTATE_BTN_REGION, STONE_DESTROY_FRAMES, STONE_DESTROY_FRAME_SIZE, STONE_DESTROY_CONTAINER_OFFSET_X, STONE_DESTROY_CONTAINER_OFFSET_Y, STONE_DESTROY_FRAME_DURATION_MS, STONE_DESTROY_FRAME_OFFSETS, MERGE_EFFECT_FRAMES, MERGE_EFFECT_FRAME_SIZE, MERGE_EFFECT_CONTAINER_OFFSET_X, MERGE_EFFECT_CONTAINER_OFFSET_Y, MERGE_EFFECT_FRAME_DURATION_MS, MERGE_EFFECT_FRAME_OFFSETS, COMBO_THRESHOLD, WOW_THRESHOLD, STONE_VALUE, SLING_DISPLAY_X, SLING_DISPLAY_Y, SLING_DISPLAY_HEIGHT, calcLayout, LayoutConfig } from '../config';
 import { Grid } from '../objects/Grid';
 import { ComboChainEffect } from '../objects/ComboChainEffect';
 import { GameUiObjects } from '../objects/GameUiObjects';
@@ -83,6 +83,12 @@ export class GameScene extends Phaser.Scene {
   private comboFiredThisChain = false;
   private comboChainEffect!: ComboChainEffect;
   private debugPanel: DebugPanel | null = null;
+  // 限时模式：URL 参数 ?mode=3m / 5m / 10m，未传 / 不合法 = 无限时
+  private modeMs: number = 0;
+  private modeRemainingMs: number = 0;
+  private modeStartedAt: number = 0;
+  private modeText: Phaser.GameObjects.Text | null = null;
+  private modeTimer: Phaser.Time.TimerEvent | null = null;
   private debugCurrentCandy: number | null = 2;
   private debugNextCandy: number | null = 4;
   private stoneExplodeParams: StoneExplodeParams = this.defaultStoneExplodeParams();
@@ -328,6 +334,7 @@ export class GameScene extends Phaser.Scene {
       this.logButtonBounds('pause', pauseBtn);
       console.log('[暂停按钮] 点击了');
       if (this.debugDisableButtonActions) return;
+      if (this.modeMs > 0) return; // 限时模式禁用暂停
       if (isPaused) {
         closePause();
       } else {
@@ -443,19 +450,27 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数：?token=<上游平台 long JWT>
-    // 流程：先调 /game/auth/login 拿我们自己的短 token，setGameToken 后再 initBackend
+    // 解析 URL 参数：?token=<上游平台 long JWT>，?mode=3m/5m/10m 限时模式
     const urlParams = new URLSearchParams(window.location.search);
     const platformToken = urlParams.get('token') || '';
+    const modeRaw = (urlParams.get('mode') || '').trim().toLowerCase();
+    const modeMap: Record<string, number> = { '3m': 3 * 60_000, '5m': 5 * 60_000, '10m': 10 * 60_000 };
+    this.modeMs = modeMap[modeRaw] ?? 0;
+    if (this.modeMs > 0) {
+      console.log(`[GameScene] 限时模式 mode=${modeRaw} (${this.modeMs / 60_000} 分钟)`);
+      // 隐藏暂停按钮：限时模式不让玩家暂停打断计时（对应 Q1=B）
+      this.pauseBtn.setVisible(false);
+    }
 
     if (IS_DEBUG) {
-      // DEBUG 模式：不走后端，弹弓糖果和棋盘由 DebugPanel 控制
       this.initDebugMode();
+      if (this.modeMs > 0) this.startCountdown();
     } else if (!platformToken) {
       console.warn('[GameScene] 未带 token 参数，无法进入游戏 — 上游平台需要 redirect 带 ?token=<JWT>');
     } else {
-      // 异步换内部 token 后开局
-      void this.exchangeAndInit(platformToken);
+      void this.exchangeAndInit(platformToken).then(() => {
+        if (this.modeMs > 0) this.startCountdown();
+      });
     }
 
     this.refreshScoreSprites(updateSpriteNumber);
@@ -1261,6 +1276,55 @@ export class GameScene extends Phaser.Scene {
     this.gameOver('timeout');
   }
 
+  // ===== 限时模式（mode=3m/5m/10m）倒计时 =====
+  private startCountdown(): void {
+    if (this.modeMs <= 0) return;
+    this.modeStartedAt = Date.now();
+    this.modeRemainingMs = this.modeMs;
+
+    // 倒计时显示位置：弹弓 sprite 上方一点点（Q3）
+    const x = SLING_DISPLAY_X;
+    const y = SLING_DISPLAY_Y - SLING_DISPLAY_HEIGHT - 18;
+    this.modeText = this.add.text(x, y, this.formatMmSs(this.modeRemainingMs), {
+      fontSize: '32px',
+      color: '#ff5050',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+      fontFamily: 'Fredoka, system-ui, sans-serif',
+    }).setOrigin(0.5, 0.5).setDepth(90);
+
+    this.modeTimer = this.time.addEvent({
+      delay: 200, // 每 200ms 刷一次显示（足够丝滑），但用 wall-clock diff 算剩余时间
+      loop: true,
+      callback: () => {
+        if (this.isGameOver) return;
+        const elapsed = Date.now() - this.modeStartedAt;
+        this.modeRemainingMs = Math.max(0, this.modeMs - elapsed);
+        if (this.modeText && this.modeText.active) {
+          this.modeText.setText(this.formatMmSs(this.modeRemainingMs));
+          // 最后 10 秒变更鲜艳色
+          if (this.modeRemainingMs <= 10_000) {
+            this.modeText.setColor('#ff0000');
+          }
+        }
+        if (this.modeRemainingMs <= 0) {
+          this.modeTimer?.remove(false);
+          this.modeTimer = null;
+          console.log('[mode-timeout] 限时模式倒计时结束 → game over');
+          this.gameOver('timeout');
+        }
+      },
+    });
+  }
+
+  private formatMmSs(ms: number): string {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
   // 推进 token 队列，处理待定石头，然后装填弹弓
   private respawnWithSequence(): void {
     console.log(`[GameScene] respawnWithSequence(), DEBUG=${IS_DEBUG}, isResolvingTurn=${this.isResolvingTurn}`);
@@ -2040,6 +2104,10 @@ export class GameScene extends Phaser.Scene {
     if (this.hurryUpTimer) {
       clearTimeout(this.hurryUpTimer);
       this.hurryUpTimer = null;
+    }
+    if (this.modeTimer) {
+      this.modeTimer.remove(false);
+      this.modeTimer = null;
     }
     this.flushScoreReport();
 
