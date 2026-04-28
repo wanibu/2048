@@ -89,6 +89,23 @@ export class Sling {
     this.slingSprite.setDisplaySize(SLING_DISPLAY_WIDTH, this.slingH);
     this.slingSprite.setDepth(50);
 
+    // Dev 模式可视化点击区域边框（与按钮 hit-area debug 同风格）
+    if (import.meta.env.DEV) {
+      const leftEdge = layout.gridOffsetX;
+      const rightEdge = layout.gridOffsetX + GRID_COLS * layout.cellSize;
+      const slingHitCenterY = this.slingY - this.slingH / 2;
+      const topY = slingHitCenterY - layout.cellSize * 1.5;
+      const bottomY = slingHitCenterY + layout.cellSize * 1.5;
+      const w = rightEdge - leftEdge;
+      const h = bottomY - topY;
+      const cx = (leftEdge + rightEdge) / 2;
+      const cy = (topY + bottomY) / 2;
+      const debugRect = scene.add.rectangle(cx, cy, w, h);
+      debugRect.setStrokeStyle(2, 0x52c41a, 0.95);
+      debugRect.setFillStyle(0x52c41a, 0.10);
+      debugRect.setDepth(9999);
+    }
+
     // 不自动生成糖果，等 GameScene 调用 initCandies 传入后端值
     this.setupInput();
   }
