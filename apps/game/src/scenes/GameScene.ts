@@ -53,8 +53,9 @@ export class GameScene extends Phaser.Scene {
   private static readonly SLING_PROMOTION_DELAY_MS = 150;
   // 调试输入区域时打开：按钮会打印定位日志，但不执行实际动作。
   private readonly debugDisableButtonActions = false;
-  // 本地 dev (pnpm dev) 自动开按钮 hit-area 可视化；生产构建（pnpm build / build:debug）自动关
-  private readonly showButtonHitAreaDebug = import.meta.env.DEV;
+  // 调试按钮 hit-area 可视化（home/restart/play/sound/pause/rotate 的彩色边框 + zone debug 矩形）
+  // 之前 = import.meta.env.DEV 本地自动开；现在改成 false 默认隐藏，需要调试再改回 import.meta.env.DEV
+  private readonly showButtonHitAreaDebug = false;
   // 分阶段调试：只渲染 PlayBackground，跳过 Girl / 棋盘 / 分数 / 按钮 / tray 等所有其他 UI
   private readonly debugBackgroundOnly = false;
   // Scene 是 Phaser 的主要工作单元。
@@ -1282,9 +1283,9 @@ export class GameScene extends Phaser.Scene {
     this.modeStartedAt = Date.now();
     this.modeRemainingMs = this.modeMs;
 
-    // 倒计时显示位置：弹弓 sprite 上方一点点（Q3）
+    // 倒计时显示位置：弹弓 sprite 上方
     const x = SLING_DISPLAY_X;
-    const y = SLING_DISPLAY_Y - SLING_DISPLAY_HEIGHT - 18;
+    const y = SLING_DISPLAY_Y - SLING_DISPLAY_HEIGHT - 60;
     this.modeText = this.add.text(x, y, this.formatMmSs(this.modeRemainingMs), {
       fontSize: '32px',
       color: '#ff5050',
