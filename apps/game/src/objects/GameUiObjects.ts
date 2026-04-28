@@ -214,7 +214,7 @@ export class GameUiObjects {
     info: { avatar: string; nickname: string; score: string; currency: string },
   ): void {
     const ax = 44;
-    const ay = -195;
+    const ay = -160;
     const radius = 28;
 
     // 灰色 placeholder 圆，避免头像 URL 加载前空白
@@ -223,7 +223,7 @@ export class GameUiObjects {
     placeholder.setStrokeStyle(2, 0xffffff, 0.9);
 
     const nickname = (info.nickname || 'Player').slice(0, 16);
-    const nameText = scene.add.text(85, -212, nickname, {
+    const nameText = scene.add.text(85, -192, nickname, {
       fontSize: '20px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -245,7 +245,7 @@ export class GameUiObjects {
       if (!texDigits.has(k)) texDigits.add(k, 0, whiteDigitCoords[d].x, whiteDigitCoords[d].y, 45, 60);
     }
     String(num).split('').forEach((d, i) => {
-      const img = scene.add.image(85 + i * 28, -180, 'shared1', `white-${d}`);
+      const img = scene.add.image(92 + i * 28, -150, 'shared1', `white-${d}`);
       img.setScale(0.65);
       img.setDepth(90);
     });
@@ -279,12 +279,12 @@ export class GameUiObjects {
     if (!tex.has('crown-ui')) {
       tex.add('crown-ui', 0, 65, 193, 50, 50);
     }
-    const star = scene.add.image(44, -105, 'shared3', 'star-ui');
+    const star = scene.add.image(44, -95, 'shared3', 'star-ui');
     star.setOrigin(0.5, 0.5);
     star.setDisplaySize(50, 50);
     star.setDepth(90);
 
-    const crown = scene.add.image(44, -45, 'shared3', 'crown-ui');
+    const crown = scene.add.image(44, -35, 'shared3', 'crown-ui');
     crown.setOrigin(0.5, 0.5);
     crown.setDisplaySize(50, 50);
     crown.setDepth(90);
