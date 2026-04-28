@@ -389,7 +389,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'sign'],
 }));
 
 // 请求日志
