@@ -223,10 +223,10 @@ export class GameUiObjects {
     placeholder.setStrokeStyle(2, 0xffffff, 0.9);
 
     const nickname = (info.nickname || 'Player').slice(0, 16);
-    const nameText = scene.add.text(85, -192, nickname, {
-      fontSize: '20px',
+    const nameText = scene.add.text(85, -206, nickname, {
+      fontSize: '40px',
       color: '#ffffff',
-      fontStyle: 'bold',
+      fontStyle: '900',
       stroke: '#000000',
       strokeThickness: 3,
     });
