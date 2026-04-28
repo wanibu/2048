@@ -145,6 +145,67 @@ async function verifyGameToken(token: string): Promise<GameTokenPayload | null> 
   }
 }
 
+// ================= Super86 平台 token 校验客户端 =================
+// 文档：POST https://game-center.pwtk.cc/game-proxy/user/token/check
+// body: JSON-RPC 2.0，method=user.session.check，params.token=<super86 用户 JWT>
+// 成功响应: { jsonrpc, id, method, result: { a0, userId, avatar, nickname, gender }, error: null }
+// 失败响应: { errMessage, error:{message}, jsonrpc, method:"error", sn }
+const SUPER86_TOKEN_CHECK_URL = 'https://game-center.pwtk.cc/game-proxy/user/token/check';
+const SUPER86_TOKEN_CHECK_MOCK_URL = 'https://pb-api-doc.pwtk.cc/mock/246/game-proxy/user/token/check';
+
+interface Super86TokenCheckResult {
+  a0?: number;            // 根节点（kolUserId）
+  userId?: number;        // 用户 id
+  avatar?: string;
+  nickname?: string;
+  gender?: number;        // 0/1/2
+}
+
+async function super86CheckToken(platformToken: string, useMock = false): Promise<Super86TokenCheckResult | null> {
+  const url = useMock ? SUPER86_TOKEN_CHECK_MOCK_URL : SUPER86_TOKEN_CHECK_URL;
+  const body = {
+    jsonrpc: '2.0',
+    id: crypto.randomUUID(),
+    method: 'user.session.check',
+    params: { token: platformToken },
+  };
+  console.log(`[super86-check] POST ${url}`);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json() as {
+      result?: Super86TokenCheckResult;
+      error?: { message?: string };
+      method?: string;
+      errMessage?: string;
+    };
+    if (json.error || !json.result || json.method === 'error') {
+      console.warn(`[super86-check] failed: ${json.errMessage || json.error?.message || 'unknown error'}`);
+      return null;
+    }
+    console.log(`[super86-check] OK userId=${json.result.userId} a0=${json.result.a0}`);
+    return json.result;
+  } catch (e) {
+    console.error(`[super86-check] fetch error:`, e);
+    return null;
+  }
+}
+
+// 解 JWT payload（仅 base64 解码，不验签 — 仅作 fallback 拿用户信息用）
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((parts[1].length + 3) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
 function generateGameId(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
@@ -432,12 +493,87 @@ const game = new Hono<{
 }>();
 
 game.use('*', async (c, next) => {
+  // /game/auth/login 是公开入口（前端用 super86 token 来换我们内部 token，此时还没有 sign）
+  if (c.req.path === '/game/auth/login') return next();
   const sign = c.req.header('sign') || '';
   if (!sign) return c.json({ error: 'Missing sign header' }, 401);
   const payload = await verifyGameToken(sign);
   if (!payload) return c.json({ error: 'Invalid or expired token' }, 401);
   c.set('gameUser', payload);
   await next();
+});
+
+// POST /game/auth/login —— 用 super86 token 换我们的内部短 token
+// 1. 调 super86 /game-proxy/user/token/check 验证（拿到 userId/a0/avatar/nickname）
+// 2. 验证不通过 → 401
+// 3. 通过 → users 表 upsert + 我们签内部 short token + 返回
+// 4. 当 super86 真实接口失败时，可用 ?mock=true 走 mock URL（开发阶段；缺 supplier 凭据时也用 mock）
+game.post('/auth/login', async (c) => {
+  const { platformToken, useMock } = await c.req.json<{
+    platformToken?: string;
+    useMock?: boolean;
+  }>();
+  if (!platformToken) return c.json({ error: 'Missing platformToken' }, 400);
+
+  const db = c.env.DB;
+
+  // Step 1: super86 远程校验
+  const checked = await super86CheckToken(platformToken, useMock === true);
+
+  // Step 2: super86 拒绝时 fallback：如果是 super86 的 JWT，直接 base64 解 payload 拿用户信息
+  // （仅本地 / 缺 supplier 凭据时使用，安全性低于真实校验）
+  let userId = '';
+  let kolUserId = '';
+  let nickname = '';
+  let avatar = '';
+  let appId = '';
+  let platformId = '';
+
+  if (checked) {
+    userId = String(checked.userId ?? '');
+    kolUserId = String(checked.a0 ?? '');
+    nickname = checked.nickname ?? '';
+    avatar = checked.avatar ?? '';
+    platformId = 'super86.cc';  // 真实校验通过 → 默认 super86
+  } else {
+    // Fallback：base64 解 super86 长 JWT payload（不验签）
+    const decoded = decodeJwtPayload(platformToken);
+    if (!decoded) return c.json({ error: 'Invalid platform token (cannot decode)' }, 401);
+    userId = String(decoded.id ?? decoded.username ?? decoded.userId ?? '');
+    kolUserId = String(decoded.kolUserId ?? '');
+    nickname = String(decoded.nickname ?? '');
+    avatar = String(decoded.avatar ?? '');
+    appId = String(decoded.appId ?? '');
+    platformId = String(decoded.domain ?? 'super86.cc');
+    if (!userId) return c.json({ error: 'Invalid platform token (no userId in payload)' }, 401);
+    console.warn(`[auth/login] super86 远程校验失败，fallback 解 JWT payload: userId=${userId}`);
+  }
+
+  // Step 3: users 表 upsert（按 platform_id + user_id 复合）
+  const existing = await db.prepare(
+    'SELECT id FROM users WHERE platform_id = ? AND user_id = ? LIMIT 1'
+  ).bind(platformId, userId).first() as Record<string, unknown> | null;
+  const now = new Date().toISOString();
+  if (!existing) {
+    await db.prepare(
+      `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, '', ?, ?, ?)`
+    ).bind(crypto.randomUUID(), kolUserId, userId, platformId, nickname || '', now, now).run();
+    console.log(`[auth/login] upsert NEW user platform=${platformId} userId=${userId} kol=${kolUserId} nickname="${nickname}"`);
+  } else if (kolUserId) {
+    await db.prepare(
+      "UPDATE users SET kol_user_id = ?, updated_at = ? WHERE id = ? AND kol_user_id = ''"
+    ).bind(kolUserId, now, existing.id as string).run();
+  }
+
+  // Step 4: 我们签内部 short token（后续 /game/* 都用它走 sign header 验签）
+  const internalToken = await signGameToken({ userId, kolUserId, platformId, appId });
+
+  return c.json({
+    token: internalToken,
+    user: { userId, kolUserId, platformId, appId, nickname, avatar },
+    super86Verified: checked !== null,
+  });
 });
 
 // /game/game/getSdkInfo —— SDK 元数据（版本、能力位）
@@ -1277,16 +1413,68 @@ admin.put('/sequence-plans/:id', async (c) => {
 
 admin.delete('/sequence-plans/:id', async (c) => {
   const planId = c.req.param('id');
+  const force = c.req.query('force') === 'true';
   const db = c.env.DB;
-  const ref = await db.prepare(
+
+  const seqRef = await db.prepare(
     'SELECT COUNT(*) as c FROM generated_sequences WHERE sequence_plan_id = ?'
   ).bind(planId).first() as Record<string, unknown>;
-  if (ref && (ref.c as number) > 0) {
-    return c.json({ error: 'Plan has generated sequences, cannot delete' }, 400);
+  const seqCount = (seqRef?.c as number) ?? 0;
+
+  const gameRef = await db.prepare(
+    'SELECT COUNT(*) as c FROM games WHERE sequence_plan_id = ?'
+  ).bind(planId).first() as Record<string, unknown>;
+  const gameCount = (gameRef?.c as number) ?? 0;
+
+  const playingRef = await db.prepare(
+    "SELECT COUNT(*) as c FROM games WHERE sequence_plan_id = ? AND status = 'playing'"
+  ).bind(planId).first() as Record<string, unknown>;
+  const playingCount = (playingRef?.c as number) ?? 0;
+
+  if ((seqCount > 0 || gameCount > 0) && !force) {
+    return c.json({
+      error: 'Plan is in use, cannot delete',
+      sequenceCount: seqCount,
+      gameCount,
+      playingCount,
+    }, 400);
   }
-  // ON DELETE CASCADE 会自动删 plan_stages
+
+  let stoppedGames = 0;
+  if (force) {
+    const now = new Date().toISOString();
+    if (playingCount > 0) {
+      await db.prepare(
+        "UPDATE games SET status = 'finished', end_reason = 'plan_force_deleted', ended_at = ?, last_update_at = ? WHERE sequence_plan_id = ? AND status = 'playing'"
+      ).bind(now, now, planId).run();
+      stoppedGames = playingCount;
+    }
+    // 解除 games 表对该 plan + sequences 的引用
+    await db.prepare(
+      'UPDATE games SET sequence_plan_id = NULL, generated_sequence_id = NULL WHERE sequence_plan_id = ?'
+    ).bind(planId).run();
+
+    // 清掉 distribution 引用该 plan 下的 sequences
+    await db.prepare(
+      'DELETE FROM distribution WHERE sequence_id IN (SELECT id FROM generated_sequences WHERE sequence_plan_id = ?)'
+    ).bind(planId).run();
+
+    // 清掉 users 表中指向该 plan 下 sequences 的配置
+    await db.prepare(
+      "UPDATE users SET sequence_id = '' WHERE sequence_id IN (SELECT id FROM generated_sequences WHERE sequence_plan_id = ?)"
+    ).bind(planId).run();
+
+    // 删 generated_sequences
+    await db.prepare('DELETE FROM generated_sequences WHERE sequence_plan_id = ?').bind(planId).run();
+  }
+
+  // 手动删 plan_stages（FK CASCADE 已去除，必须代码删）
+  await db.prepare('DELETE FROM plan_stages WHERE sequence_plan_id = ?').bind(planId).run();
+
+  // 最后删 plan 本身
   await db.prepare('DELETE FROM sequence_plans WHERE id = ?').bind(planId).run();
-  return c.json({ success: true });
+
+  return c.json({ success: true, stoppedGames });
 });
 
 // ---- Generated Sequences（已分页） ----
@@ -1539,11 +1727,17 @@ admin.delete('/generated-sequences/:id', async (c) => {
       ).bind(now, now, seqId).run();
       stoppedGames = playingCount;
     }
-    // 解除 FK 引用，否则后面 DELETE 会被外键约束拒绝
+    // 解除 games 表 FK 引用
     await db.prepare(
       'UPDATE games SET generated_sequence_id = NULL WHERE generated_sequence_id = ?'
     ).bind(seqId).run();
   }
+
+  // distribution 表也有 FK，必须先删（不管 force/非 force，都把对该 sequence 的分布配置一起清掉）
+  await db.prepare('DELETE FROM distribution WHERE sequence_id = ?').bind(seqId).run();
+
+  // users 表 sequence_id 列不是 FK 但是文本存储的，把指向该 seq 的用户配置清空
+  await db.prepare("UPDATE users SET sequence_id = '' WHERE sequence_id = ?").bind(seqId).run();
 
   await db.prepare('DELETE FROM generated_sequences WHERE id = ?').bind(seqId).run();
   return c.json({ success: true, stoppedGames });

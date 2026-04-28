@@ -1,4 +1,5 @@
-PRAGMA foreign_keys = ON;
+-- 全部去掉 FOREIGN KEY，引用关系完全由代码层面控制（删除时手动级联清理）
+-- 之前 PRAGMA foreign_keys = ON 也移除
 
 CREATE TABLE IF NOT EXISTS sequence_plans (
   id TEXT PRIMARY KEY,
@@ -8,7 +9,7 @@ CREATE TABLE IF NOT EXISTS sequence_plans (
   updated_at TEXT NOT NULL
 );
 
--- Plan 内联 stage：每个 stage 只属于一个 plan，删 plan 级联删
+-- Plan 内联 stage：每个 stage 只属于一个 plan，删 plan 时由代码手动 DELETE plan_stages
 CREATE TABLE IF NOT EXISTS plan_stages (
   id TEXT PRIMARY KEY,
   sequence_plan_id TEXT NOT NULL,
@@ -18,7 +19,6 @@ CREATE TABLE IF NOT EXISTS plan_stages (
   probabilities TEXT NOT NULL, -- JSON: {"2":10,"4":10,...,"stone":10}
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id) ON DELETE CASCADE,
   UNIQUE (sequence_plan_id, stage_order)
 );
 
@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS generated_sequences (
   sequence_length INTEGER NOT NULL CHECK (sequence_length > 0),
   status TEXT NOT NULL CHECK (status IN ('enabled', 'disabled')),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id)
+  updated_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_generated_sequences_status
@@ -62,9 +61,7 @@ CREATE TABLE IF NOT EXISTS games (
   end_reason TEXT NOT NULL DEFAULT '',
   ended_at TEXT NOT NULL DEFAULT '',
   last_update_at TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  FOREIGN KEY (sequence_plan_id) REFERENCES sequence_plans(id),
-  FOREIGN KEY (generated_sequence_id) REFERENCES generated_sequences(id)
+  created_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_games_user_id ON games(user_id);
@@ -80,8 +77,7 @@ CREATE TABLE IF NOT EXISTS scores (
   score INTEGER NOT NULL,
   actions_count INTEGER NOT NULL DEFAULT 0,
   sign TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL,
-  FOREIGN KEY (game_id) REFERENCES games(game_id)
+  created_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores(score DESC);
@@ -110,8 +106,7 @@ CREATE TABLE IF NOT EXISTS distribution (
   sequence_id TEXT NOT NULL,
   ratio INTEGER NOT NULL CHECK (ratio > 0),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (sequence_id) REFERENCES generated_sequences(id)
+  updated_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_distribution_sequence_id ON distribution(sequence_id);

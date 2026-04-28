@@ -10,7 +10,7 @@ import { Stone } from '../objects/Stone';
 import { MergeSystem, GhostBorder } from '../systems/MergeSystem';
 import { RotateSystem } from '../systems/RotateSystem';
 import { ActionRecorder } from '../systems/ActionRecorder';
-import { setGameToken } from '../utils/api';
+import { setGameToken, authLogin } from '../utils/api';
 import { HUD } from '../ui/HUD';
 import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY, SavedSnapshot } from '../debug/DebugPanel';
 
@@ -443,18 +443,19 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数：仅 token
-    // ?token=<JWT> 由上游平台 redirect 时带入；后端 /game/* 都用 sign: header 验签
+    // 解析 URL 参数：?token=<上游平台 long JWT>
+    // 流程：先调 /game/auth/login 拿我们自己的短 token，setGameToken 后再 initBackend
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token') || '';
+    const platformToken = urlParams.get('token') || '';
 
     if (IS_DEBUG) {
       // DEBUG 模式：不走后端，弹弓糖果和棋盘由 DebugPanel 控制
       this.initDebugMode();
+    } else if (!platformToken) {
+      console.warn('[GameScene] 未带 token 参数，无法进入游戏 — 上游平台需要 redirect 带 ?token=<JWT>');
     } else {
-      // 后端开局：把 token 缓存进 api 模块，所有 /game/* 请求自动带 sign: header
-      setGameToken(token);
-      this.initBackend();
+      // 异步换内部 token 后开局
+      void this.exchangeAndInit(platformToken);
     }
 
     this.refreshScoreSprites(updateSpriteNumber);
@@ -615,6 +616,19 @@ export class GameScene extends Phaser.Scene {
   // 后端开局：获取本局完整 sequence。
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private static initBackendSeq: number = 0;
+
+  // 用 super86 长 token 换我们的内部 short token，然后开局
+  private async exchangeAndInit(platformToken: string): Promise<void> {
+    try {
+      console.log('[GameScene] /game/auth/login 换内部 token...');
+      const { token: internalToken, user, super86Verified } = await authLogin(platformToken);
+      console.log(`[GameScene] auth/login OK userId=${user.userId} kol=${user.kolUserId} platform=${user.platformId} verified=${super86Verified}`);
+      setGameToken(internalToken);
+      await this.initBackend();
+    } catch (e) {
+      console.error('[GameScene] auth/login failed:', e);
+    }
+  }
 
   private async initBackend(): Promise<void> {
     const recorder = this.recorder;

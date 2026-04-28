@@ -139,6 +139,9 @@ function toEditorPlan(initialPlan: Plan | null, mode: 'new' | 'edit'): EditorPla
 export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: AdminV4_SpreadsheetProps) {
   const [plan, setPlan] = useState<EditorPlan>(() => toEditorPlan(initialPlan, mode));
   const [saving, setSaving] = useState(false);
+  // 数字格子用 string draft 支撑"输入框可清空"行为：清空 → 显示空白 + weights 存 0
+  // key 形如 `${stage.id}-${value}`，仅活跃编辑时有 draft，blur 后清掉
+  const [cellDrafts, setCellDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setPlan(toEditorPlan(initialPlan, mode));
@@ -325,34 +328,60 @@ export function AdminV4_Spreadsheet({ initialPlan, mode, onCancel, onSave }: Adm
                             if (!has) toggleCell(stage.id, value);
                           }}
                         >
-                          {has ? (
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={Number.isFinite(pct) ? pct.toFixed(1) : '0.0'}
-                              onChange={(event) => setCell(stage.id, value, Number(event.target.value))}
-                              onContextMenu={(event) => {
-                                event.preventDefault();
-                                toggleCell(stage.id, value);
-                              }}
-                              title="右键移除"
-                              style={{
-                                width: '100%',
-                                border: `1px solid ${color.bg}`,
-                                borderRadius: 4,
-                                padding: '4px 2px',
-                                fontSize: '0.6875rem',
-                                textAlign: 'center',
-                                background: `${color.bg}18`,
-                                outline: 'none',
-                                fontFamily: 'Fredoka, system-ui, sans-serif',
-                                fontWeight: 600,
-                                color: color.dark,
-                                fontVariantNumeric: 'tabular-nums',
-                                boxSizing: 'border-box',
-                              }}
-                            />
-                          ) : (
+                          {has ? (() => {
+                            const draftKey = `${stage.id}-${value}`;
+                            const draft = cellDrafts[draftKey];
+                            // 显示规则：编辑中用 draft 原值（允许空白）；非编辑态：pct=0 → 空白，pct>0 → toFixed(1)
+                            const display = draft !== undefined
+                              ? draft
+                              : (pct === 0 ? '' : pct.toFixed(1));
+                            return (
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={display}
+                                placeholder="0"
+                                onChange={(event) => {
+                                  const filtered = event.target.value.replace(/[^0-9.]/g, '');
+                                  setCellDrafts((prev) => ({ ...prev, [draftKey]: filtered }));
+                                }}
+                                onBlur={() => {
+                                  const d = cellDrafts[draftKey];
+                                  if (d !== undefined) {
+                                    const v = d === '' ? 0 : Number(d);
+                                    if (Number.isFinite(v) && v >= 0) {
+                                      setCell(stage.id, value, v);
+                                    }
+                                    setCellDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[draftKey];
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                onContextMenu={(event) => {
+                                  event.preventDefault();
+                                  toggleCell(stage.id, value);
+                                }}
+                                title="右键移除"
+                                style={{
+                                  width: '100%',
+                                  border: `1px solid ${color.bg}`,
+                                  borderRadius: 4,
+                                  padding: '4px 2px',
+                                  fontSize: '0.6875rem',
+                                  textAlign: 'center',
+                                  background: `${color.bg}18`,
+                                  outline: 'none',
+                                  fontFamily: 'Fredoka, system-ui, sans-serif',
+                                  fontWeight: 600,
+                                  color: color.dark,
+                                  fontVariantNumeric: 'tabular-nums',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            );
+                          })() : (
                             <div style={{ color: '#d0d0d6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                               <Plus size={14} />
                             </div>

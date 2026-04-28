@@ -104,13 +104,34 @@ export function ConfigPage() {
   }
 
   async function deleteSequence(sequence: GeneratedSequence) {
-    if (!window.confirm(`确认删除序列 "${sequence.id.slice(0, 8)}…"？此操作不可撤销。`)) return;
+    const seqLabel = sequence.sequence_name || sequence.id.slice(0, 8) + '…';
+    if (!window.confirm(`确认删除序列「${seqLabel}」？此操作不可撤销。`)) return;
     try {
       await api(`/api/admin/generated-sequences/${sequence.id}`, { method: 'DELETE' });
       toast.success('已删除');
       await loadAll();
     } catch (err) {
-      toast.error((err as { error?: string })?.error || '删除失败');
+      const e = err as { error?: string; refCount?: number; playingCount?: number; status?: number };
+      // 后端返回 refCount/playingCount 时给二次确认（强制删除）
+      if (e.refCount && e.refCount > 0) {
+        const playing = e.playingCount ?? 0;
+        const msg = `序列「${seqLabel}」被 ${e.refCount} 局游戏引用` +
+          (playing > 0 ? `（其中 ${playing} 局正在进行中）。` : '。') +
+          `\n\n强制删除会：\n• 立即终止进行中的局（end_reason = sequence_force_deleted）\n• 解除已结束局的引用\n• 清空 distribution 与 users 表中对该序列的配置\n\n确定强制删除？`;
+        if (!window.confirm(msg)) return;
+        try {
+          const r = await api<{ success: boolean; stoppedGames: number }>(
+            `/api/admin/generated-sequences/${sequence.id}?force=true`,
+            { method: 'DELETE' },
+          );
+          toast.success(`已强制删除${r.stoppedGames > 0 ? `，停掉 ${r.stoppedGames} 局进行中` : ''}`);
+          await loadAll();
+        } catch (err2) {
+          toast.error((err2 as { error?: string })?.error || '强制删除失败');
+        }
+        return;
+      }
+      toast.error(e.error || '删除失败');
     }
   }
 
