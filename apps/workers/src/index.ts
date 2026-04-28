@@ -147,33 +147,76 @@ async function verifyGameToken(token: string): Promise<GameTokenPayload | null> 
 
 // ================= Super86 平台 token 校验客户端 =================
 // 文档：POST https://game-center.pwtk.cc/game-proxy/user/token/check
-// body: JSON-RPC 2.0，method=user.session.check，params.token=<super86 用户 JWT>
+// 命名约定：
+//   gameToken     = 玩家原始 super86 长 JWT（super86 自己持密钥签的，URL ?token= 上传过来）
+//   platformToken = 我们用 supplier API secret (game-proxy-10086) 把 gameToken 同 payload 重签 HS256 出来的 token
+// 调用规则：
+//   token: header → platformToken（API 互信鉴权）
+//   body params.token → gameToken（待校验的玩家会话）
 // 成功响应: { jsonrpc, id, method, result: { a0, userId, avatar, nickname, gender }, error: null }
 // 失败响应: { errMessage, error:{message}, jsonrpc, method:"error", sn }
 const SUPER86_TOKEN_CHECK_URL = 'https://game-center.pwtk.cc/game-proxy/user/token/check';
-const SUPER86_TOKEN_CHECK_MOCK_URL = 'https://pb-api-doc.pwtk.cc/mock/246/game-proxy/user/token/check';
+const PLATFORM_API_SECRET = 'game-proxy-10086'; // TODO: 移到 wrangler secret
 
 interface Super86TokenCheckResult {
-  a0?: number;            // 根节点（kolUserId）
-  userId?: number;        // 用户 id
+  a0?: string | number;   // 根节点（kolUserId）—— super86 返回字符串
+  userId?: string | number; // 用户 id —— super86 返回字符串
   avatar?: string;
   nickname?: string;
   gender?: number;        // 0/1/2
 }
 
-async function super86CheckToken(platformToken: string, useMock = false): Promise<Super86TokenCheckResult | null> {
-  const url = useMock ? SUPER86_TOKEN_CHECK_MOCK_URL : SUPER86_TOKEN_CHECK_URL;
+interface Super86BalanceResult extends Super86TokenCheckResult {
+  score?: string | number;  // 余额，super86 返回字符串
+  currency?: string;        // VND/USD/...
+}
+
+// 标准 HS256：HMAC-SHA256(message, secret) → base64url
+async function hs256(message: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  const bytes = new Uint8Array(sig);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// 把 super86 gameToken 的 header+payload 用 PLATFORM_API_SECRET 重签 → platformToken
+async function signSuper86PlatformToken(gameToken: string): Promise<string | null> {
+  const parts = gameToken.split('.');
+  if (parts.length !== 3) return null;
+  const [headerB64, payloadB64] = parts;
+  const sig = await hs256(`${headerB64}.${payloadB64}`, PLATFORM_API_SECRET);
+  return `${headerB64}.${payloadB64}.${sig}`;
+}
+
+async function super86CheckToken(gameToken: string): Promise<Super86TokenCheckResult | null> {
+  const platformToken = await signSuper86PlatformToken(gameToken);
+  if (!platformToken) {
+    console.warn('[super86-check] gameToken 不是合法 JWT，无法生成 platformToken');
+    return null;
+  }
   const body = {
     jsonrpc: '2.0',
     id: crypto.randomUUID(),
     method: 'user.session.check',
-    params: { token: platformToken },
+    params: { token: gameToken },
   };
-  console.log(`[super86-check] POST ${url}`);
+  console.log(`[super86-check] POST ${SUPER86_TOKEN_CHECK_URL}`);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(SUPER86_TOKEN_CHECK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'token': platformToken,
+      },
       body: JSON.stringify(body),
     });
     const json = await res.json() as {
@@ -192,6 +235,60 @@ async function super86CheckToken(platformToken: string, useMock = false): Promis
     console.error(`[super86-check] fetch error:`, e);
     return null;
   }
+}
+
+// POST https://game-center.pwtk.cc/game-proxy/user/balance
+// 鉴权同 token check：token: header = platformToken
+// params: { a0: string, userId: number, currency: string }
+// 返回: { a0, userId, avatar, nickname, gender, score, currency }
+const SUPER86_BALANCE_URL = 'https://game-center.pwtk.cc/game-proxy/user/balance';
+
+async function super86GetBalance(
+  gameToken: string,
+  a0: string,
+  userId: number,
+  currency: string,
+): Promise<Super86BalanceResult | null> {
+  const platformToken = await signSuper86PlatformToken(gameToken);
+  if (!platformToken) return null;
+  const body = {
+    jsonrpc: '2.0',
+    id: crypto.randomUUID(),
+    method: 'user.balance',
+    params: { a0, userId, currency },
+  };
+  console.log(`[super86-balance] POST ${SUPER86_BALANCE_URL} userId=${userId} currency=${currency}`);
+  try {
+    const res = await fetch(SUPER86_BALANCE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'token': platformToken },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json() as {
+      result?: Super86BalanceResult;
+      error?: { message?: string };
+      method?: string;
+      errMessage?: string;
+    };
+    if (json.error || !json.result || json.method === 'error') {
+      console.warn(`[super86-balance] failed: ${json.errMessage || json.error?.message || 'unknown'}`);
+      return null;
+    }
+    console.log(`[super86-balance] OK score=${json.result.score} currency=${json.result.currency}`);
+    return json.result;
+  } catch (e) {
+    console.error(`[super86-balance] fetch error:`, e);
+    return null;
+  }
+}
+
+// super86 user/balance 返回的 avatar 有时只有路径（如 "pb/2026-03-13T07-40-01-178Z/user/avatar_1.png"），
+// 没有 https 协议+域名前缀。这里规整成完整 URL，前端才能加载。
+const SUPER86_AVATAR_HOST = 'https://pbtest.buyacard.cc/';
+function normalizeSuper86Avatar(avatar: string): string {
+  if (!avatar) return '';
+  if (/^https?:\/\//i.test(avatar)) return avatar;
+  return SUPER86_AVATAR_HOST + avatar.replace(/^\/+/, '');
 }
 
 // 解 JWT payload（仅 base64 解码，不验签 — 仅作 fallback 拿用户信息用）
@@ -503,63 +600,49 @@ game.use('*', async (c, next) => {
   await next();
 });
 
-// POST /game/auth/login —— 用 super86 token 换我们的内部短 token
-// 1. 调 super86 /game-proxy/user/token/check 验证（拿到 userId/a0/avatar/nickname）
+// POST /game/auth/login —— 用 super86 gameToken 换我们的内部短 token
+// 1. 调 super86 /game-proxy/user/token/check 远程验签（platformToken=用 game-proxy-10086 重签的 gameToken）
 // 2. 验证不通过 → 401
 // 3. 通过 → users 表 upsert + 我们签内部 short token + 返回
-// 4. 当 super86 真实接口失败时，可用 ?mock=true 走 mock URL（开发阶段；缺 supplier 凭据时也用 mock）
 game.post('/auth/login', async (c) => {
-  const { platformToken, useMock } = await c.req.json<{
-    platformToken?: string;
-    useMock?: boolean;
+  const body = await c.req.json<{
+    gameToken?: string;
+    platformToken?: string;  // 兼容老前端字段名（已废弃）
   }>();
-  if (!platformToken) return c.json({ error: 'Missing platformToken' }, 400);
+  const gameToken = body.gameToken ?? body.platformToken;
+  if (!gameToken) return c.json({ error: 'Missing gameToken' }, 400);
 
   const db = c.env.DB;
 
-  // Step 1: super86 远程校验
-  const checked = await super86CheckToken(platformToken, useMock === true);
-
-  // Step 2: super86 拒绝时 fallback：如果是 super86 的 JWT，直接 base64 解 payload 拿用户信息
-  // （仅本地 / 缺 supplier 凭据时使用，安全性低于真实校验）
-  let userId = '';
-  let kolUserId = '';
-  let nickname = '';
-  let avatar = '';
-  let appId = '';
-  let platformId = '';
-
-  if (checked) {
-    userId = String(checked.userId ?? '');
-    kolUserId = String(checked.a0 ?? '');
-    nickname = checked.nickname ?? '';
-    avatar = checked.avatar ?? '';
-    platformId = 'super86.cc';  // 真实校验通过 → 默认 super86
-  } else {
-    // Fallback：base64 解 super86 长 JWT payload（不验签）
-    const decoded = decodeJwtPayload(platformToken);
-    if (!decoded) return c.json({ error: 'Invalid platform token (cannot decode)' }, 401);
-    userId = String(decoded.id ?? decoded.username ?? decoded.userId ?? '');
-    kolUserId = String(decoded.kolUserId ?? '');
-    nickname = String(decoded.nickname ?? '');
-    avatar = String(decoded.avatar ?? '');
-    appId = String(decoded.appId ?? '');
-    platformId = String(decoded.domain ?? 'super86.cc');
-    if (!userId) return c.json({ error: 'Invalid platform token (no userId in payload)' }, 401);
-    console.warn(`[auth/login] super86 远程校验失败，fallback 解 JWT payload: userId=${userId}`);
+  // 远程校验：super86 supplier API
+  const checked = await super86CheckToken(gameToken);
+  if (!checked) {
+    return c.json({ error: 'gameToken 校验失败（super86 拒绝）' }, 401);
   }
 
+  // 主信息走 super86 返回；appId 仅 super86 长 JWT payload 里有，需要从 gameToken decode 取
+  const userId = String(checked.userId ?? '');
+  const kolUserId = String(checked.a0 ?? '');
+  const nickname = checked.nickname ?? '';
+  // 注意：avatar 不用 token/check 返回的，统一用下面 balance 接口返回的（更准）
+  const decoded = decodeJwtPayload(gameToken) ?? {};
+  const appId = String(decoded.appId ?? '');
+  const platformId = String(decoded.domain ?? 'super86.cc');
+  if (!userId) return c.json({ error: 'super86 校验返回缺 userId' }, 502);
+
   // Step 3: users 表 upsert（按 platform_id + user_id 复合）
+  // 不存任何来自平台的展示信息（nickname/avatar/score）—— 那些每次实时拉
+  // 只存 userId + kolUserId + platformId + sequence_id（业务必需）
   const existing = await db.prepare(
     'SELECT id FROM users WHERE platform_id = ? AND user_id = ? LIMIT 1'
   ).bind(platformId, userId).first() as Record<string, unknown> | null;
   const now = new Date().toISOString();
   if (!existing) {
     await db.prepare(
-      `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, '', ?, ?, ?)`
-    ).bind(crypto.randomUUID(), kolUserId, userId, platformId, nickname || '', now, now).run();
-    console.log(`[auth/login] upsert NEW user platform=${platformId} userId=${userId} kol=${kolUserId} nickname="${nickname}"`);
+      `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, '', ?, ?)`
+    ).bind(crypto.randomUUID(), kolUserId, userId, platformId, now, now).run();
+    console.log(`[auth/login] upsert NEW user platform=${platformId} userId=${userId} kol=${kolUserId}`);
   } else if (kolUserId) {
     await db.prepare(
       "UPDATE users SET kol_user_id = ?, updated_at = ? WHERE id = ? AND kol_user_id = ''"
@@ -569,10 +652,22 @@ game.post('/auth/login', async (c) => {
   // Step 4: 我们签内部 short token（后续 /game/* 都用它走 sign header 验签）
   const internalToken = await signGameToken({ userId, kolUserId, platformId, appId });
 
+  // Step 5: 拉余额（balance）—— 失败不阻塞登录，余额返 0；avatar 也以 balance 返回的为准
+  // currency 从 gameToken payload 拿不到，super86 这边目前都是 VND，先硬编码（后期放 platform_keys 配置）
+  const userIdNum = Number(userId);
+  const currency = 'VND';
+  const balance = isNaN(userIdNum) ? null : await super86GetBalance(gameToken, kolUserId, userIdNum, currency);
+  const score = balance ? String(balance.score ?? '0') : '0';
+  const avatar = normalizeSuper86Avatar(balance?.avatar ?? '');
+
   return c.json({
     token: internalToken,
-    user: { userId, kolUserId, platformId, appId, nickname, avatar },
-    super86Verified: checked !== null,
+    user: {
+      userId, kolUserId, platformId, appId, nickname, avatar,
+      score,
+      currency: balance?.currency ?? currency,
+    },
+    super86Verified: true,
   });
 });
 
@@ -1761,20 +1856,18 @@ admin.post('/users', async (c) => {
     user_id?: string;
     platform_id?: string;
     sequence_id?: string;
-    note?: string;
   }>();
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await c.env.DB.prepare(
-    `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO users (id, kol_user_id, user_id, platform_id, sequence_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id,
     body.kol_user_id ?? '',
     body.user_id ?? '',
     body.platform_id ?? '',
     body.sequence_id ?? '',
-    body.note ?? '',
     now, now,
   ).run();
   return c.json({ id });
@@ -1787,11 +1880,10 @@ admin.put('/users/:id', async (c) => {
     user_id?: string;
     platform_id?: string;
     sequence_id?: string;
-    note?: string;
   }>();
   const sets: string[] = [];
   const params: unknown[] = [];
-  for (const f of ['kol_user_id', 'user_id', 'platform_id', 'sequence_id', 'note'] as const) {
+  for (const f of ['kol_user_id', 'user_id', 'platform_id', 'sequence_id'] as const) {
     if (body[f] !== undefined) {
       sets.push(`${f} = ?`);
       params.push(body[f]);

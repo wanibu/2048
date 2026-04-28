@@ -95,14 +95,23 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
 
 interface AuthLoginResponse {
   token: string;
-  user: { userId: string; kolUserId: string; platformId: string; appId: string; nickname: string; avatar: string };
+  user: {
+    userId: string;
+    kolUserId: string;
+    platformId: string;
+    appId: string;
+    nickname: string;
+    avatar: string;
+    score: string;
+    currency: string;
+  };
   super86Verified: boolean;
 }
 
-// 用 super86 长 JWT 换我们的内部 short token
+// 用 super86 长 JWT (gameToken) 换我们的内部 short token
 // 这是公开接口（不需要 sign header），调用前 cachedToken 还没设
-export async function authLogin(platformToken: string): Promise<AuthLoginResponse> {
-  return post<AuthLoginResponse>('/game/auth/login', { platformToken });
+export async function authLogin(gameToken: string): Promise<AuthLoginResponse> {
+  return post<AuthLoginResponse>('/game/auth/login', { gameToken });
 }
 
 // 开局：返回初始 tokens、gameId、sign。后续 /game/2048/next-token 按需拉。

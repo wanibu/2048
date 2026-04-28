@@ -207,6 +207,70 @@ export class GameUiObjects {
     keyD.setDepth(85);
   }
 
+  // 左上角玩家信息：圆形头像 + 昵称 + 余额。
+  // 数据由 GameScene 在 auth/login 返回后调进来。
+  applyUserInfo(
+    scene: Phaser.Scene,
+    info: { avatar: string; nickname: string; score: string; currency: string },
+  ): void {
+    const ax = 44;
+    const ay = -195;
+    const radius = 28;
+
+    // 灰色 placeholder 圆，避免头像 URL 加载前空白
+    const placeholder = scene.add.circle(ax, ay, radius, 0x666666);
+    placeholder.setDepth(90);
+    placeholder.setStrokeStyle(2, 0xffffff, 0.9);
+
+    const nickname = (info.nickname || 'Player').slice(0, 16);
+    const nameText = scene.add.text(85, -212, nickname, {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    nameText.setDepth(90);
+
+    // 余额：用游戏精灵数字（white-0..9）渲染，不带逗号、不显示 VND
+    const num = parseInt(info.score || '0') || 0;
+    const texDigits = scene.textures.get('shared1');
+    const whiteDigitCoords = [
+      { x: 260, y: 1666 }, { x: 316, y: 1666 }, { x: 378, y: 1666 }, { x: 436, y: 1666 },
+      { x: 495, y: 1666 }, { x: 555, y: 1666 }, { x: 615, y: 1666 }, { x: 675, y: 1666 },
+      { x: 732, y: 1666 }, { x: 793, y: 1666 },
+    ];
+    for (let d = 0; d <= 9; d++) {
+      const k = `white-${d}`;
+      if (!texDigits.has(k)) texDigits.add(k, 0, whiteDigitCoords[d].x, whiteDigitCoords[d].y, 45, 60);
+    }
+    String(num).split('').forEach((d, i) => {
+      const img = scene.add.image(85 + i * 28, -180, 'shared1', `white-${d}`);
+      img.setScale(0.65);
+      img.setDepth(90);
+    });
+
+    if (!info.avatar) return;
+
+    // 动态加载头像 URL，用 Graphics 圆做几何 mask 实现圆形裁切
+    const key = `avatar-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    scene.load.image(key, info.avatar);
+    scene.load.once(`filecomplete-image-${key}`, () => {
+      const img = scene.add.image(ax, ay, key);
+      img.setDisplaySize(radius * 2, radius * 2);
+      img.setDepth(91);
+      const mask = scene.make.graphics();
+      mask.fillStyle(0xffffff);
+      mask.fillCircle(ax, ay, radius);
+      img.setMask(mask.createGeometryMask());
+      placeholder.destroy();
+    });
+    scene.load.once('loaderror', (file: { key: string }) => {
+      if (file.key === key) console.warn('[avatar] load failed:', info.avatar);
+    });
+    scene.load.start();
+  }
+
   private createScoreIcons(scene: Phaser.Scene): void {
     const tex = scene.textures.get('shared3');
     if (!tex.has('star-ui')) {
@@ -215,12 +279,12 @@ export class GameUiObjects {
     if (!tex.has('crown-ui')) {
       tex.add('crown-ui', 0, 65, 193, 50, 50);
     }
-    const star = scene.add.image(44, -175, 'shared3', 'star-ui');
+    const star = scene.add.image(44, -105, 'shared3', 'star-ui');
     star.setOrigin(0.5, 0.5);
     star.setDisplaySize(50, 50);
     star.setDepth(90);
 
-    const crown = scene.add.image(44, -115, 'shared3', 'crown-ui');
+    const crown = scene.add.image(44, -45, 'shared3', 'crown-ui');
     crown.setOrigin(0.5, 0.5);
     crown.setDisplaySize(50, 50);
     crown.setDepth(90);

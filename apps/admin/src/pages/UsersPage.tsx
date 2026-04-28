@@ -15,10 +15,9 @@ interface EditState {
   user_id: string;
   platform_id: string;
   sequence_id: string;
-  note: string;
 }
 
-const EMPTY_EDIT: EditState = { id: null, kol_user_id: '', user_id: '', platform_id: '', sequence_id: '', note: '' };
+const EMPTY_EDIT: EditState = { id: null, kol_user_id: '', user_id: '', platform_id: '', sequence_id: '' };
 
 export function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -54,7 +53,6 @@ export function UsersPage() {
         user_id: edit.user_id,
         platform_id: edit.platform_id,
         sequence_id: edit.sequence_id,
-        note: edit.note,
       };
       if (edit.id) {
         await api(`/api/admin/users/${edit.id}`, { method: 'PUT', body });
@@ -109,24 +107,22 @@ export function UsersPage() {
               <th style={TH}>KOL User ID</th>
               <th style={TH}>Platform ID</th>
               <th style={TH}>系列名称</th>
-              <th style={TH}>备注</th>
               <th style={TH}>创建时间</th>
               <th style={{ ...TH, textAlign: 'right' }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 ? (
-              <tr><td colSpan={7} style={{ ...TD, textAlign: 'center', color: '#9b9ba6', padding: '32px 12px' }}>{loading ? '加载中…' : '暂无用户'}</td></tr>
+              <tr><td colSpan={6} style={{ ...TD, textAlign: 'center', color: '#9b9ba6', padding: '32px 12px' }}>{loading ? '加载中…' : '暂无用户'}</td></tr>
             ) : users.map((u) => (
               <tr key={u.id}>
                 <td style={{ ...TD, color: '#2a2a33', fontWeight: 500 }}>{u.user_id || '—'}</td>
                 <td style={TD}>{u.kol_user_id || '—'}</td>
                 <td style={TD}>{u.platform_id || '—'}</td>
                 <td style={TD}>{u.sequence_name || '—'}</td>
-                <td style={{ ...TD, color: '#5a5a66' }}>{u.note || '—'}</td>
                 <td style={{ ...TD, color: '#9b9ba6', fontSize: '0.6875rem' }}>{new Date(u.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
                 <td style={{ ...TD, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button type="button" onClick={() => setEdit({ id: u.id, kol_user_id: u.kol_user_id, user_id: u.user_id, platform_id: u.platform_id, sequence_id: u.sequence_id, note: u.note })} style={{ padding: 6, marginRight: 6, border: '1px solid #ececf2', borderRadius: 4, background: '#fff', cursor: 'pointer' }} title="编辑"><Pencil size={13} /></button>
+                  <button type="button" onClick={() => setEdit({ id: u.id, kol_user_id: u.kol_user_id, user_id: u.user_id, platform_id: u.platform_id, sequence_id: u.sequence_id })} style={{ padding: 6, marginRight: 6, border: '1px solid #ececf2', borderRadius: 4, background: '#fff', cursor: 'pointer' }} title="编辑"><Pencil size={13} /></button>
                   <button type="button" onClick={() => void remove(u)} style={{ padding: 6, border: '1px solid #ececf2', borderRadius: 4, background: '#fff', cursor: 'pointer', color: '#c8343a' }} title="删除"><Trash2 size={13} /></button>
                 </td>
               </tr>
@@ -155,10 +151,6 @@ export function UsersPage() {
                       <option key={s.id} value={s.id}>{s.sequence_name || s.id}{s.plan_name ? ` · ${s.plan_name}` : ''}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.6875rem', color: '#8a8a94', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>备注</div>
-                  <textarea value={edit.note} onChange={(e) => setEdit({ ...edit, note: e.target.value })} rows={3} style={{ width: '100%', padding: '9px 12px', fontSize: '0.875rem', border: '1px solid #e6e6ec', borderRadius: 6, background: '#fff', outline: 'none', resize: 'vertical', minHeight: 64 }} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>

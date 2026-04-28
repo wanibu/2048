@@ -16,9 +16,9 @@ import { DebugPanel, StoneExplodeParams, MergeEffectParams, SNAPSHOT_STORAGE_KEY
 
 const IS_DEBUG = import.meta.env.VITE_DEBUG === '1';
 const SCORE_DIGITS_X = 90;
-const SCORE_DIGITS_Y = -173;
+const SCORE_DIGITS_Y = -103;
 const TOP_SCORE_DIGITS_X = 90;
-const TOP_SCORE_DIGITS_Y = -113;
+const TOP_SCORE_DIGITS_Y = -43;
 
 type OriginalMergeTwinkleFrame = {
   textureKey: 'mergeeffect-full' | 'mergeeffect-full-1' | 'mergeeffect-full-2';
@@ -62,6 +62,7 @@ export class GameScene extends Phaser.Scene {
   private sling!: Sling;
   private mergeSystem!: MergeSystem;
   private rotateSystem!: RotateSystem;
+  private gameUi!: GameUiObjects;
   // ===== Debug 段创建、debug-after 段复用的可交互 UI sprite =====
   private giantHead!: Phaser.GameObjects.Image;
   private pauseBtn!: Phaser.GameObjects.Image;
@@ -188,13 +189,13 @@ export class GameScene extends Phaser.Scene {
     const h = this.cameras.main.height;
     const layout = calcLayout(w, h);
 
-    const gameUi = new GameUiObjects(this, w, h);
-    this.giantHead = gameUi.giantHead;
-    this.pauseBtn = gameUi.pauseBtn;
-    this.soundBtn = gameUi.soundBtn;
-    this.rotateArrowL = gameUi.rotateArrowL;
-    this.rotateArrowR = gameUi.rotateArrowR;
-    this.comboChainEffect = new ComboChainEffect(this, gameUi.girl, gameUi.giantHead);
+    this.gameUi = new GameUiObjects(this, w, h);
+    this.giantHead = this.gameUi.giantHead;
+    this.pauseBtn = this.gameUi.pauseBtn;
+    this.soundBtn = this.gameUi.soundBtn;
+    this.rotateArrowL = this.gameUi.rotateArrowL;
+    this.rotateArrowR = this.gameUi.rotateArrowR;
+    this.comboChainEffect = new ComboChainEffect(this, this.gameUi.girl, this.gameUi.giantHead);
 
     if (this.debugBackgroundOnly) {
       return;
@@ -449,9 +450,9 @@ export class GameScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleSceneShutdown, this);
 
-    // 解析 URL 参数：?token=<上游平台 long JWT>，?mode=3m/5m/10m 限时模式
+    // 解析 URL 参数：?token=<gameToken: super86 长 JWT>，?mode=3m/5m/10m 限时模式
     const urlParams = new URLSearchParams(window.location.search);
-    const platformToken = urlParams.get('token') || '';
+    const gameToken = urlParams.get('token') || '';
     const modeRaw = (urlParams.get('mode') || '').trim().toLowerCase();
     const modeMap: Record<string, number> = { '3m': 3 * 60_000, '5m': 5 * 60_000, '10m': 10 * 60_000 };
     this.modeMs = modeMap[modeRaw] ?? 0;
@@ -464,10 +465,10 @@ export class GameScene extends Phaser.Scene {
     if (IS_DEBUG) {
       this.initDebugMode();
       if (this.modeMs > 0) this.startCountdown();
-    } else if (!platformToken) {
-      console.warn('[GameScene] 未带 token 参数，无法进入游戏 — 上游平台需要 redirect 带 ?token=<JWT>');
+    } else if (!gameToken) {
+      console.warn('[GameScene] 未带 token 参数，无法进入游戏 — 上游平台需要 redirect 带 ?token=<gameToken>');
     } else {
-      void this.exchangeAndInit(platformToken).then(() => {
+      void this.exchangeAndInit(gameToken).then(() => {
         if (this.modeMs > 0) this.startCountdown();
       });
     }
@@ -631,13 +632,19 @@ export class GameScene extends Phaser.Scene {
   // 当前糖果、下一个糖果和 stone 指令都只来自这条序列。
   private static initBackendSeq: number = 0;
 
-  // 用 super86 长 token 换我们的内部 short token，然后开局
-  private async exchangeAndInit(platformToken: string): Promise<void> {
+  // 用 super86 长 gameToken 换我们的内部 short token，然后开局
+  private async exchangeAndInit(gameToken: string): Promise<void> {
     try {
       console.log('[GameScene] /game/auth/login 换内部 token...');
-      const { token: internalToken, user, super86Verified } = await authLogin(platformToken);
-      console.log(`[GameScene] auth/login OK userId=${user.userId} kol=${user.kolUserId} platform=${user.platformId} verified=${super86Verified}`);
+      const { token: internalToken, user, super86Verified } = await authLogin(gameToken);
+      console.log(`[GameScene] auth/login OK userId=${user.userId} kol=${user.kolUserId} platform=${user.platformId} verified=${super86Verified} score=${user.score}`);
       setGameToken(internalToken);
+      this.gameUi.applyUserInfo(this, {
+        avatar: user.avatar,
+        nickname: user.nickname,
+        score: user.score,
+        currency: user.currency,
+      });
       await this.initBackend();
     } catch (e) {
       console.error('[GameScene] auth/login failed:', e);

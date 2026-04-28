@@ -91,7 +91,6 @@ CREATE TABLE IF NOT EXISTS users (
   user_id TEXT NOT NULL DEFAULT '',
   platform_id TEXT NOT NULL DEFAULT '',
   sequence_id TEXT NOT NULL DEFAULT '',
-  note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

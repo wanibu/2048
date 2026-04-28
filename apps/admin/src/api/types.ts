@@ -170,7 +170,6 @@ export interface AdminUser {
   user_id: string;
   platform_id: string;
   sequence_id: string;
-  note: string;
   sequence_name?: string | null;
   created_at: string;
   updated_at: string;
