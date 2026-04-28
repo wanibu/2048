@@ -1542,7 +1542,7 @@ export class GameScene extends Phaser.Scene {
   // 处理发射：计算落点 → 飞行动画 → 落地 → 合并检查
   private handleShoot(shape: Shape, col: number): void {
     // this.resetIdleTimer(); // 用户操作，重置超时（暂时注释）
-    if (this.isPauseOpen || this.isResolvingTurn) return;
+    if (this.isPauseOpen || this.isResolvingTurn || this.isGameOver) return;
     this.isResolvingTurn = true;
     console.log(`[发射] 列=${col + 1}, 值=${shape.value}`);
     this.debugPanel?.logDebugEvent(`发射：列${col + 1} 值=${shape.value}`);
@@ -1980,10 +1980,21 @@ export class GameScene extends Phaser.Scene {
 
     const w = GAME_WIDTH;
     const h = GAME_HEIGHT;
+    const cam = this.cameras.main;
 
-    // 半透明遮罩
-    const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6);
+    // 全屏遮罩：盖住整个 canvas viewport（不只 design 0..960），并吞掉所有点击。
+    // overlay 中心 = 视口中心（camera scroll center），尺寸 = 整个 canvas 宽高。
+    const overlayCx = cam.scrollX + cam.width / 2;
+    const overlayCy = cam.scrollY + cam.height / 2;
+    const overlay = this.add.rectangle(overlayCx, overlayCy, cam.width, cam.height, 0x000000, 0.6);
     overlay.setDepth(200);
+    // 遮罩 setInteractive：吞 pointer 事件，让下层弹弓/旋转按钮收不到点击
+    overlay.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, cam.width, cam.height),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    // overlay 自己不响应任何事（只用于吞输入），但 listener 不能空，否则有些版本会让 input 不抓
+    overlay.on('pointerdown', () => { /* swallow */ });
 
     // Game Over 文字
     this.add.text(w / 2, h * 0.35, 'GAME OVER', {
